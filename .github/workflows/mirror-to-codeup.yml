@@ -2,42 +2,32 @@ name: Mirror to Aliyun Codeup
 
 on:
   push:
-    branches: ["**"] # 所有分支
-    tags: ["*"] # 所有标签
-  # 可选：每天凌晨 3 点强制同步一次（防止漏同步）
+    branches: [ "**" ]
+    tags: [ "*" ]
   schedule:
-    - cron: "0 3 * * *"
-  # 可选：手动触发
+    - cron: '0 3 * * *'
   workflow_dispatch:
 
 jobs:
   mirror:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # 拉取全部历史（镜像必需）
+          fetch-depth: 0
           persist-credentials: false
 
-      - name: Configure Git
-        run: |
+      - run: |
           git config --global user.name "github-mirror"
           git config --global user.email "mirror@github-actions"
 
-      - name: Mirror to Aliyun Codeup
+      - name: Push to Aliyun Codeup
         env:
           TARGET_URL: ${{ secrets.ALIYUN_MIRROR_URL }}
           TOKEN: ${{ secrets.ALIYUN_CODEPUP_TOKEN }}
         run: |
-          # 构造带令牌的 HTTPS URL（解决认证问题）
           AUTH_URL="https://private:${TOKEN}@${TARGET_URL#https://}"
-
-          # 添加阿里云 remote
           git remote add aliyun "$AUTH_URL"
-
-          # 镜像推送（包含所有分支、标签、提交历史）
-          git push aliyun --mirror --force
-
-          # 清理敏感信息（好习惯）
+          git push aliyun --all --force
+          git push aliyun --tags --force
           git remote remove aliyun
