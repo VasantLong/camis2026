@@ -4,6 +4,8 @@
 
 这是一个基于三层存储架构的文档管理系统后端，技术栈为 Python (FastAPI) + PostgreSQL 17 + MinIO + Redis 7.4，全部通过 Docker Compose 进行本地编排部署，设计目标是从本地开发平滑迁移至云服务器。
 
+**Python 环境**: miniforge3 (mamba) 管理，项目环境名 `camis2026`，Python 3.12。依赖通过 `pip install -r requirements.txt` 安装。
+
 ## 开发环境架构
 
 ### 环境配置
@@ -55,6 +57,16 @@ docker compose up -d --build
 # 清除所有数据重新开始 (包括数据库卷)
 docker compose down -v
 docker compose up -d
+
+# 激活 Python 环境并安装依赖
+mamba activate camis2026
+pip install -r requirements.txt
+
+# 启动后端 (确认 Docker 服务已运行)
+uvicorn app.main:app --reload --port 8000
+
+# 健康检查
+curl http://localhost:8000/health
 ```
 
 ## 架构设计核心约束
@@ -97,27 +109,28 @@ docker compose up -d
 
 Docker 服务启动后，需验证以下项目：
 
-- [ ] MinIO 控制台可访问: `http://localhost:9001`，已手动创建 Bucket `company-docs`
-- [ ] PostgreSQL 可连接: `localhost:5432`，数据库 `doc_metadata` 存在
+- [ ] MinIO 控制台可访问: `http://localhost:9001`，Bucket `company-docs` 由 minio-init 容器自动创建
+- [ ] PostgreSQL 可连接: `localhost:5432`，数据库 `doc_metadata` 存在，3 张表已建
 - [ ] Redis 可连接: `localhost:6379`，使用 `AUTH secret_redis_pwd` 认证通过
+- [ ] 安装 Python 依赖: `mamba activate camis2026 && pip install -r requirements.txt`
+- [ ] 启动后端: `uvicorn app.main:app --reload --port 8000`
+- [ ] 验证后端: `curl http://localhost:8000/health`（三项均为 `ok`）
 
-## 项目代码结构 (推荐)
+## 项目代码结构
 
 ```
-your-project/
+camis2026/
 ├── docker-compose.yml      # 容器编排定义
-├── .env                    # 环境变量 (不入 git)
-├── CLAUDE.md               # 本文件
-├── init-scripts/           # PostgreSQL 初始化 SQL 脚本
+├── .env / .env.example     # 环境变量 (.env 不入 git)
+├── requirements.txt        # Python 依赖
+├── init-scripts/           # PostgreSQL 初始化 DDL
 │   └── 01-init-tables.sql
 ├── app/                    # 后端应用代码
-│   ├── main.py             # FastAPI 入口
-│   ├── config.py           # 配置读取
-│   ├── models/             # SQLAlchemy 数据模型
-│   ├── routers/            # API 路由
-│   ├── services/           # 业务逻辑层
-│   │   ├── minio_client.py # MinIO SDK 封装
-│   │   └── document_service.py
-│   └── utils/              # 工具函数
-└── tests/                  # 测试代码
+│   ├── main.py             # FastAPI 入口, lifespan, CORS
+│   ├── config.py           # Pydantic-settings 从 .env 读取
+│   ├── database.py         # SQLAlchemy async engine + session
+│   ├── models/             # ORM 模型 (User, Project, Document)
+│   ├── routers/            # API 路由 (health)
+│   └── services/           # MinIO client, Redis client
+└── tests/
 ```
