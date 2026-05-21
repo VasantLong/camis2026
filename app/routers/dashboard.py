@@ -1,0 +1,45 @@
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, status
+
+from app.database import get_db
+from app.deps import get_current_user
+from app.models.user import User
+from app.schemas.dashboard import ActivityDetail, MonthlyReportRequest, PanelData
+from app.services.dashboard_service import DashboardService
+
+router = APIRouter(prefix="/dashboard", tags=["dashboard"])
+
+
+def _service(db=Depends(get_db)) -> DashboardService:
+    return DashboardService(db)
+
+
+@router.get("", response_model=PanelData)
+async def get_panel(
+    current_user: User = Depends(get_current_user),
+    svc: DashboardService = Depends(_service),
+):
+    return await svc.get_panel_data()
+
+
+@router.get("/activities/{activity_id}", response_model=ActivityDetail)
+async def get_activity_detail(
+    activity_id: UUID,
+    current_user: User = Depends(get_current_user),
+    svc: DashboardService = Depends(_service),
+):
+    try:
+        return await svc.get_activity_detail(activity_id)
+    except LookupError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.post("/reports/monthly")
+async def export_monthly_report(
+    body: MonthlyReportRequest,
+    current_user: User = Depends(get_current_user),
+    svc: DashboardService = Depends(_service),
+):
+    url = await svc.export_monthly_report(body.month)
+    return {"report_url": url, "message": "报表生成中，稍后将发送至消息中心"}

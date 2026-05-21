@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import engine
-from app.routers import activities, auth, documents, filings, health, workflows
+from app.routers import activities, auth, dashboard, documents, filings, health, workflows
 from app.services.minio_client import check_bucket, minio_client
 from app.services.redis_client import close_redis, get_redis
 
@@ -35,3 +35,4 @@ app.include_router(documents.router)
 app.include_router(activities.router)
 app.include_router(workflows.router)
 app.include_router(filings.router)
+app.include_router(dashboard.router)
