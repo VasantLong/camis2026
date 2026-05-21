@@ -35,5 +35,10 @@ class Settings(BaseSettings):
     def redis_url(self) -> str:
         return f"redis://:{self.redis_password}@{self.redis_host}:{self.redis_port}/{self.redis_db}"
 
+    # JWT
+    jwt_secret: str = "change-me-in-production"
+    jwt_algorithm: str = "HS256"
+    jwt_expire_minutes: int = 60
+
 
 settings = Settings()
