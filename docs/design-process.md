@@ -95,5 +95,6 @@ DashboardService    → 数据聚合查询、报表导出
 | 第一步：更新类图 | ✅ | camis-UML.md §实体模型（纯数据载体） |
 | 第二步：更新顺序图 | ✅ | camis-UML.md §面向服务顺序图（UC1-7） |
 | 第二步：API 路由设计 | ✅ | docs/api-routes.md (20 端点) |
-| 第三步：数据库设计（DDL） | ❌ | — |
+| 第三步：数据库设计（DDL） | ✅ | init-scripts/02 + 03 (13 新表, 16 权限种子) |
+| 第三步：文档表适配 | ❌ | documents.project_id → activity_id |
 | 第三步：服务内部设计 | ❌ | — |
