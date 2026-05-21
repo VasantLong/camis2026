@@ -1,3 +1,5 @@
+from io import BytesIO
+
 from minio import Minio
 
 from app.config import settings
@@ -21,7 +23,7 @@ async def upload_file(file_path: str, data: bytes, content_type: str) -> None:
     minio_client.put_object(
         bucket_name=_bucket,
         object_name=file_path,
-        data=data,
+        data=BytesIO(data),
         length=len(data),
         content_type=content_type,
     )
