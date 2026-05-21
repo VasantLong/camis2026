@@ -196,17 +196,35 @@ content_type: "application/pdf"
 // → 异步生成 PDF 报表，完成后通过 NotificationService 推送下载链接
 ```
 
-## 已实现端点
+## 实现状态
 
 | 端点 | 状态 |
 |------|------|
-| `GET /health` | ✅ 已有 |
-| `POST /auth/register` | ✅ 已有 |
-| `POST /auth/login` | ✅ 已有 |
-| `GET /auth/me` | ✅ 已有 |
-| `POST /documents/upload` | ✅ 已有（待适配 activity_id） |
-| `GET /documents/{id}` | ✅ 已有 |
-| `GET /documents/project/{project_id}` | ✅ 已有（待改为 /activities/{id}/documents） |
+| `GET /health` | ✅ |
+| `POST /auth/register` | ✅ |
+| `POST /auth/login` | ✅ |
+| `GET /auth/me` | ✅ |
+| `POST /activities` | ✅ |
+| `GET /activities` | ✅ |
+| `GET /activities/{id}` | ✅ |
+| `GET /activities/{id}/history` | ✅ |
+| `PUT /activities/{id}/status` | ✅ |
+| `POST /activities/{id}/reject` | ✅ |
+| `POST /activities/{id}/force-cancel` | ✅ |
+| `POST /activities/{id}/force-postpone` | ✅ |
+| `POST /documents/upload` | ✅（待适配 activity_id） |
+| `GET /documents/{id}` | ✅ |
+| `GET /documents/project/{project_id}` | ✅（待改为 /activities/{id}/documents） |
+| `GET /activities/{id}/documents` | ❌ |
+| `POST /activities/{id}/documents` | ❌ |
+| `GET /activities/{id}/filing/validate` | ✅ |
+| `POST /activities/{id}/filing/pack` | ✅ |
+| `POST /activities/{id}/filing/handover` | ✅ |
+| `GET /dashboard` | ✅ |
+| `GET /dashboard/activities/{id}` | ✅ |
+| `POST /dashboard/reports/monthly` | ✅ |
+
+> 已实现: 18/20 端点。缺失: `GET/POST /activities/{id}/documents`（待适配 activity_id 后对接 DocumentService）
 
 ## 错误响应格式
 

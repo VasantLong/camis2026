@@ -398,9 +398,9 @@ flowchart TD
 
 | 服务 | Pydantic 模型 | 方法签名 | 业务规则 | 实现状态 |
 |------|:---:|:---:|:---:|:---:|
-| ActivityService | ✅ | ✅ | ✅ | ❌ |
-| WorkflowService | ✅ | ✅ | ✅ | ❌ |
-| DocumentService | ✅ | ✅ | ✅ | ⚠ 已有基础 |
-| FilingService | ✅ | ✅ | ✅ | ❌ |
-| NotificationService | ✅ | ✅ | ✅ | ❌ |
-| DashboardService | ✅ | ✅ | ✅ | ❌ |
+| ActivityService | ✅ | ✅ | ✅ | ✅ |
+| WorkflowService | ✅ | ✅ | ✅ | ✅ |
+| DocumentService | ✅ | ✅ | ✅ | ⚠ 已有基础（待适配 activity_id） |
+| FilingService | ✅ | ✅ | ✅ | ✅ |
+| NotificationService | ✅ | ✅ | ✅ | ⚠ 存根（仅日志） |
+| DashboardService | ✅ | ✅ | ✅ | ✅ |
