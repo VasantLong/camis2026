@@ -53,6 +53,7 @@
 - **服务导向架构**: 业务逻辑归属服务层，实体是纯数据载体。ADR: `docs/adr/0001.md`
 - **RBAC 用户模型**: User + Role + Permission 替代类继承。ADR: `docs/adr/0002.md`
 - **活动状态机**: `docs/state-machine.md`
+- **服务内部设计**: `docs/service-design.md`
 - **API 路由设计**: `docs/api-routes.md`
 - **UML 用例/顺序图/类图**: `docs/camis-UML.md`
 - **OO→SO 设计方法论**: `docs/oo-so.md`

@@ -97,4 +97,4 @@ DashboardService    → 数据聚合查询、报表导出
 | 第二步：API 路由设计 | ✅ | docs/api-routes.md (20 端点) |
 | 第三步：数据库设计（DDL） | ✅ | init-scripts/02 + 03 (13 新表, 16 权限种子) |
 | 第三步：文档表适配 | ❌ | documents.project_id → activity_id |
-| 第三步：服务内部设计 | ❌ | — |
+| 第三步：服务内部设计 | ✅ | docs/service-design.md (6 服务: 方法签名 + Pydantic + 规则) |
