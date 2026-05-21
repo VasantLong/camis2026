@@ -26,4 +26,4 @@ async def test_upload_unauthenticated(client, test_project):
         data={"project_id": test_project},
         files={"file": ("hello.txt", b"hello", "text/plain")},
     )
-    assert resp.status_code == 403
+    assert resp.status_code == 401
