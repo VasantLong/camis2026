@@ -869,6 +869,241 @@ opt 报表导出与超时处理 (备选流 2a)
     %% 后台异步处理过程 (此时前端不阻塞，用户可继续其他操作)
     Note over System: 【后台异步任务】<br/>Go协程持续汇聚报表数据并生成PDF
     System->>System: 报表文件生成完毕，持久化入库
-    System-)Admin: 推送异步通知：“本月合规报表已生成，请点击下载”
+    System-)Admin: 推送异步通知：”本月合规报表已生成，请点击下载”
 end
+```
+
+# 面向服务顺序图
+
+> 以下为新版顺序图，`System` 黑盒拆分为具体服务。用例流程不变，仅 lifeline 从单 `System` 变为服务层各组件。
+
+## UC1 SO顺序图 — 立项
+
+```mermaid
+sequenceDiagram autonumber
+    actor Promoter as 宣策部人员
+    participant AS as ActivityService
+    participant DB as Database
+    participant NS as NotificationService
+    actor Designer as 方案设计成员
+
+    Promoter->>AS: create_project(data, deadline, designer_id)
+    AS->>DB: 校验必填字段
+    alt 必填字段缺失
+        AS-->>Promoter: 阻断，提示必填
+    end
+    AS->>DB: 查询同场地同时段已审批通过的活动
+    alt 场地/时间冲突
+        AS-->>Promoter: 阻断，提示资源冲突
+    end
+    AS->>DB: INSERT INTO activities (status=”待设计方案”)
+    AS->>NS: send_reminder(designer_id, “新活动待设计方案”)
+    NS--)Designer: 系统内/邮件待办提醒
+    AS-->>Promoter: 立项成功，返回 activity_id
+```
+
+## UC2 SO顺序图 — 活动方案设计
+
+```mermaid
+sequenceDiagram autonumber
+    actor Designer as 方案设计成员(宣策部)
+    participant AS as ActivityService
+    participant DS as DocumentService
+    participant WS as WorkflowService
+    participant NS as NotificationService
+    actor Security as 安保部人员
+
+    opt 后台检测：当前时间 > 截止时间 且 status=”待设计方案”
+        NS->>NS: check_overdue(activity_id)
+        NS--)Designer: 逾期预警通知
+    end
+
+    Designer->>AS: get_activity(id)
+    AS->>DB: SELECT activity
+    AS-->>Designer: 返回活动详情 + 方案模板
+
+    Designer->>DS: upload(activity_id, file, content)
+    DS->>MinIO: put_object
+    DS->>DB: INSERT documents (metadata)
+    DS-->>Designer: 上传成功
+
+    Designer->>WS: transition(activity_id, “待安保方案设计”)
+    WS->>DB: 校验附件格式/大小
+    alt 格式或大小违规
+        WS-->>Designer: 阻断，提示调整
+    end
+    WS->>DB: UPDATE activities SET status=”待安保方案设计”
+    WS->>NS: notify_role(“SecurityOfficer”, “需进行安保方案设计”)
+    NS--)Security: 待办行动提示
+    WS-->>Designer: 提交成功
+```
+
+## UC3 SO顺序图 — 安保方案设计
+
+```mermaid
+sequenceDiagram autonumber
+    actor Staff as 安保编制人员
+    participant AS as ActivityService
+    participant WS as WorkflowService
+    participant DS as DocumentService
+    participant NS as NotificationService
+    actor Manager as 安保部负责人
+
+    NS--)Staff: 推送”活动方案待审核”
+
+    Staff->>AS: get_activity(id)
+    AS-->>Staff: 返回活动方案详情
+
+    Staff->>WS: transition(activity_id, “安保方案编制中”)
+    Staff->>DS: upload 安保材料(人员配置、动线、风险评估表等)
+    DS->>MinIO: put_object
+    DS->>DB: INSERT documents
+
+    Staff->>WS: submit_for_review(activity_id)
+    WS->>DB: UPDATE audit_status=”待负责人审核”
+    WS->>NS: send_reminder(manager_id, “安保方案待审批”)
+    NS--)Manager: 推送审批提醒
+
+    alt 审批通过
+        Manager->>WS: approve(activity_id)
+        Staff->>DS: upload 签署后的风险评估表 + 责任确认书
+        DS->>MinIO: put_object (带电子签名)
+        WS->>DB: UPDATE status=”待备案申请”
+        WS-->>Staff: 提示”可开始备案申请”
+
+    else 负责人驳回
+        Manager->>WS: reject(activity_id, reason)
+        WS->>NS: send_reminder(staff_id, reason)
+        NS--)Staff: 通知驳回 + 修改意见
+        Note over Staff, WS: 编制人员调整后重新提交(循环)
+    end
+```
+
+## UC4 SO顺序图 — 提交备案申请
+
+```mermaid
+sequenceDiagram autonumber
+    actor Security as 安保部人员
+    participant FS as FilingService
+    participant WS as WorkflowService
+    participant DB as Database
+    actor GovLiaison as 政府对接人员
+
+    Security->>FS: pack_materials(activity_id)
+    FS->>DB: validate_signatures(activity_id)
+    alt 签名或材料缺失
+        FS-->>Security: 阻断，提示”缺少电子签章，无法生成备案包”
+    end
+    FS->>DB: 聚合所有材料 → 生成 PDF 打包文件
+    FS-->>Security: 返回可供打印的 PDF 集合版
+
+    Note over Security, GovLiaison: 【线下】打印纸质版<br/>物理递交给政府对接人员
+
+    Security->>FS: confirm_handover(activity_id)
+    FS->>WS: transition(activity_id, “备案材料已交接”)
+    WS->>DB: UPDATE status
+    WS-->>GovLiaison: (可选) 推送材料已流转通知
+```
+
+## UC5 SO顺序图 — 审批安保方案
+
+```mermaid
+sequenceDiagram autonumber
+    actor Liaison as 对接政府审批人员
+    actor Gov as 政府(线下)
+    participant DS as DocumentService
+    participant WS as WorkflowService
+    participant NS as NotificationService
+    actor Security as 安保部人员
+
+    Note over Liaison, Gov: 【线下】携带纸质材料<br/>前往窗口申报
+    Gov-->>Liaison: 出具结果(批文/补件通知/驳回通知)
+
+    Liaison->>DS: upload(批文电子版)
+    DS->>MinIO: put_object
+    DS->>DB: INSERT documents
+
+    alt 审批通过
+        Liaison->>WS: transition(activity_id, “审批通过”)
+        WS->>DB: UPDATE status + 存储批文记录
+        WS-->>Liaison: 保存成功
+
+    else 需补充材料
+        Liaison->>WS: transition(activity_id, “待补充备案材料”, reason)
+        WS->>DB: UPDATE status + 存储补充要求
+        WS->>NS: notify_role(“SecurityOfficer”, “需补充备案材料”)
+        NS--)Security: 推送补件待办
+
+    else 政府驳回
+        Liaison->>WS: transition(activity_id, “不通过/已终止”)
+        WS->>DB: UPDATE status + 存储驳回文件
+        WS-->>Liaison: 状态已更新
+    end
+```
+
+## UC6 SO顺序图 — 登记审批结果
+
+```mermaid
+sequenceDiagram autonumber
+    actor Security as 安保部人员
+    participant WS as WorkflowService
+    participant NS as NotificationService
+    actor Admin as 行政部人员
+    actor Manager as 安保部负责人
+
+    NS--)Security: 推送”批文已上传，待确认审批结果”
+
+    alt 确认通过
+        Security->>WS: confirm_approval(activity_id)
+        WS->>DB: UPDATE status=”审批通过-待举办”
+        WS->>NS: notify_role(“AdminStaff”, “活动批文已下发，可合法举办”)
+        NS--)Admin: 活动可合法举办通知
+        WS-->>Security: 状态闭环成功
+
+    else 驳回/需整改
+        Security->>WS: reject(activity_id, rectification_opinion)
+        WS->>DB: UPDATE status=”待安保方案设计” (逆向流转)
+        WS->>NS: send_reminder(admin_id, “方案被驳回风险”)
+        WS->>NS: send_reminder(manager_id, “需重新出具安保方案”)
+        NS--)Admin: 预警：方案被驳回
+        NS--)Manager: 预警：需重做安保方案
+        WS-->>Security: 已退回至待安保方案设计
+    end
+```
+
+## UC7 SO顺序图 — 活动实施情况面板
+
+```mermaid
+sequenceDiagram autonumber
+    actor Admin as 行政部人员
+    participant DS as DashboardService
+    participant WS as WorkflowService
+    participant DB as Database
+    participant NS as NotificationService
+
+    Admin->>DS: get_panel_data()
+    DS->>DB: 多维度聚合查询
+    DS-->>Admin: 渲染可视化图表(进度/已举办/合规率)
+
+    opt 监控详情 + 不可抗力干预
+        Admin->>DS: get_activity_detail(id)
+        DS->>DB: 查询流转历史 + 当前状态
+        DS-->>Admin: 全局监控详情页
+
+        Admin->>WS: force_cancel(activity_id, reason) / force_postpone(activity_id, reason)
+        WS->>DB: 校验权限(AdminStaff)
+        WS->>DB: UPDATE status + 锁定后续操作
+        WS->>DB: INSERT implementation_records (归档异常)
+        WS-->>Admin: 变更成功，面板异常清单更新
+    end
+
+    opt 报表导出超时
+        Admin->>DS: export_monthly_report(month)
+        DS->>DB: 预估数据量 > 阈值
+        DS-->>Admin: “报表生成中，稍后发送至消息中心”
+        Note over DS: 后台异步生成报表 PDF
+        DS->>DB: 报表文件生成完毕，持久化
+        DS->>NS: notify_role(“AdminStaff”, “报表已生成”)
+        NS--)Admin: 推送下载链接
+    end
 ```
