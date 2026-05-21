@@ -120,17 +120,24 @@ Docker 服务启动后，需验证以下项目：
 
 ```
 camis2026/
-├── docker-compose.yml      # 容器编排定义
-├── .env / .env.example     # 环境变量 (.env 不入 git)
-├── requirements.txt        # Python 依赖
-├── init-scripts/           # PostgreSQL 初始化 DDL
+├── pyproject.toml           # pytest asyncio 配置
+├── docker-compose.yml       # 容器编排定义
+├── .env / .env.example      # 环境变量 (.env 不入 git)
+├── requirements.txt         # Python 依赖
+├── init-scripts/            # PostgreSQL 初始化 DDL
 │   └── 01-init-tables.sql
-├── app/                    # 后端应用代码
-│   ├── main.py             # FastAPI 入口, lifespan, CORS
-│   ├── config.py           # Pydantic-settings 从 .env 读取
-│   ├── database.py         # SQLAlchemy async engine + session
-│   ├── models/             # ORM 模型 (User, Project, Document)
-│   ├── routers/            # API 路由 (health)
-│   └── services/           # MinIO client, Redis client
+├── app/                     # 后端应用代码
+│   ├── main.py              # FastAPI 入口, lifespan, CORS
+│   ├── config.py            # Pydantic-settings 从 .env 读取
+│   ├── database.py          # SQLAlchemy async engine + session
+│   ├── auth.py              # bcrypt 密码哈希 + JWT 签发/验证
+│   ├── deps.py              # get_current_user 依赖注入 (Bearer token)
+│   ├── models/              # ORM 模型 (User, Project, Document)
+│   ├── routers/             # API 路由 (health, auth, documents)
+│   └── services/            # MinIO client (upload, presigned URL), Redis client
 └── tests/
+    ├── conftest.py          # async client + auth/project fixtures
+    ├── test_auth.py         # 注册、登录、token 校验
+    ├── test_upload.py       # 文件上传、未登录拦截
+    └── test_download.py     # 302 重定向、404、项目列表
 ```
