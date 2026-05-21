@@ -1,3 +1,4 @@
+from datetime import timedelta
 from io import BytesIO
 
 from minio import Minio
@@ -33,5 +34,5 @@ async def get_presigned_url(object_name: str, expires: int = 1800) -> str:
     return minio_client.presigned_get_object(
         bucket_name=_bucket,
         object_name=object_name,
-        expires=expires,
+        expires=timedelta(seconds=expires),
     )
