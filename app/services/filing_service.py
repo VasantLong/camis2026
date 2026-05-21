@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.activity import Activity
@@ -37,9 +37,9 @@ class FilingService:
             raise LookupError("活动不存在")
 
         result = await self.db.execute(
-            select(Activity).from_statement(JOIN_QUERY).params(activity_id=activity_id)
+            text(JOIN_QUERY), {"activity_id": activity_id}
         )
-        rows = result.all()
+        rows = result.fetchall()
 
         validations: list[MaterialValidation] = []
         for row in rows:
