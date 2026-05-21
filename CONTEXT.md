@@ -49,7 +49,9 @@
 
 ## 架构决策
 
+- **模块化单体**: 所有服务运行在同一 FastAPI 进程内，同步调用，ACID 事务。详见 `docs/design-process.md`
 - **服务导向架构**: 业务逻辑归属服务层，实体是纯数据载体。ADR: `docs/adr/0001.md`
 - **RBAC 用户模型**: User + Role + Permission 替代类继承。ADR: `docs/adr/0002.md`
 - **活动状态机**: `docs/state-machine.md`
 - **UML 用例/顺序图**: `docs/camis-UML.md`
+- **OO→SO 设计方法论**: `docs/oo-so.md`
