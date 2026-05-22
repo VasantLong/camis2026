@@ -36,3 +36,65 @@ class ActivityStatusLog(Base):
     operator_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     comment: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ActivityPlan(Base):
+    __tablename__ = "activity_plans"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    activity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("activities.id", ondelete="CASCADE"), nullable=False
+    )
+    content: Mapped[str | None] = mapped_column(Text)
+    attachment_url: Mapped[str | None] = mapped_column(String(2048))
+    submit_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    designer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    is_overdue: Mapped[bool] = mapped_column(default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class SecurityPlan(Base):
+    __tablename__ = "security_plans"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    activity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("activities.id", ondelete="CASCADE"), nullable=False
+    )
+    risk_level: Mapped[str | None] = mapped_column(String(64))
+    audit_status: Mapped[str] = mapped_column(String(64), default="待编制", nullable=False)
+    manager_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    sign_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ApprovalRecord(Base):
+    __tablename__ = "approval_records"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    activity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("activities.id", ondelete="CASCADE"), nullable=False
+    )
+    liaison_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    approval_status: Mapped[str] = mapped_column(String(64), nullable=False)
+    attachment_url: Mapped[str | None] = mapped_column(String(2048))
+    approval_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    rectification_opinion: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ImplementationRecord(Base):
+    __tablename__ = "implementation_records"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    activity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("activities.id", ondelete="CASCADE"), nullable=False
+    )
+    admin_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    progress: Mapped[str | None] = mapped_column(Text)
+    change_status: Mapped[str] = mapped_column(String(64), default="正常", nullable=False)
+    change_reason: Mapped[str | None] = mapped_column(Text)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
