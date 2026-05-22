@@ -27,6 +27,29 @@ WHERE fd.activity_id = :activity_id
 """
 
 
+def _generate_pdf(activity_name: str, materials: list[MaterialValidation]) -> bytes:
+    from io import BytesIO
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfgen import canvas
+
+    buf = BytesIO()
+    c = canvas.Canvas(buf, pagesize=A4)
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(50, 780, f"备案材料包: {activity_name}")
+    c.setFont("Helvetica", 10)
+    y = 740
+    for i, m in enumerate(materials, 1):
+        status = "合格" if m.is_qualified else "待审核"
+        sig = "已签" if m.has_signature else "未签"
+        c.drawString(50, y, f"{i}. {m.name} — {status} — {sig}")
+        y -= 18
+        if y < 50:
+            c.showPage()
+            y = 780
+    c.save()
+    return buf.getvalue()
+
+
 class FilingService:
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -52,6 +75,7 @@ class FilingService:
                 material_id=row.id,
                 name=row.name,
                 is_qualified=row.is_qualified,
+                has_signature=False,
                 issues=issues,
             ))
         return validations
@@ -80,6 +104,14 @@ class FilingService:
             filing_doc.is_qualified = len(qualified) == len(validations) and len(validations) > 0
             filing_doc.generated_at = datetime.now(timezone.utc)
             await self.db.commit()
+
+        from app.models.activity import Activity
+        activity = await self.db.get(Activity, activity_id)
+
+        pdf_bytes = _generate_pdf(activity.name if activity else "未知活动", validations)
+        from app.services.minio_client import upload_file as minio_upload
+        pdf_path = f"filings/{activity_id}/pack_{filing_doc.id}.pdf"
+        await minio_upload(pdf_path, pdf_bytes, "application/pdf")
 
         return FilingPackResult(
             filing_doc_id=filing_doc.id,

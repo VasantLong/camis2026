@@ -21,15 +21,17 @@ TRANSITION_MATRIX: dict[str, set[str]] = {
 
 TERMINAL_STATUSES = {"审批通过-待举办", "不通过/已终止", "已取消", "已延期"}
 
-NOTIFICATION_RULES: dict[str, tuple[str, str]] = {
-    "待安保方案设计":  ("SecurityOfficer", "需进行安保方案设计"),
-    "待备案申请":      ("SecurityOfficer", "材料齐备，可开始备案申请"),
-    "备案材料已交接":  ("GovLiaison", "备案材料已流转至政府对接"),
-    "审批通过":        ("SecurityOfficer", "批文已上传，待安保部确认审批结果"),
-    "审批通过-待举办": ("AdminStaff", "活动批文已下发，可合法举办"),
-    "待补充备案材料":  ("SecurityOfficer", "需补充备案材料"),
-    "不通过/已终止":   ("AdminStaff", "活动审批未通过"),
+NOTIFICATION_RULES: dict[str, tuple[list[str], str]] = {
+    "待安保方案设计":  (["SecurityOfficer"], "需进行安保方案设计"),
+    "待备案申请":      (["SecurityOfficer"], "材料齐备，可开始备案申请"),
+    "备案材料已交接":  (["GovLiaison"], "备案材料已流转至政府对接"),
+    "审批通过":        (["SecurityOfficer"], "批文已上传，待安保部确认审批结果"),
+    "审批通过-待举办": (["AdminStaff"], "活动批文已下发，可合法举办"),
+    "待补充备案材料":  (["SecurityOfficer"], "需补充备案材料"),
+    "不通过/已终止":   (["AdminStaff", "SecurityOfficer"], "活动审批未通过"),
 }
+
+REJECT_NOTIFY_ROLES = ["AdminStaff", "SecurityOfficer"]
 
 
 class WorkflowService:
@@ -71,8 +73,9 @@ class WorkflowService:
 
         rule = NOTIFICATION_RULES.get(to_status)
         if rule:
-            role_name, msg = rule
-            await self.notification.notify_role(role_name, msg)
+            roles, msg = rule
+            for role_name in roles:
+                await self.notification.notify_role(role_name, msg)
 
         return log
 
@@ -84,11 +87,14 @@ class WorkflowService:
             raise LookupError("活动不存在")
 
         if activity.status == "待安保方案设计":
-            return await self.transition(activity_id, "待安保方案设计", operator, reason)
+            result = await self.transition(activity_id, "待安保方案设计", operator, reason)
         elif activity.status == "审批通过":
-            return await self.transition(activity_id, "待安保方案设计", operator, reason)
+            result = await self.transition(activity_id, "待安保方案设计", operator, reason)
+            for role_name in REJECT_NOTIFY_ROLES:
+                await self.notification.notify_role(role_name, f"活动被驳回需重做: {reason}")
         else:
             raise ValueError(f"当前状态 {activity.status} 不支持驳回操作")
+        return result
 
     async def force_cancel(
         self, activity_id: UUID, operator: User, reason: str,

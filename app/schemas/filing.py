@@ -7,6 +7,7 @@ class MaterialValidation(BaseModel):
     material_id: UUID
     name: str
     is_qualified: bool
+    has_signature: bool
     issues: list[str]
 
 

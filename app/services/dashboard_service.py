@@ -64,7 +64,10 @@ class DashboardService:
 
     async def export_monthly_report(self, month: str) -> str:
         from datetime import datetime, timezone, timedelta
+        from io import BytesIO
         from sqlalchemy import text
+        from reportlab.lib.pagesizes import A4
+        from reportlab.pdfgen import canvas
 
         start = datetime(int(month[:4]), int(month[5:7]), 1, tzinfo=timezone(timedelta(hours=8)))
         end = datetime(start.year, start.month + 1, 1, tzinfo=start.tzinfo) if start.month < 12 else datetime(start.year + 1, 1, 1, tzinfo=start.tzinfo)
@@ -75,4 +78,25 @@ class DashboardService:
         )
         count = result.scalar() or 0
 
-        return f"report_{month}.pdf"
+        result2 = await self.db.execute(
+            text("SELECT status, count(*) FROM activities WHERE created_at >= :start AND created_at < :end GROUP BY status"),
+            {"start": start, "end": end},
+        )
+
+        buf = BytesIO()
+        c = canvas.Canvas(buf, pagesize=A4)
+        c.setFont("Helvetica-Bold", 16)
+        c.drawString(50, 780, f"月度合规报告 — {month}")
+        c.setFont("Helvetica", 12)
+        c.drawString(50, 740, f"本月新增活动: {count}")
+        y = 710
+        for row in result2.all():
+            c.drawString(50, y, f"  {row[0]}: {row[1]}")
+            y -= 20
+        c.save()
+        pdf_bytes = buf.getvalue()
+
+        from app.services.minio_client import upload_file
+        path = f"reports/{month}.pdf"
+        await upload_file(path, pdf_bytes, "application/pdf")
+        return path
