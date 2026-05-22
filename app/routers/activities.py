@@ -2,12 +2,18 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+import json
+
+from sqlalchemy import select
+
 from app.database import get_db
 from app.deps import get_current_user
+from app.models.document import Document
 from app.models.user import User
 from app.rbac import require_permission
 from app.schemas.activity import ActivityCreate, ActivityListParams, ActivityResponse, StatusLogEntry
 from app.services.activity_service import ActivityService
+from app.services.redis_client import get_redis
 
 router = APIRouter(prefix="/activities", tags=["activities"])
 
@@ -76,3 +82,37 @@ async def get_status_history(
     _perm: None = require_permission("view_owned_activity"),
 ):
     return await svc.get_status_history(activity_id)
+
+
+@router.get("/{activity_id}/documents")
+async def list_activity_documents(
+    activity_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db=Depends(get_db),
+    _perm: None = require_permission("view_owned_activity"),
+):
+    redis = await get_redis()
+    cache_key = f"activity:{activity_id}:docs"
+    cached = await redis.get(cache_key)
+    if cached:
+        return json.loads(cached)
+
+    result = await db.execute(
+        select(Document).where(Document.activity_id == activity_id).order_by(Document.created_at.desc())
+    )
+    docs = result.scalars().all()
+    items = [
+        {
+            "id": str(d.id),
+            "activity_id": str(d.activity_id) if d.activity_id else None,
+            "uploader_id": str(d.uploader_id),
+            "filename": d.filename,
+            "minio_path": d.minio_path,
+            "file_size": d.file_size,
+            "content_type": d.content_type,
+            "tags": d.tags,
+        }
+        for d in docs
+    ]
+    await redis.set(cache_key, json.dumps(items), ex=300)
+    return items
