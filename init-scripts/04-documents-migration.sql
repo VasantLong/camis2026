@@ -10,7 +10,9 @@ ALTER TABLE documents ADD COLUMN IF NOT EXISTS activity_id UUID REFERENCES activ
 -- 索引
 CREATE INDEX IF NOT EXISTS idx_documents_activity ON documents(activity_id);
 
+-- project_id 改为可空，新文档可仅关联 activity_id
+ALTER TABLE documents ALTER COLUMN project_id DROP NOT NULL;
+
 -- 备注：
 -- - project_id 暂时保留，待前端适配完成后废弃
 -- - 新上传的文档应关联 activity_id
--- - 未来可通过 Alembic 迁移完成 project_id → activity_id 的完整切换

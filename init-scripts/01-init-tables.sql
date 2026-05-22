@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS projects (
 -- Documents table (core)
 CREATE TABLE IF NOT EXISTS documents (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
     uploader_id UUID NOT NULL REFERENCES users(id),
     filename VARCHAR(1024) NOT NULL,
     minio_path VARCHAR(2048) NOT NULL UNIQUE,
