@@ -105,7 +105,7 @@ DashboardService    → 数据聚合查询、报表导出
 | 待补齐：剩余 ORM 模型 | ✅ | 11 个新模型已补齐 |
 | 待补齐：文件格式/大小校验 | ❌ | upload 无 MIME/扩展名/50MB 限制 |
 | 待补齐：PDF 生成 | ❌ | pack_materials 不合并文件，export_monthly_report 是存根 |
-| 待补齐：交接触发状态变更 | ❌ | confirm_handover 不调用 WorkflowService |
+| 待补齐：交接触发状态变更 | ✅ | confirm_handover → ws.transition |
 | 待补齐：强制变更写归档 | ❌ | force_cancel/postpone 不写 implementation_records |
 | 待补齐：Designer 通知 + overdue 调度 | ❌ | Activity 缺少 designer_id 列，check_overdue 无调用 |
 | 待补齐：DocumentService 类 | ❌ | 上传/下载逻辑散落在 router 里 |
