@@ -101,5 +101,5 @@ DashboardService    → 数据聚合查询、报表导出
 | 第四步：服务代码实现 | ✅ | 6 服务已实现（ActivityService, WorkflowService, DocumentService, FilingService, NotificationService存根, DashboardService） |
 | 待补齐：RBAC 权限接入路由 | ✅ | 所有受保护端点已接入 require_permission |
 | 待补齐：文档表适配 | ✅ | upload/list 已切换为 activity_id |
-| 待补齐：新服务测试 | ❌ | 仅 auth/upload/download 有 11 个测试 |
+| 待补齐：新服务测试 | ✅ | 28 测试全部通过 |
 | 待补齐：剩余 ORM 模型 | ✅ | 11 个新模型已补齐 |
