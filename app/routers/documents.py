@@ -15,6 +15,15 @@ from app.models.user import User
 from app.services.minio_client import get_presigned_url, upload_file
 from app.services.redis_client import get_redis
 
+ALLOWED_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx"}
+ALLOWED_MIMES = {
+    "application/pdf",
+    "image/jpeg", "image/png",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
+
 router = APIRouter(prefix="/documents", tags=["documents"])
 
 
@@ -53,6 +62,18 @@ async def upload_document(
     activity = await db.get(Activity, activity_id)
     if activity is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="活动不存在")
+
+    # 文件格式/大小校验
+    ext = Path(file.filename).suffix.lower() if file.filename else ""
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"不支持的文件格式: {ext}，允许: {', '.join(ALLOWED_EXTENSIONS)}")
+    if file.content_type and file.content_type not in ALLOWED_MIMES:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"不支持的文件类型: {file.content_type}")
+    if file.size and file.size > MAX_FILE_SIZE:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"文件过大，最大允许 50MB")
 
     content = await file.read()
     ext = Path(file.filename).suffix.lstrip(".").lower() if file.filename else "bin"

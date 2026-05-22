@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS activities (
     deadline TIMESTAMPTZ NOT NULL,
     status VARCHAR(64) NOT NULL DEFAULT '待设计方案',
     owner_id UUID NOT NULL REFERENCES users(id),
+    designer_id UUID REFERENCES users(id),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

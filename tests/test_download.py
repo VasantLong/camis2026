@@ -7,7 +7,7 @@ async def test_download_redirect(client, auth_token, test_activity):
         "/documents/upload",
         headers={"Authorization": f"Bearer {auth_token}"},
         data={"activity_id": test_activity},
-        files={"file": ("data.txt", b"test content", "text/plain")},
+        files={"file": ("data.pdf", b"test content", "application/pdf")},
     )
     doc_id = upload_resp.json()["id"]
 
@@ -36,7 +36,7 @@ async def test_list_activity_documents(client, promoter_token, test_activity):
             "/documents/upload",
             headers={"Authorization": f"Bearer {promoter_token}"},
             data={"activity_id": test_activity},
-            files={"file": (f"doc{i}.txt", f"content {i}", "text/plain")},
+            files={"file": (f"doc{i}.pdf", f"content {i}", "application/pdf")},
         )
 
     resp = await client.get(

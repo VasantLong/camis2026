@@ -1,5 +1,7 @@
 import pytest
+from sqlalchemy import text
 
+from app.database import async_session
 from tests.conftest import transition as _transition
 
 
@@ -42,6 +44,15 @@ async def test_force_cancel(client, admin_token, test_activity):
     assert resp.status_code == 200
     data = resp.json()
     assert data["to_status"] == "已取消"
+
+    # 验证 implementation_records 已写入
+    async with async_session() as db:
+        result = await db.execute(text(
+            "SELECT change_status, change_reason FROM implementation_records WHERE activity_id = :aid"
+        ), {"aid": test_activity})
+        row = result.fetchone()
+        assert row is not None
+        assert row[0] == "已取消"
 
 
 @pytest.mark.asyncio

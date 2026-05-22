@@ -44,6 +44,7 @@ class ActivityService:
             deadline=data.deadline,
             status="待设计方案",
             owner_id=owner_id,
+            designer_id=data.designer_id,
         )
         self.db.add(activity)
         await self.db.commit()
@@ -57,6 +58,11 @@ class ActivityService:
         )
         self.db.add(log)
         await self.db.commit()
+
+        from app.services.notification_service import NotificationService
+        ns = NotificationService(self.db)
+        if data.designer_id:
+            await ns.send_reminder(data.designer_id, f"新活动待设计方案: {activity.name}")
 
         return ActivityResponse.model_validate(activity)
 

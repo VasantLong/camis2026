@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy import select
@@ -121,6 +122,17 @@ class WorkflowService:
             comment=reason,
         )
         self.db.add(log)
+
+        from app.models.activity import ImplementationRecord
+        record = ImplementationRecord(
+            activity_id=activity.id,
+            admin_id=operator.id,
+            change_status=target,
+            change_reason=reason,
+            archived_at=datetime.now(timezone.utc),
+        )
+        self.db.add(record)
+
         await self.db.commit()
         await self.db.refresh(log)
 

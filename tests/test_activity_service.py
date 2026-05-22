@@ -5,6 +5,8 @@ import pytest
 
 @pytest.mark.asyncio
 async def test_create_activity(client, promoter_token):
+    me = await client.get("/auth/me", headers={"Authorization": f"Bearer {promoter_token}"})
+    uid = me.json()["id"]
     resp = await client.post("/activities", headers={
         "Authorization": f"Bearer {promoter_token}",
     }, json={
@@ -14,7 +16,7 @@ async def test_create_activity(client, promoter_token):
         "location": "测试场地A",
         "sponsor": "测试主办方",
         "deadline": "2026-11-01T18:00:00+08:00",
-        "designer_id": "00000000-0000-0000-0000-000000000000",
+        "designer_id": uid,
     })
     assert resp.status_code == 201
     data = resp.json()
@@ -24,6 +26,8 @@ async def test_create_activity(client, promoter_token):
 
 @pytest.mark.asyncio
 async def test_create_activity_past_deadline(client, promoter_token):
+    me = await client.get("/auth/me", headers={"Authorization": f"Bearer {promoter_token}"})
+    uid = me.json()["id"]
     resp = await client.post("/activities", headers={
         "Authorization": f"Bearer {promoter_token}",
     }, json={
@@ -33,7 +37,7 @@ async def test_create_activity_past_deadline(client, promoter_token):
         "location": "场地B",
         "sponsor": "主办方",
         "deadline": "2020-01-01T00:00:00+08:00",
-        "designer_id": "00000000-0000-0000-0000-000000000000",
+        "designer_id": uid,
     })
     assert resp.status_code == 400
 
@@ -69,6 +73,8 @@ async def test_get_status_history(client, promoter_token, test_activity):
 
 @pytest.mark.asyncio
 async def test_no_role_user_forbidden(client, auth_token):
+    me = await client.get("/auth/me", headers={"Authorization": f"Bearer {auth_token}"})
+    uid = me.json()["id"]
     resp = await client.post("/activities", headers={
         "Authorization": f"Bearer {auth_token}",
     }, json={
@@ -76,6 +82,6 @@ async def test_no_role_user_forbidden(client, auth_token):
         "estimated_time": "2026-12-31T10:00:00+08:00",
         "location": "x", "sponsor": "x",
         "deadline": "2026-11-01T18:00:00+08:00",
-        "designer_id": "00000000-0000-0000-0000-000000000000",
+        "designer_id": uid,
     })
     assert resp.status_code == 403

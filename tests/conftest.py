@@ -112,6 +112,9 @@ async def admin_token(client):
 @pytest_asyncio.fixture
 async def test_activity(client, promoter_token):
     """创建一个待设计方案的活动。"""
+    me = await client.get("/auth/me", headers={"Authorization": f"Bearer {promoter_token}"})
+    user_id = me.json()["id"]
+
     resp = await client.post("/activities", headers={
         "Authorization": f"Bearer {promoter_token}",
     }, json={
@@ -121,6 +124,6 @@ async def test_activity(client, promoter_token):
         "location": f"loc_{uuid.uuid4().hex[:6]}",
         "sponsor": "测试主办方",
         "deadline": "2026-11-01T18:00:00+08:00",
-        "designer_id": "00000000-0000-0000-0000-000000000000",
+        "designer_id": user_id,
     })
     return resp.json()["id"]
