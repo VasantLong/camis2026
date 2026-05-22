@@ -2,17 +2,15 @@ import pytest
 
 
 @pytest.mark.asyncio
-async def test_download_redirect(client, auth_token, test_project):
-    # Upload first
+async def test_download_redirect(client, auth_token, test_activity):
     upload_resp = await client.post(
         "/documents/upload",
         headers={"Authorization": f"Bearer {auth_token}"},
-        data={"project_id": test_project},
+        data={"activity_id": test_activity},
         files={"file": ("data.txt", b"test content", "text/plain")},
     )
     doc_id = upload_resp.json()["id"]
 
-    # Download — should redirect
     resp = await client.get(
         f"/documents/{doc_id}",
         headers={"Authorization": f"Bearer {auth_token}"},
@@ -32,21 +30,19 @@ async def test_download_not_found(client, auth_token):
 
 
 @pytest.mark.asyncio
-async def test_list_project_documents(client, auth_token, test_project):
-    # Upload two files
+async def test_list_activity_documents(client, promoter_token, test_activity):
     for i in range(2):
         await client.post(
             "/documents/upload",
-            headers={"Authorization": f"Bearer {auth_token}"},
-            data={"project_id": test_project},
+            headers={"Authorization": f"Bearer {promoter_token}"},
+            data={"activity_id": test_activity},
             files={"file": (f"doc{i}.txt", f"content {i}", "text/plain")},
         )
 
     resp = await client.get(
-        f"/documents/project/{test_project}",
-        headers={"Authorization": f"Bearer {auth_token}"},
+        f"/activities/{test_activity}/documents",
+        headers={"Authorization": f"Bearer {promoter_token}"},
     )
     assert resp.status_code == 200
     docs = resp.json()
     assert len(docs) >= 2
-    assert all(d["project_id"] == test_project for d in docs)

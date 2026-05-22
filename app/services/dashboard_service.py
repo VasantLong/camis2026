@@ -63,15 +63,15 @@ class DashboardService:
         return ActivityDetail(activity=activity, status_history=history)
 
     async def export_monthly_report(self, month: str) -> str:
-        start = f"{month}-01T00:00:00+08:00"
+        from datetime import datetime, timezone, timedelta
         from sqlalchemy import text
 
+        start = datetime(int(month[:4]), int(month[5:7]), 1, tzinfo=timezone(timedelta(hours=8)))
+        end = datetime(start.year, start.month + 1, 1, tzinfo=start.tzinfo) if start.month < 12 else datetime(start.year + 1, 1, 1, tzinfo=start.tzinfo)
+
         result = await self.db.execute(
-            text(
-                "SELECT count(*) FROM activities "
-                "WHERE created_at >= :start AND created_at < :start::timestamptz + INTERVAL '1 month'"
-            ),
-            {"start": start},
+            text("SELECT count(*) FROM activities WHERE created_at >= :start AND created_at < :end"),
+            {"start": start, "end": end},
         )
         count = result.scalar() or 0
 

@@ -2,10 +2,10 @@ import uuid
 
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
 
 from app.database import async_session
 from app.main import app
-from app.models.project import Project
 
 
 @pytest_asyncio.fixture
@@ -28,13 +28,99 @@ async def auth_token(client):
 
 
 @pytest_asyncio.fixture
-async def test_project(client, auth_token):
-    resp = await client.get("/auth/me", headers={"Authorization": f"Bearer {auth_token}"})
-    user_id = resp.json()["id"]
+async def promoter_token(client):
+    """用户注册后赋予 Promoter 角色。"""
+    suffix = uuid.uuid4().hex[:8]
+    username = f"promoter_{suffix}"
+    resp = await client.post("/auth/register", json={
+        "username": username,
+        "email": f"{username}@test.com",
+        "password": "test1234",
+    })
+    token = resp.json()["access_token"]
+    me = await client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    user_id = me.json()["id"]
 
     async with async_session() as db:
-        project = Project(name=f"project_{uuid.uuid4().hex[:8]}", owner_id=user_id)
-        db.add(project)
+        await db.execute(text(
+            "INSERT INTO user_roles (user_id, role_id) "
+            "SELECT :uid, id FROM roles WHERE name='Promoter' "
+            "ON CONFLICT DO NOTHING"
+        ), {"uid": user_id})
         await db.commit()
-        await db.refresh(project)
-        return str(project.id)
+    return token
+
+
+@pytest_asyncio.fixture
+async def security_token(client):
+    """用户注册后赋予 SecurityOfficer 角色。"""
+    suffix = uuid.uuid4().hex[:8]
+    username = f"security_{suffix}"
+    resp = await client.post("/auth/register", json={
+        "username": username,
+        "email": f"{username}@test.com",
+        "password": "test1234",
+    })
+    token = resp.json()["access_token"]
+    me = await client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    user_id = me.json()["id"]
+
+    async with async_session() as db:
+        await db.execute(text(
+            "INSERT INTO user_roles (user_id, role_id) "
+            "SELECT :uid, id FROM roles WHERE name='SecurityOfficer' "
+            "ON CONFLICT DO NOTHING"
+        ), {"uid": user_id})
+        await db.commit()
+    return token
+
+
+async def transition(client, token, activity_id, to_status, comment=""):
+    """测试辅助：执行状态转换。"""
+    resp = await client.put(
+        f"/activities/{activity_id}/status",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"to_status": to_status, "comment": comment},
+    )
+    return resp
+
+
+@pytest_asyncio.fixture
+async def admin_token(client):
+    """用户注册后赋予 AdminStaff 角色。"""
+    suffix = uuid.uuid4().hex[:8]
+    username = f"admin_{suffix}"
+    resp = await client.post("/auth/register", json={
+        "username": username,
+        "email": f"{username}@test.com",
+        "password": "test1234",
+    })
+    token = resp.json()["access_token"]
+    me = await client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    user_id = me.json()["id"]
+
+    async with async_session() as db:
+        await db.execute(text(
+            "INSERT INTO user_roles (user_id, role_id) "
+            "SELECT :uid, id FROM roles WHERE name='AdminStaff' "
+            "ON CONFLICT DO NOTHING"
+        ), {"uid": user_id})
+        await db.commit()
+    return token
+
+
+@pytest_asyncio.fixture
+async def test_activity(client, promoter_token):
+    """创建一个待设计方案的活动。"""
+    resp = await client.post("/activities", headers={
+        "Authorization": f"Bearer {promoter_token}",
+    }, json={
+        "name": f"test_activity_{uuid.uuid4().hex[:8]}",
+        "type": "测试",
+        "estimated_time": "2026-12-31T10:00:00+08:00",
+        "location": f"loc_{uuid.uuid4().hex[:6]}",
+        "sponsor": "测试主办方",
+        "deadline": "2026-11-01T18:00:00+08:00",
+        "designer_id": "00000000-0000-0000-0000-000000000000",
+    })
+    return resp.json()["id"]
