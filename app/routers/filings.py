@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.database import get_db
 from app.deps import get_current_user
 from app.models.user import User
+from app.rbac import require_permission
 from app.schemas.filing import FilingPackResult, MaterialValidation
 from app.services.filing_service import FilingService
 
@@ -20,6 +21,7 @@ async def validate_materials(
     activity_id: UUID,
     current_user: User = Depends(get_current_user),
     svc: FilingService = Depends(_service),
+    _perm: None = require_permission("pack_filing"),
 ):
     try:
         return await svc.validate_materials(activity_id)
@@ -32,6 +34,7 @@ async def pack_materials(
     activity_id: UUID,
     current_user: User = Depends(get_current_user),
     svc: FilingService = Depends(_service),
+    _perm: None = require_permission("pack_filing"),
 ):
     try:
         result = await svc.pack_materials(activity_id)
@@ -50,6 +53,7 @@ async def confirm_handover(
     activity_id: UUID,
     current_user: User = Depends(get_current_user),
     svc: FilingService = Depends(_service),
+    _perm: None = require_permission("pack_filing"),
 ):
     try:
         filing_doc = await svc.confirm_handover(activity_id)

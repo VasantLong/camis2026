@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from app.database import get_db
 from app.deps import get_current_user
 from app.models.user import User
+from app.rbac import require_permission
 from app.schemas.activity import ActivityCreate, ActivityListParams, ActivityResponse, StatusLogEntry
 from app.services.activity_service import ActivityService
 
@@ -20,6 +21,7 @@ async def create_activity(
     body: ActivityCreate,
     current_user: User = Depends(get_current_user),
     svc: ActivityService = Depends(_service),
+    _perm: None = require_permission("create_activity"),
 ):
     try:
         return await svc.create(current_user.id, body)
@@ -37,6 +39,7 @@ async def list_activities(
     size: int = Query(20, ge=1, le=100),
     current_user: User = Depends(get_current_user),
     svc: ActivityService = Depends(_service),
+    _perm: None = require_permission("view_owned_activity"),
 ):
     from datetime import datetime
 
@@ -57,6 +60,7 @@ async def get_activity(
     activity_id: UUID,
     current_user: User = Depends(get_current_user),
     svc: ActivityService = Depends(_service),
+    _perm: None = require_permission("view_owned_activity"),
 ):
     try:
         return await svc.get(activity_id)
@@ -69,5 +73,6 @@ async def get_status_history(
     activity_id: UUID,
     current_user: User = Depends(get_current_user),
     svc: ActivityService = Depends(_service),
+    _perm: None = require_permission("view_owned_activity"),
 ):
     return await svc.get_status_history(activity_id)

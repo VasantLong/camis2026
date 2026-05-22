@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.database import get_db
 from app.deps import get_current_user
 from app.models.user import User
+from app.rbac import require_permission
 from app.schemas.activity import StatusLogEntry
 from app.schemas.workflow import ForceChangeRequest, RejectRequest, StatusTransition
 from app.services.notification_service import NotificationService
@@ -23,6 +24,7 @@ async def update_status(
     body: StatusTransition,
     current_user: User = Depends(get_current_user),
     svc: WorkflowService = Depends(_service),
+    _perm: None = require_permission("manage_security"),
 ):
     try:
         return await svc.transition(activity_id, body.to_status, current_user, body.comment)
@@ -38,6 +40,7 @@ async def reject_activity(
     body: RejectRequest,
     current_user: User = Depends(get_current_user),
     svc: WorkflowService = Depends(_service),
+    _perm: None = require_permission("reject_approval"),
 ):
     try:
         return await svc.reject(activity_id, current_user, body.reason)
@@ -53,6 +56,7 @@ async def force_cancel(
     body: ForceChangeRequest,
     current_user: User = Depends(get_current_user),
     svc: WorkflowService = Depends(_service),
+    _perm: None = require_permission("force_cancel"),
 ):
     try:
         return await svc.force_cancel(activity_id, current_user, body.reason)
@@ -68,6 +72,7 @@ async def force_postpone(
     body: ForceChangeRequest,
     current_user: User = Depends(get_current_user),
     svc: WorkflowService = Depends(_service),
+    _perm: None = require_permission("force_postpone"),
 ):
     try:
         return await svc.force_postpone(activity_id, current_user, body.reason)
