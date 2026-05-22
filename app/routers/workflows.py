@@ -15,7 +15,7 @@ router = APIRouter(prefix="/activities", tags=["workflow"])
 
 
 def _service(db=Depends(get_db)) -> WorkflowService:
-    return WorkflowService(db, NotificationService())
+    return WorkflowService(db, NotificationService(db))
 
 
 @router.put("/{activity_id}/status", response_model=StatusLogEntry)

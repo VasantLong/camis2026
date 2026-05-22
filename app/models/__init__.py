@@ -8,6 +8,7 @@ from app.models.activity import (
 from app.models.filing import FilingDoc
 from app.models.material import KeyMaterial
 from app.models.rule import ActivityRule
+from app.models.notification import Notification
 from app.models.rbac import Permission, Role, RolePermission, UserRole
 
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     "ImplementationRecord", "SecurityPlan",
     "FilingDoc", "KeyMaterial", "ActivityRule",
     "Role", "Permission", "UserRole", "RolePermission",
+    "Notification",
 ]

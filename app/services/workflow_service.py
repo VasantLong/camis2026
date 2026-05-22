@@ -20,21 +20,21 @@ TRANSITION_MATRIX: dict[str, set[str]] = {
 
 TERMINAL_STATUSES = {"审批通过-待举办", "不通过/已终止", "已取消", "已延期"}
 
-NOTIFICATION_RULES: dict[str, str] = {
-    "待安保方案设计":  "需进行安保方案设计",
-    "待备案申请":      "材料齐备，可开始备案申请",
-    "备案材料已交接":  "备案材料已流转至政府对接",
-    "审批通过":        "批文已上传，待安保部确认审批结果",
-    "审批通过-待举办": "活动批文已下发，可合法举办",
-    "待补充备案材料":  "需补充备案材料",
-    "不通过/已终止":   "活动审批未通过",
+NOTIFICATION_RULES: dict[str, tuple[str, str]] = {
+    "待安保方案设计":  ("SecurityOfficer", "需进行安保方案设计"),
+    "待备案申请":      ("SecurityOfficer", "材料齐备，可开始备案申请"),
+    "备案材料已交接":  ("GovLiaison", "备案材料已流转至政府对接"),
+    "审批通过":        ("SecurityOfficer", "批文已上传，待安保部确认审批结果"),
+    "审批通过-待举办": ("AdminStaff", "活动批文已下发，可合法举办"),
+    "待补充备案材料":  ("SecurityOfficer", "需补充备案材料"),
+    "不通过/已终止":   ("AdminStaff", "活动审批未通过"),
 }
 
 
 class WorkflowService:
     def __init__(self, db: AsyncSession, notification: NotificationService | None = None):
         self.db = db
-        self.notification = notification or NotificationService()
+        self.notification = notification or NotificationService(db)
 
     def can_transition(self, from_status: str, to_status: str) -> bool:
         allowed = TRANSITION_MATRIX.get(from_status, set())
@@ -68,9 +68,10 @@ class WorkflowService:
         await self.db.commit()
         await self.db.refresh(log)
 
-        msg = NOTIFICATION_RULES.get(to_status)
-        if msg:
-            await self.notification.notify_role("relevant", msg)
+        rule = NOTIFICATION_RULES.get(to_status)
+        if rule:
+            role_name, msg = rule
+            await self.notification.notify_role(role_name, msg)
 
         return log
 
