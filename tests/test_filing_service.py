@@ -29,7 +29,7 @@ async def test_pack_no_materials(client, security_token, test_activity):
 
 
 @pytest.mark.asyncio
-async def test_handover(client, security_token, test_activity):
+async def test_handover(client, security_token, promoter_token, test_activity):
     await _transition(client, security_token, test_activity, "待安保方案设计")
     await _transition(client, security_token, test_activity, "待备案申请")
 
@@ -43,3 +43,9 @@ async def test_handover(client, security_token, test_activity):
     )
     assert resp.status_code == 200
     assert resp.json()["handover_status"] == "已交接"
+
+    # promoter_token 可查看活动详情，验证状态已变更
+    detail = await client.get(f"/activities/{test_activity}", headers={
+        "Authorization": f"Bearer {promoter_token}",
+    })
+    assert detail.json()["status"] == "备案材料已交接"

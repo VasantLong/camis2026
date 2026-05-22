@@ -56,7 +56,7 @@ async def confirm_handover(
     _perm: None = require_permission("pack_filing"),
 ):
     try:
-        filing_doc = await svc.confirm_handover(activity_id)
+        filing_doc = await svc.confirm_handover(activity_id, current_user)
         return {"filing_doc_id": str(filing_doc.id), "handover_status": filing_doc.handover_status}
     except LookupError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

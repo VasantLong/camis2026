@@ -89,7 +89,7 @@ class FilingService:
             ready=len(validations) > 0 and filing_doc.is_qualified,
         )
 
-    async def confirm_handover(self, activity_id: UUID) -> FilingDoc:
+    async def confirm_handover(self, activity_id: UUID, operator: User) -> FilingDoc:
         from app.models.filing import FilingDoc
 
         result = await self.db.execute(
@@ -100,6 +100,12 @@ class FilingService:
             raise LookupError("备案材料不存在，请先执行打包")
 
         filing_doc.handover_status = "已交接"
+        self.db.add(filing_doc)
+
+        from app.services.workflow_service import WorkflowService
+        ws = WorkflowService(self.db)
+        await ws.transition(activity_id, "备案材料已交接", operator, "线下纸质材料已交接")
+
         await self.db.commit()
         await self.db.refresh(filing_doc)
         return filing_doc
