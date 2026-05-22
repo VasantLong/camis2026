@@ -99,7 +99,7 @@ DashboardService    → 数据聚合查询、报表导出
 | 第三步：文档表适配 | ❌ | documents.project_id → activity_id |
 | 第三步：服务内部设计 | ✅ | docs/service-design.md (6 服务) |
 | 第四步：服务代码实现 | ✅ | 6 服务已实现（ActivityService, WorkflowService, DocumentService, FilingService, NotificationService存根, DashboardService） |
-| 待补齐：RBAC 权限接入路由 | ❌ | 当前路由无角色校验 |
+| 待补齐：RBAC 权限接入路由 | ✅ | 所有受保护端点已接入 require_permission |
 | 待补齐：文档表适配 | ❌ | documents.project_id → activity_id |
 | 待补齐：新服务测试 | ❌ | 仅 auth/upload/download 有 11 个测试 |
-| 待补齐：剩余 ORM 模型 | ❌ | security_plans, approval_records, key_materials 等 |
+| 待补齐：剩余 ORM 模型 | ✅ | 11 个新模型已补齐 |
