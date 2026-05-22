@@ -104,9 +104,9 @@ DashboardService    → 数据聚合查询、报表导出
 | 待补齐：新服务测试 | ✅ | 28 测试全部通过 |
 | 待补齐：剩余 ORM 模型 | ✅ | 11 个新模型已补齐 |
 | 待补齐：文件格式/大小校验 | ✅ | PDF/JPG/PNG/DOC, ≤50MB |
-| 待补齐：PDF 生成 | ❌ | pack_materials 不合并文件，export_monthly_report 是存根 |
+| 待补齐：PDF 生成 | ✅ | reportlab pack_materials + monthly report |
 | 待补齐：交接触发状态变更 | ✅ | confirm_handover → ws.transition |
 | 待补齐：强制变更写归档 | ✅ | _force_terminal INSERT implementation_records |
-| 待补齐：Designer 通知 + overdue 调度 | ⚠ | designer_id 列已添加 + 创建时发通知；overdue 调度未实现 |
-| 待补齐：DocumentService 类 | ❌ | 上传/下载逻辑散落在 router 里 |
-| 待补齐：电子签名跟踪 | ❌ | MaterialValidation 缺少 has_signature 字段 |
+| 待补齐：驳回多角色通知 | ✅ | Reject 通知 AdminStaff + SecurityOfficer |
+| 待补齐：DocumentService 类 | ✅ | app/services/document_service.py |
+| 待补齐：电子签名跟踪 | ✅ | has_signature 字段已添加 |
