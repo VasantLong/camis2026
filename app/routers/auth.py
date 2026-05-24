@@ -14,6 +14,7 @@ from app.auth import (
 )
 from app.database import get_db
 from app.deps import get_current_user
+from app.models.rbac import Permission, Role, RolePermission, UserRole
 from app.models.user import User
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -42,6 +43,8 @@ class UserResponse(BaseModel):
     email: str
     display_name: str | None
     is_active: bool
+    permissions: list[str] = []
+    roles: list[str] = []
 
 
 @router.post("/register", response_model=TokenResponse)
@@ -88,13 +91,30 @@ async def login(body: LoginRequest, response: Response, request: Request, db=Dep
 
 
 @router.get("/me", response_model=UserResponse)
-async def me(current_user: User = Depends(get_current_user)):
+async def me(current_user: User = Depends(get_current_user), db=Depends(get_db)):
+    perm_result = await db.execute(
+        select(Permission.name)
+        .join(RolePermission, RolePermission.permission_id == Permission.id)
+        .join(UserRole, UserRole.role_id == RolePermission.role_id)
+        .where(UserRole.user_id == current_user.id)
+    )
+    permissions = [row[0] for row in perm_result.all()]
+
+    role_result = await db.execute(
+        select(Role.name)
+        .join(UserRole, UserRole.role_id == Role.id)
+        .where(UserRole.user_id == current_user.id)
+    )
+    roles = [row[0] for row in role_result.all()]
+
     return UserResponse(
         id=str(current_user.id),
         username=current_user.username,
         email=current_user.email,
         display_name=current_user.display_name,
         is_active=current_user.is_active,
+        permissions=permissions,
+        roles=roles,
     )
 
 
