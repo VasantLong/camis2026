@@ -79,11 +79,11 @@ curl http://localhost:8000/health
 
 ### 文件上传流程 (写入)
 
-1. 后端接收文件流和业务参数（项目ID、标签等）
+1. 后端接收文件流和业务参数（活动ID、标签等）
 2. 调用 MinIO SDK 将文件流式直传至 `company-docs` 存储桶
-3. 文件路径规则：`projects/{project_id}/{uuid}.{ext}`
+3. 文件路径规则：`activities/{activity_id}/{uuid}.{ext}`
 4. 在 PostgreSQL `documents` 表中插入元数据记录，必须包含 `minio_path`、`file_size`、`content_type`、`uploader_id` 字段
-5. 删除 Redis 中相关缓存键 (如 `project:{id}:docs`)
+5. 删除 Redis 中相关缓存键 (如 `activity:{id}:docs`)
 
 ### 文件访问流程 (读取)
 

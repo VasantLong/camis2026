@@ -1,6 +1,6 @@
-# CAMIS 文档管理系统
+# CAMIS — 活动合规审批管理系统
 
-基于三层存储架构的文档管理系统后端。技术栈：**Python (FastAPI)** + **PostgreSQL 17** + **MinIO** + **Redis 7.4**，Docker Compose 本地编排，设计目标是从本地开发平滑迁移至云服务器。
+企业部门活动合规审批 MIS。技术栈：**Python (FastAPI)** + **React SPA** + **PostgreSQL 17** + **MinIO** + **Redis 7.4**，Docker Compose 本地编排，模块化单体架构。
 
 ## 快速启动
 
@@ -8,25 +8,38 @@
 # 1. 启动基础设施 (PostgreSQL + MinIO + Redis)
 docker compose up -d
 
-# 2. 激活 Python 环境并安装依赖
-mamba activate camis2026
+# 2. 后端 (Python 3.12, mamba env: camis2026)
 pip install -r requirements.txt
-
-# 3. 启动后端
 uvicorn app.main:app --reload --port 8000
 
+# 3. 前端 (React + Vite)
+cd frontend && pnpm install && pnpm dev
+
 # 4. 验证
-curl http://localhost:8000/health
-# {"status":"ok","checks":{"postgres":"ok","minio":"ok","redis":"ok"}}
+curl http://localhost:8000/health    # 后端
+open http://localhost:5173           # 前端
 ```
 
 ## 架构
 
 | 层 | 技术 | 职责 |
 |----|------|------|
-| 应用 | FastAPI | 业务逻辑、权限校验 |
-| 元数据 | PostgreSQL 17 | 文档元信息（路径、大小、类型） |
+| 前端 | React 19 + Vite + Ant Design 6 + TanStack Query + Zustand | SPA 交互界面 |
+| 应用 | FastAPI (Python 3.12) | REST API、权限校验、业务逻辑 |
+| 元数据 | PostgreSQL 17 | 业务数据、文档元信息、RBAC |
 | 文件存储 | MinIO (S3 兼容) | 文档文件本体 |
 | 缓存 | Redis 7.4 | 热点缓存、会话 |
 
-详见 `.claude/CLAUDE.md` 获取完整架构说明和常用命令。
+## 文档
+
+| 文档 | 内容 |
+|------|------|
+| `.claude/CLAUDE.md` | 开发环境、常用命令、架构约束 |
+| `CONTEXT.md` | 领域术语表 |
+| `docs/api-routes.md` | 22 个 REST 端点详细契约 |
+| `docs/state-machine.md` | 活动 10 状态生命周期 |
+| `docs/frontend.md` | 前端实现文档（48 TS 文件） |
+| `docs/browser-tests.md` | Playwright 浏览器测试手册（7 脚本 37 断言） |
+| `docs/user-guide.md` | 用户操作手册（5 个测试场景） |
+| `docs/design-process.md` | 设计流程与进度 |
+| `docs/adr/` | 架构决策记录 (4 篇) |
