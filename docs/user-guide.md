@@ -8,7 +8,7 @@ docker compose up -d
 
 # 终端 2：后端 API
 cd /home/vasant/projects/work/camis2026
-uvicorn app.main:app --reload --port 8000
+/home/vasant/miniforge3/bin/mamba run -n camis2026 uvicorn app.main:app --reload --port 8000 2>&1
 
 # 终端 3：前端开发服务器
 cd /home/vasant/projects/work/camis2026/frontend
@@ -21,18 +21,20 @@ pnpm dev
 
 ## 测试帐号
 
-| 用户名 | 密码 | 角色 | 可访问页面 |
-|--------|------|------|-----------|
-| `tester1` | `pass123` | Promoter + AdminStaff | 活动管理、仪表盘 |
-| `testuser` | `test123` | 无角色 | 仅登录（无功能权限） |
+| 用户名     | 密码      | 角色                  | 可访问页面           |
+| ---------- | --------- | --------------------- | -------------------- |
+| `tester1`  | `pass123` | Promoter + AdminStaff | 活动管理、仪表盘     |
+| `testuser` | `test123` | 无角色                | 仅登录（无功能权限） |
 
 > 如需其他角色（SecurityOfficer、GovLiaison），可在数据库分配：
+>
 > ```bash
 > docker exec doc_postgres psql -U docapp -d doc_metadata \
 >   -c "INSERT INTO user_roles (user_id, role_id) VALUES ('<user-uuid>', '<role-uuid>');"
 > ```
 >
 > 角色 UUID：
+>
 > ```
 > Promoter        dc865a6e-6da6-4add-8667-885e128377ea
 > SecurityOfficer 2c977316-1e85-43bf-a2fa-6bedf92b5feb
@@ -121,6 +123,7 @@ docker compose logs -f postgres
 ```
 
 输出示例：
+
 ```
 LOG:  execute <unnamed>: SELECT users.id, users.username, users.email ...
 DETAIL:  parameters: $1 = 'tester1'
@@ -171,11 +174,11 @@ docker compose logs -f             # 全部服务汇总
 
 打开浏览器 DevTools（F12）：
 
-| 面板 | 用途 |
-|------|------|
-| Console | React 渲染警告/错误、API 错误详情 |
-| Network | API 请求/响应完整内容（Header、Body、状态码、耗时） |
-| Application → Cookies | 查看 `refresh_token` cookie 是否存在、过期时间 |
+| 面板                  | 用途                                                |
+| --------------------- | --------------------------------------------------- |
+| Console               | React 渲染警告/错误、API 错误详情                   |
+| Network               | API 请求/响应完整内容（Header、Body、状态码、耗时） |
+| Application → Cookies | 查看 `refresh_token` cookie 是否存在、过期时间      |
 
 ### 6. 前端 Vite 编译日志
 
@@ -192,9 +195,9 @@ docker compose logs -f             # 全部服务汇总
 
 开发测试时，开 4 个终端窗口：
 
-| 终端 | 运行内容 | 看什么 |
-|------|---------|--------|
-| 1 | `docker compose logs -f postgres` | 每条 SQL 查询 |
-| 2 | `uvicorn app.main:app --reload --port 8000` | HTTP 请求 + SQLAlchemy echo |
-| 3 | `cd frontend && pnpm dev` | 前端编译热更新 |
-| 4 | 浏览器 DevTools (F12) → Network 面板 | API 请求详情 |
+| 终端 | 运行内容                                    | 看什么                      |
+| ---- | ------------------------------------------- | --------------------------- |
+| 1    | `docker compose logs -f postgres`           | 每条 SQL 查询               |
+| 2    | `uvicorn app.main:app --reload --port 8000` | HTTP 请求 + SQLAlchemy echo |
+| 3    | `cd frontend && pnpm dev`                   | 前端编译热更新              |
+| 4    | 浏览器 DevTools (F12) → Network 面板        | API 请求详情                |
