@@ -113,5 +113,6 @@ DashboardService    → 数据聚合查询、报表导出
 | 部署：Dockerfile | ❌ | FastAPI 无容器化 |
 | 部署：生产 ASGI (gunicorn) | ❌ | 仅 uvicorn 单进程 |
 | 部署：CORS 收窄 | ❌ | allow_origins=["*"] |
+| 质量：统一错误响应格式 | ❌ | ValueError/LookupError/HTTPException 混用 |
 | 待补齐：DocumentService 类 | ✅ | app/services/document_service.py |
 | 待补齐：电子签名跟踪 | ✅ | has_signature 字段已添加 |
