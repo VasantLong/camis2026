@@ -96,9 +96,9 @@ DashboardService    → 数据聚合查询、报表导出
 | 第二步：更新顺序图 | ✅ | camis-UML.md §面向服务顺序图（UC1-7） |
 | 第二步：API 路由设计 | ✅ | docs/api-routes.md (20 端点) |
 | 第三步：数据库设计（DDL） | ✅ | init-scripts/02 + 03 (13 新表, 16 权限种子) |
-| 第三步：文档表适配 | ❌ | documents.project_id → activity_id |
+| 第三步：文档表适配 | ✅ | documents.project_id → activity_id |
 | 第三步：服务内部设计 | ✅ | docs/service-design.md (6 服务) |
-| 第四步：服务代码实现 | ✅ | 6 服务已实现（ActivityService, WorkflowService, DocumentService, FilingService, NotificationService存根, DashboardService） |
+| 第四步：服务代码实现 | ✅ | 7 服务全部实现 (含 NotificationService) |
 | 待补齐：RBAC 权限接入路由 | ✅ | 所有受保护端点已接入 require_permission |
 | 待补齐：文档表适配 | ✅ | upload/list 已切换为 activity_id |
 | 待补齐：新服务测试 | ✅ | 28 测试全部通过 |

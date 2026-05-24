@@ -121,7 +121,9 @@ Docker 服务启动后，需验证以下项目：
 ```
 camis2026/
 ├── pyproject.toml              # pytest asyncio 配置
-├── docker-compose.yml          # 容器编排定义
+├── docker-compose.yml          # 容器编排定义 (含 app 服务)
+├── Dockerfile                  # 生产镜像 (python:3.12-slim + gunicorn)
+├── gunicorn.conf.py            # 4 uvicorn workers, 120s timeout
 ├── .env / .env.example         # 环境变量 (.env 不入 git)
 ├── requirements.txt            # Python 依赖
 ├── CONTEXT.md                  # 领域术语表
@@ -129,17 +131,22 @@ camis2026/
 │   ├── 01-init-tables.sql      # 骨架: users, projects, documents
 │   ├── 02-activity-tables.sql  # 活动域 13 表
 │   ├── 03-rbac-tables.sql      # RBAC 4 表 + 种子数据
-│   └── 04-documents-migration.sql  # documents 表迁移
+│   ├── 04-documents-migration.sql  # documents 表迁移
+│   ├── 05-notifications.sql    # 通知表
+│   └── 06-refresh-tokens.sql   # refresh token + 登录保护
 ├── app/                        # 后端应用代码
-│   ├── main.py                 # FastAPI 入口, lifespan, CORS
-│   ├── config.py               # Pydantic-settings 从 .env 读取
+│   ├── main.py                 # FastAPI 入口, lifespan, CORS, middleware
+│   ├── config.py               # Pydantic-settings, JWT_SECRET 必填校验
 │   ├── database.py             # SQLAlchemy async engine + session
-│   ├── auth.py                 # bcrypt 密码哈希 + JWT 签发/验证
+│   ├── auth.py                 # bcrypt + JWT + refresh token + 登录保护
 │   ├── deps.py                 # get_current_user 依赖注入 (Bearer token)
-│   ├── models/                 # ORM: User, Project, Document, Activity, ActivityStatusLog, FilingDoc
+│   ├── errors.py               # AppError 层级 + FastAPI exception handler
+│   ├── middleware.py            # RequestIDMiddleware (X-Request-ID)
+│   ├── rbac.py                 # require_permission 依赖工厂
+│   ├── models/                 # ORM: User, Project, Document, Activity + 子实体, FilingDoc, RBAC, Notification, RefreshToken
 │   ├── schemas/                # Pydantic: activity, workflow, filing, dashboard
-│   ├── routers/                # 18 REST 端点 (health, auth, documents, activities, workflows, filings, dashboard)
-│   └── services/               # 6 服务: ActivityService, WorkflowService, DocumentService, FilingService, NotificationService, DashboardService
-├── tests/                      # 11 测试用例 (auth, upload, download)
+│   ├── routers/                # 20 REST 端点 (health, auth, documents, activities, workflows, filings, dashboard)
+│   └── services/               # 7 服务: ActivityService, WorkflowService, DocumentService, FilingService, NotificationService, DashboardService, MinIO client
+├── tests/                      # 29 测试用例 (auth, activity, workflow, filing, dashboard, upload, download)
 └── docs/                       # 设计文档 (UML, 状态机, API路由, 服务设计, ADR)
 ```

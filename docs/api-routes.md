@@ -203,6 +203,8 @@ content_type: "application/pdf"
 | `GET /health` | ✅ |
 | `POST /auth/register` | ✅ |
 | `POST /auth/login` | ✅ |
+| `POST /auth/refresh` | ✅ |
+| `POST /auth/logout` | ✅ |
 | `GET /auth/me` | ✅ |
 | `POST /activities` | ✅ |
 | `GET /activities` | ✅ |
@@ -224,7 +226,7 @@ content_type: "application/pdf"
 | `GET /dashboard/activities/{id}` | ✅ |
 | `POST /dashboard/reports/monthly` | ✅ |
 
-> 已实现: 18/20 端点。缺失: `GET/POST /activities/{id}/documents`（待适配 activity_id 后对接 DocumentService）
+> 已实现: 22/22 端点 + refresh/logout。全部实现。
 
 ## 错误响应格式
 
