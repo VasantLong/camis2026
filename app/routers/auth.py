@@ -85,7 +85,7 @@ async def login(body: LoginRequest, response: Response, request: Request, db=Dep
     response.set_cookie(
         key="refresh_token", value=refresh,
         httponly=True, secure=False, samesite="lax",
-        max_age=7 * 24 * 3600, path="/auth",
+        max_age=7 * 24 * 3600, path="/",
     )
     return TokenResponse(access_token=token)
 
@@ -139,7 +139,7 @@ async def refresh(response: Response, refresh_token: str = Cookie(None), db=Depe
     response.set_cookie(
         key="refresh_token", value=new_refresh,
         httponly=True, secure=False, samesite="lax",
-        max_age=7 * 24 * 3600, path="/auth",
+        max_age=7 * 24 * 3600, path="/",
     )
     return TokenResponse(access_token=access)
 
@@ -147,5 +147,5 @@ async def refresh(response: Response, refresh_token: str = Cookie(None), db=Depe
 @router.post("/logout")
 async def logout(response: Response, current_user: User = Depends(get_current_user), db=Depends(get_db)):
     await revoke_user_tokens(db, str(current_user.id))
-    response.delete_cookie("refresh_token", path="/auth")
+    response.delete_cookie("refresh_token", path="/")
     return {"message": "已登出"}
