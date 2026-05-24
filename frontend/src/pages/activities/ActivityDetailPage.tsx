@@ -1,12 +1,19 @@
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Descriptions, Tabs, Button, Tag, Spin, Typography } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
+import { useQuery } from "@tanstack/react-query";
 import { useActivity, useActivityHistory, useActivityDocuments } from "@/hooks/useActivityQueries";
 import StatusTimeline from "@/components/activities/StatusTimeline";
 import DocumentUpload from "@/components/documents/DocumentUpload";
 import DocumentList from "@/components/documents/DocumentList";
 import WorkflowActions from "@/components/workflows/WorkflowActions";
+import FilingValidatePanel from "@/components/filings/FilingValidatePanel";
+import FilingPackModal from "@/components/filings/FilingPackModal";
+import HandoverConfirm from "@/components/filings/HandoverConfirm";
+import { filingsApi } from "@/api/filings";
+import { useAuthStore } from "@/stores/authStore";
 import { STATUS_COLOR_MAP } from "@/utils/constants";
 
 export default function ActivityDetailPage() {
@@ -17,6 +24,19 @@ export default function ActivityDetailPage() {
     useActivityHistory(id!);
   const { data: documents = [], isLoading: docsLoading } =
     useActivityDocuments(id!);
+  const [filingModal, setFilingModal] = useState<"pack" | "handover" | null>(
+    null
+  );
+  const permissions = useAuthStore((s) => s.user?.permissions || []);
+  const showFiling =
+    permissions.includes("pack_filing") &&
+    activity?.status === "待备案申请";
+
+  const { data: validation = [], isLoading: validationLoading } = useQuery({
+    queryKey: ["activities", id, "filing", "validate"],
+    queryFn: () => filingsApi.validate(id!).then((r) => r.data),
+    enabled: showFiling,
+  });
 
   if (isLoading) {
     return (
@@ -117,6 +137,45 @@ export default function ActivityDetailPage() {
               </div>
             ),
           },
+          ...(showFiling
+            ? [
+                {
+                  key: "filing" as string,
+                  label: "备案",
+                  children: (
+                    <div>
+                      {validationLoading ? (
+                        <Spin />
+                      ) : (
+                        <FilingValidatePanel data={validation} />
+                      )}
+                      <div style={{ marginTop: 16 }}>
+                        <Button
+                          type="primary"
+                          onClick={() => setFilingModal("pack")}
+                          style={{ marginRight: 8 }}
+                        >
+                          打包备案材料
+                        </Button>
+                        <Button onClick={() => setFilingModal("handover")}>
+                          确认纸质交接
+                        </Button>
+                      </div>
+                      <FilingPackModal
+                        open={filingModal === "pack"}
+                        activityId={id!}
+                        onClose={() => setFilingModal(null)}
+                      />
+                      <HandoverConfirm
+                        open={filingModal === "handover"}
+                        activityId={id!}
+                        onClose={() => setFilingModal(null)}
+                      />
+                    </div>
+                  ),
+                },
+              ]
+            : []),
         ]}
       />
     </div>
