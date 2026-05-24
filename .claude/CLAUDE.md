@@ -148,5 +148,7 @@ camis2026/
 │   ├── routers/                # 20 REST 端点 (health, auth, documents, activities, workflows, filings, dashboard)
 │   └── services/               # 7 服务: ActivityService, WorkflowService, DocumentService, FilingService, NotificationService, DashboardService, MinIO client
 ├── tests/                      # 29 测试用例 (auth, activity, workflow, filing, dashboard, upload, download)
-└── docs/                       # 设计文档 (UML, 状态机, API路由, 服务设计, ADR)
+├── frontend/                   # React SPA (Vite + Ant Design + TanStack Query + Zustand)
+│   └── src/                    # 48 TS 文件, 9 页面, 8 API 模块, 见 docs/frontend.md
+└── docs/                       # 设计文档 (UML, 状态机, API路由, 服务设计, ADR, 前端)
 ```

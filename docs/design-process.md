@@ -123,3 +123,4 @@ DashboardService    → 数据聚合查询、报表导出
 | 安全：文件内容检查 | ✅ | 魔数校验 PDF/JPG/PNG/DOC 文件头 |
 | 待补齐：DocumentService 类 | ✅ | app/services/document_service.py |
 | 待补齐：电子签名跟踪 | ✅ | has_signature 字段已添加 |
+| 前端：React SPA 实施 | ✅ | docs/frontend.md (48 TS 文件, 9 页面, 8 API 模块) |
