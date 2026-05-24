@@ -1,0 +1,71 @@
+import { useState } from "react";
+import { Modal, Form, Input, Tag, message } from "antd";
+import { workflowsApi } from "@/api/workflows";
+import { STATUS_COLOR_MAP } from "@/utils/constants";
+
+interface Props {
+  open: boolean;
+  activityId: string;
+  toStatus: string;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+export default function StatusTransitionModal({
+  open,
+  activityId,
+  toStatus,
+  onClose,
+  onSuccess,
+}: Props) {
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (values: { comment?: string }) => {
+    setLoading(true);
+    try {
+      await workflowsApi.transition(activityId, {
+        to_status: toStatus,
+        comment: values.comment,
+      });
+      message.success("状态变更成功");
+      onSuccess();
+      onClose();
+    } catch (err: unknown) {
+      const detail = (err as { detail?: string })?.detail || "操作失败";
+      if (detail.includes("已被他人修改") || detail.includes("已被变更")) {
+        message.warning("该活动已被他人修改，请刷新后重试");
+      } else {
+        message.error(detail);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal
+      title="状态变更"
+      open={open}
+      onCancel={onClose}
+      onOk={() => {
+        const form = document.querySelector<HTMLFormElement>(
+          "#transition-form form"
+        );
+        form?.requestSubmit();
+      }}
+      confirmLoading={loading}
+    >
+      <p>
+        目标状态:{" "}
+        <Tag color={STATUS_COLOR_MAP[toStatus] || "blue"}>{toStatus}</Tag>
+      </p>
+      <div id="transition-form">
+        <Form layout="vertical" onFinish={handleSubmit}>
+          <Form.Item name="comment" label="备注（可选）">
+            <Input.TextArea maxLength={2000} rows={3} />
+          </Form.Item>
+        </Form>
+      </div>
+    </Modal>
+  );
+}

@@ -23,3 +23,67 @@ export const STATUS_COLOR_MAP: Record<string, string> = {
   已取消: "default",
   已延期: "warning",
 };
+
+export const TERMINAL_STATUSES = [
+  "审批通过-待举办",
+  "不通过/已终止",
+  "已取消",
+  "已延期",
+];
+
+export interface TransitionDef {
+  label: string;
+  mode: "transition" | "reject" | "forceCancel" | "forcePostpone";
+  toStatus?: string;
+  permission: string;
+  confirmMessage?: string;
+}
+
+export function getAvailableTransitions(
+  status: string,
+  permissions: string[]
+): TransitionDef[] {
+  if (TERMINAL_STATUSES.includes(status)) return [];
+
+  const has = (p: string) => permissions.includes(p);
+  const actions: TransitionDef[] = [];
+
+  if (status === "待设计方案") {
+    if (has("manage_security"))
+      actions.push({ label: "提交到安保方案设计", mode: "transition", toStatus: "待安保方案设计", permission: "manage_security" });
+  }
+  if (status === "待安保方案设计") {
+    if (has("reject_approval"))
+      actions.push({ label: "驳回（内部循环）", mode: "reject", permission: "reject_approval" });
+    if (has("manage_security"))
+      actions.push({ label: "签署完成—提交备案", mode: "transition", toStatus: "待备案申请", permission: "manage_security" });
+  }
+  if (status === "待备案申请") {
+    // Filing phase — actions come from Filing components
+  }
+  if (status === "备案材料已交接") {
+    if (has("manage_security"))
+      actions.push({ label: "审批通过", mode: "transition", toStatus: "审批通过", permission: "manage_security" });
+    if (has("manage_security"))
+      actions.push({ label: "需补充材料", mode: "transition", toStatus: "待补充备案材料", permission: "manage_security" });
+    if (has("manage_security"))
+      actions.push({ label: "驳回—不通过", mode: "transition", toStatus: "不通过/已终止", permission: "manage_security" });
+  }
+  if (status === "待补充备案材料") {
+    if (has("manage_security"))
+      actions.push({ label: "重新递交", mode: "transition", toStatus: "备案材料已交接", permission: "manage_security" });
+  }
+  if (status === "审批通过") {
+    if (has("confirm_approval"))
+      actions.push({ label: "确认通过", mode: "transition", toStatus: "审批通过-待举办", permission: "confirm_approval" });
+    if (has("reject_approval"))
+      actions.push({ label: "驳回（逆向流转）", mode: "reject", permission: "reject_approval" });
+  }
+
+  if (has("force_cancel"))
+    actions.push({ label: "强制取消", mode: "forceCancel", permission: "force_cancel" });
+  if (has("force_postpone"))
+    actions.push({ label: "强制延期", mode: "forcePostpone", permission: "force_postpone" });
+
+  return actions;
+}

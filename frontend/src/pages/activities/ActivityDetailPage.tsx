@@ -6,6 +6,7 @@ import { useActivity, useActivityHistory, useActivityDocuments } from "@/hooks/u
 import StatusTimeline from "@/components/activities/StatusTimeline";
 import DocumentUpload from "@/components/documents/DocumentUpload";
 import DocumentList from "@/components/documents/DocumentList";
+import WorkflowActions from "@/components/workflows/WorkflowActions";
 import { STATUS_COLOR_MAP } from "@/utils/constants";
 
 export default function ActivityDetailPage() {
@@ -54,6 +55,11 @@ export default function ActivityDetailPage() {
           {activity.status}
         </Tag>
       </div>
+
+      <WorkflowActions
+        activityId={id!}
+        currentStatus={activity.status}
+      />
 
       <Tabs
         defaultActiveKey="detail"
