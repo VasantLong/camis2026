@@ -1,6 +1,9 @@
 import json
+import logging
 
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
+
+logger = logging.getLogger("camis.redis")
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
@@ -67,6 +70,7 @@ async def upload_document(
     )
 
     redis = await get_redis()
+    logger.info("redis DEL key=activity:%s:docs", activity_id)
     await redis.delete(f"activity:{activity_id}:docs")
 
     return _to_response(doc)
@@ -82,6 +86,7 @@ async def download_document(
 
     redis = await get_redis()
     cached = await redis.get(f"doc:{doc_id}")
+    logger.info("redis GET key=doc:%s hit=%s", doc_id, cached is not None)
     if cached:
         meta = json.loads(cached)
     else:
@@ -94,6 +99,7 @@ async def download_document(
             "filename": d.filename,
             "minio_path": d.minio_path,
         }
+        logger.info("redis SET key=doc:%s ex=1800", doc_id)
         await redis.set(f"doc:{doc_id}", json.dumps(meta), ex=1800)
 
     url = await svc.get_presigned_download_url(doc_id)

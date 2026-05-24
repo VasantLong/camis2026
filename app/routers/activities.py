@@ -1,8 +1,10 @@
+import json
+import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-import json
+logger = logging.getLogger("camis.redis")
 
 from sqlalchemy import select
 
@@ -95,6 +97,7 @@ async def list_activity_documents(
     redis = await get_redis()
     cache_key = f"activity:{activity_id}:docs"
     cached = await redis.get(cache_key)
+    logger.info("redis GET key=%s hit=%s", cache_key, cached is not None)
     if cached:
         return json.loads(cached)
 
@@ -115,5 +118,6 @@ async def list_activity_documents(
         }
         for d in docs
     ]
+    logger.info("redis SET key=%s ex=300", cache_key)
     await redis.set(cache_key, json.dumps(items), ex=300)
     return items

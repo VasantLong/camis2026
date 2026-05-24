@@ -1,9 +1,12 @@
+import logging
 from datetime import timedelta
 from io import BytesIO
 
 from minio import Minio
 
 from app.config import settings
+
+logger = logging.getLogger("camis.minio")
 
 minio_client = Minio(
     endpoint=settings.minio_endpoint,
@@ -21,6 +24,7 @@ async def check_bucket() -> None:
 
 
 async def upload_file(file_path: str, data: bytes, content_type: str) -> None:
+    logger.info("minio put_object bucket=%s key=%s size=%d", _bucket, file_path, len(data))
     minio_client.put_object(
         bucket_name=_bucket,
         object_name=file_path,
@@ -31,6 +35,7 @@ async def upload_file(file_path: str, data: bytes, content_type: str) -> None:
 
 
 async def get_presigned_url(object_name: str, expires: int = 1800) -> str:
+    logger.info("minio presigned_url key=%s expires=%ds", object_name, expires)
     return minio_client.presigned_get_object(
         bucket_name=_bucket,
         object_name=object_name,
