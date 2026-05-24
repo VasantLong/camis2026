@@ -29,6 +29,9 @@ LOGGING = {
             "filters": ["request_id"],
         },
     },
+    "loggers": {
+        "sqlalchemy.engine": {"handlers": ["console"], "level": "INFO", "propagate": False},
+    },
     "root": {"handlers": ["console"], "level": "INFO"},
 }
 
