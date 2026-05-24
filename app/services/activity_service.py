@@ -66,15 +66,22 @@ class ActivityService:
 
         return ActivityResponse.model_validate(activity)
 
-    async def get(self, activity_id: UUID) -> ActivityResponse:
-        activity = await self.db.get(Activity, activity_id)
+    async def get(self, activity_id: UUID, user_id: UUID | None = None) -> ActivityResponse:
+        query = select(Activity).where(Activity.id == activity_id)
+        if user_id:
+            query = query.where(Activity.owner_id == user_id)
+        result = await self.db.execute(query)
+        activity = result.scalar_one_or_none()
         if activity is None:
             raise LookupError("活动不存在")
         return ActivityResponse.model_validate(activity)
 
-    async def list(self, params: ActivityListParams) -> tuple[list[ActivityResponse], int]:
+    async def list(self, params: ActivityListParams, user_id: UUID | None = None) -> tuple[list[ActivityResponse], int]:
         query = select(Activity)
         count_query = select(func.count(Activity.id))
+        if user_id:
+            query = query.where(Activity.owner_id == user_id)
+            count_query = count_query.where(Activity.owner_id == user_id)
 
         if params.status:
             query = query.where(Activity.status == params.status)

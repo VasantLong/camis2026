@@ -57,7 +57,7 @@ async def list_activities(
         page=page,
         size=size,
     )
-    items, _ = await svc.list(params)
+    items, _ = await svc.list(params, current_user.id)
     return items
 
 
@@ -69,7 +69,7 @@ async def get_activity(
     _perm: None = require_permission("view_owned_activity"),
 ):
     try:
-        return await svc.get(activity_id)
+        return await svc.get(activity_id, current_user.id)
     except LookupError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 

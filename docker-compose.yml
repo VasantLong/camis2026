@@ -73,6 +73,34 @@ services:
       timeout: 5s
       retries: 5
 
+  app:
+    build: .
+    container_name: camis_app
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-docapp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secret_pg_pwd}
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-doc_metadata}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-secret_redis_pwd}
+      JWT_SECRET: ${JWT_SECRET:-change-me}
+      ALLOW_ORIGINS: ${ALLOW_ORIGINS:-http://localhost:5173}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - doc_network
+
 volumes:
   pg_data:
   minio_data:

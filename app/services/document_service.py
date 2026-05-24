@@ -10,6 +10,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.document import Document
 from app.services.minio_client import get_presigned_url, upload_file
 
+MAGIC_BYTES: dict[str, bytes] = {
+    ".pdf": b"%PDF",
+    ".jpg": b"\xff\xd8\xff",
+    ".jpeg": b"\xff\xd8\xff",
+    ".png": b"\x89PNG",
+    ".doc": b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1",
+    ".docx": b"PK\x03\x04",
+}
+
 ALLOWED_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx"}
 ALLOWED_MIMES = {
     "application/pdf",
@@ -24,7 +33,7 @@ class DocumentService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    def validate(self, filename: str | None, content_type: str | None, size: int | None) -> None:
+    def validate(self, filename: str | None, content_type: str | None, size: int | None, content: bytes | None = None) -> None:
         ext = Path(filename).suffix.lower() if filename else ""
         if ext not in ALLOWED_EXTENSIONS:
             raise ValueError(f"不支持的文件格式: {ext}")
@@ -32,6 +41,10 @@ class DocumentService:
             raise ValueError(f"不支持的文件类型: {content_type}")
         if size and size > MAX_FILE_SIZE:
             raise ValueError("文件过大，最大允许 50MB")
+        if content and ext in MAGIC_BYTES:
+            magic = MAGIC_BYTES[ext]
+            if not content.startswith(magic):
+                raise ValueError(f"文件内容与扩展名不匹配: {ext}")
 
     async def upload(
         self, activity_id: UUID, uploader_id: UUID,

@@ -7,13 +7,13 @@ async def test_upload_success(client, auth_token, test_activity):
         "/documents/upload",
         headers={"Authorization": f"Bearer {auth_token}"},
         data={"activity_id": test_activity, "tags": "doc,test"},
-        files={"file": ("hello.pdf", b"hello world", "application/pdf")},
+        files={"file": ("hello.pdf", b"%PDF-1.4 hello world", "application/pdf")},
     )
     assert resp.status_code == 200
     data = resp.json()
     assert data["filename"] == "hello.pdf"
     assert data["activity_id"] == test_activity
-    assert data["file_size"] == 11
+    assert data["file_size"] == 20
     assert data["content_type"] == "application/pdf"
     assert data["tags"] == ["doc", "test"]
     assert data["minio_path"].startswith(f"activities/{test_activity}/")
@@ -24,7 +24,7 @@ async def test_upload_unauthenticated(client, test_activity):
     resp = await client.post(
         "/documents/upload",
         data={"activity_id": test_activity},
-        files={"file": ("hello.pdf", b"hello", "application/pdf")},
+        files={"file": ("hello.pdf", b"%PDF-1.4 h", "application/pdf")},
     )
     assert resp.status_code == 401
 

@@ -55,12 +55,11 @@ async def upload_document(
     if activity is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="活动不存在")
 
+    content = await file.read()
     try:
-        svc.validate(file.filename, file.content_type, file.size)
+        svc.validate(file.filename, file.content_type, file.size, content)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-
-    content = await file.read()
     doc = await svc.upload(
         activity_id, current_user.id, file.filename or "unnamed",
         content, file.content_type or "application/octet-stream",
