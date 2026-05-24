@@ -2,8 +2,10 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Descriptions, Tabs, Button, Tag, Spin, Typography } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
-import { useActivity, useActivityHistory } from "@/hooks/useActivityQueries";
+import { useActivity, useActivityHistory, useActivityDocuments } from "@/hooks/useActivityQueries";
 import StatusTimeline from "@/components/activities/StatusTimeline";
+import DocumentUpload from "@/components/documents/DocumentUpload";
+import DocumentList from "@/components/documents/DocumentList";
 import { STATUS_COLOR_MAP } from "@/utils/constants";
 
 export default function ActivityDetailPage() {
@@ -12,6 +14,8 @@ export default function ActivityDetailPage() {
   const { data: activity, isLoading } = useActivity(id!);
   const { data: history = [], isLoading: historyLoading } =
     useActivityHistory(id!);
+  const { data: documents = [], isLoading: docsLoading } =
+    useActivityDocuments(id!);
 
   if (isLoading) {
     return (
@@ -99,9 +103,12 @@ export default function ActivityDetailPage() {
             key: "documents",
             label: "文档",
             children: (
-              <Typography.Text type="secondary">
-                Phase 3 实现中...
-              </Typography.Text>
+              <div>
+                <DocumentUpload activityId={id!} />
+                <div style={{ marginTop: 16 }}>
+                  <DocumentList documents={documents} loading={docsLoading} />
+                </div>
+              </div>
             ),
           },
         ]}
