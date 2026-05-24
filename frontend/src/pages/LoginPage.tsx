@@ -1,0 +1,75 @@
+import { useState } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Form, Input, Button, Card, Typography, message } from "antd";
+import { UserOutlined, LockOutlined } from "@ant-design/icons";
+import { authApi } from "@/api/auth";
+import { useAuthStore } from "@/stores/authStore";
+
+export default function LoginPage() {
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const setAccessToken = useAuthStore((s) => s.setAccessToken);
+  const setUser = useAuthStore((s) => s.setUser);
+
+  const from = (location.state as { from?: { pathname: string } })?.from
+    ?.pathname || "/activities";
+
+  const onFinish = async (values: { username: string; password: string }) => {
+    setLoading(true);
+    try {
+      const { data } = await authApi.login(values);
+      setAccessToken(data.access_token);
+      const { data: user } = await authApi.me();
+      setUser(user);
+      message.success("登录成功");
+      navigate(from, { replace: true });
+    } catch (err: unknown) {
+      const detail =
+        (err as { detail?: string })?.detail || "登录失败，请重试";
+      message.error(detail);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        background: "#f5f5f5",
+      }}
+    >
+      <Card style={{ width: 400 }}>
+        <Typography.Title level={3} style={{ textAlign: "center" }}>
+          CAMIS 登录
+        </Typography.Title>
+        <Form layout="vertical" onFinish={onFinish} size="large">
+          <Form.Item
+            name="username"
+            rules={[{ required: true, message: "请输入用户名" }]}
+          >
+            <Input prefix={<UserOutlined />} placeholder="用户名" />
+          </Form.Item>
+          <Form.Item
+            name="password"
+            rules={[{ required: true, message: "请输入密码" }]}
+          >
+            <Input.Password prefix={<LockOutlined />} placeholder="密码" />
+          </Form.Item>
+          <Form.Item>
+            <Button type="primary" htmlType="submit" loading={loading} block>
+              登录
+            </Button>
+          </Form.Item>
+        </Form>
+        <div style={{ textAlign: "center" }}>
+          没有帐号？<Link to="/register">立即注册</Link>
+        </div>
+      </Card>
+    </div>
+  );
+}
