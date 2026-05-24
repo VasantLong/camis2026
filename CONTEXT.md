@@ -56,4 +56,6 @@
 - **服务内部设计**: `docs/service-design.md`
 - **API 路由设计**: `docs/api-routes.md`
 - **UML 用例/顺序图/类图**: `docs/camis-UML.md`
+- **前端技术选型**: `docs/adr/0003.md`
+- **AI 嵌入方向**: `docs/adr/0004.md`
 - **OO→SO 设计方法论**: `docs/oo-so.md`
