@@ -40,6 +40,7 @@ def inspect(page, name: str):
 with sync_playwright() as p:
     browser = p.chromium.connect_over_cdp(CDP)
     page = browser.new_page()
+    page.set_viewport_size({"width": 1920, "height": 1080})
 
     console_errors: list[str] = []
     page.on("console", lambda msg: console_errors.append(f"[{msg.type}] {msg.text}"))
