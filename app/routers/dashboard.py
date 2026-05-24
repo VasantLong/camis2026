@@ -8,6 +8,7 @@ from app.models.user import User
 from app.rbac import require_permission
 from app.schemas.dashboard import ActivityDetail, MonthlyReportRequest, PanelData
 from app.services.dashboard_service import DashboardService
+from app.errors import NotFoundError, ValidationError
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -35,7 +36,7 @@ async def get_activity_detail(
     try:
         return await svc.get_activity_detail(activity_id)
     except LookupError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise NotFoundError(str(e))
 
 
 @router.post("/reports/monthly")

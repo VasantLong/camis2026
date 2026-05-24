@@ -10,6 +10,7 @@ from app.schemas.activity import StatusLogEntry
 from app.schemas.workflow import ForceChangeRequest, RejectRequest, StatusTransition
 from app.services.notification_service import NotificationService
 from app.services.workflow_service import WorkflowService
+from app.errors import NotFoundError, ValidationError
 
 router = APIRouter(prefix="/activities", tags=["workflow"])
 
@@ -29,9 +30,9 @@ async def update_status(
     try:
         return await svc.transition(activity_id, body.to_status, current_user, body.comment)
     except LookupError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise NotFoundError(str(e))
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+        raise ValidationError(str(e))
 
 
 @router.post("/{activity_id}/reject", response_model=StatusLogEntry)
@@ -45,9 +46,9 @@ async def reject_activity(
     try:
         return await svc.reject(activity_id, current_user, body.reason)
     except LookupError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise NotFoundError(str(e))
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+        raise ValidationError(str(e))
 
 
 @router.post("/{activity_id}/force-cancel", response_model=StatusLogEntry)
@@ -61,9 +62,9 @@ async def force_cancel(
     try:
         return await svc.force_cancel(activity_id, current_user, body.reason)
     except LookupError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise NotFoundError(str(e))
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+        raise ValidationError(str(e))
 
 
 @router.post("/{activity_id}/force-postpone", response_model=StatusLogEntry)
@@ -77,6 +78,6 @@ async def force_postpone(
     try:
         return await svc.force_postpone(activity_id, current_user, body.reason)
     except LookupError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise NotFoundError(str(e))
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+        raise ValidationError(str(e))

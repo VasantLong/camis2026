@@ -14,6 +14,7 @@ from app.rbac import require_permission
 from app.schemas.activity import ActivityCreate, ActivityListParams, ActivityResponse, StatusLogEntry
 from app.services.activity_service import ActivityService
 from app.services.redis_client import get_redis
+from app.errors import NotFoundError, ValidationError
 
 router = APIRouter(prefix="/activities", tags=["activities"])
 
@@ -71,7 +72,7 @@ async def get_activity(
     try:
         return await svc.get(activity_id, current_user.id)
     except LookupError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise NotFoundError(str(e))
 
 
 @router.get("/{activity_id}/history", response_model=list[StatusLogEntry])

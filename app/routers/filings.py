@@ -8,6 +8,7 @@ from app.models.user import User
 from app.rbac import require_permission
 from app.schemas.filing import FilingPackResult, MaterialValidation
 from app.services.filing_service import FilingService
+from app.errors import NotFoundError, ValidationError
 
 router = APIRouter(prefix="/activities", tags=["filing"])
 
@@ -26,7 +27,7 @@ async def validate_materials(
     try:
         return await svc.validate_materials(activity_id)
     except LookupError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise NotFoundError(str(e))
 
 
 @router.post("/{activity_id}/filing/pack", response_model=FilingPackResult)
@@ -45,7 +46,7 @@ async def pack_materials(
             )
         return result
     except LookupError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise NotFoundError(str(e))
 
 
 @router.post("/{activity_id}/filing/handover")
@@ -59,4 +60,4 @@ async def confirm_handover(
         filing_doc = await svc.confirm_handover(activity_id, current_user)
         return {"filing_doc_id": str(filing_doc.id), "handover_status": filing_doc.handover_status}
     except LookupError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise NotFoundError(str(e))

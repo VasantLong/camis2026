@@ -1,7 +1,11 @@
 """业务异常与统一错误响应格式。"""
 
+import logging
+
 from fastapi import Request
 from fastapi.responses import JSONResponse
+
+logger = logging.getLogger("camis")
 
 
 class AppError(Exception):
@@ -38,4 +42,8 @@ async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
     body = {"detail": exc.detail, "code": exc.code}
     if exc.fields:
         body["fields"] = exc.fields
+    if exc.status_code >= 500:
+        logger.error("%d %s: %s", exc.status_code, exc.code, exc.detail)
+    else:
+        logger.warning("%d %s: %s", exc.status_code, exc.code, exc.detail)
     return JSONResponse(status_code=exc.status_code, content=body)
