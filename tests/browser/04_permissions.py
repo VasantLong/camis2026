@@ -28,7 +28,7 @@ def login_as(page, username, password):
 with sync_playwright() as p:
     browser = p.chromium.connect_over_cdp(CDP)
     page = browser.new_page()
-    page.set_viewport_size({"width": 1920, "height": 1080})
+    page.set_viewport_size({"width": 2560, "height": 1600})
 
     errors = []
     page.on("console", lambda m: errors.append(f"[{m.type}] {m.text}"))

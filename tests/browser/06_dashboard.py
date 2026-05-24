@@ -18,7 +18,7 @@ def check(cond, msg):
 with sync_playwright() as p:
     browser = p.chromium.connect_over_cdp(CDP)
     page = browser.new_page()
-    page.set_viewport_size({"width": 1920, "height": 1080})
+    page.set_viewport_size({"width": 2560, "height": 1600})
     page.context.clear_cookies()
 
     errors = []
