@@ -10,9 +10,16 @@ import { useAuthStore } from "@/stores/authStore";
 export default function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const permissions = useAuthStore((s) => s.user?.permissions || []);
+  const userPermissions = useAuthStore((s) => s.user?.permissions);
+  const permissions = userPermissions ?? [];
+  const EMPTY: string[] = [];
 
-  const items = [];
+  const items: Array<{
+    key: string;
+    label: string;
+    icon: React.ReactNode;
+    children?: typeof items;
+  }> = [];
 
   if (permissions.includes("view_owned_activity")) {
     const children = [
@@ -57,7 +64,7 @@ export default function Sidebar() {
   return (
     <Menu
       mode="inline"
-      selectedKeys={selectedKey ? [selectedKey] : []}
+      selectedKeys={selectedKey ? [selectedKey] : EMPTY}
       items={items}
       onClick={({ key }) => navigate(key)}
     />

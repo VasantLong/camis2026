@@ -10,7 +10,8 @@ import { useAuthStore } from "@/stores/authStore";
 export default function ActivityListPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const permissions = useAuthStore((s) => s.user?.permissions || []);
+  const userPermissions = useAuthStore((s) => s.user?.permissions);
+  const permissions = userPermissions ?? [];
 
   const params = {
     status: searchParams.get("status") || undefined,

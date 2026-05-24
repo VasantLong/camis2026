@@ -23,7 +23,8 @@ export default function WorkflowActions({ activityId, currentStatus }: Props) {
     type: TransitionDef["mode"];
     def: TransitionDef;
   } | null>(null);
-  const permissions = useAuthStore((s) => s.user?.permissions || []);
+  const userPermissions = useAuthStore((s) => s.user?.permissions);
+  const permissions = userPermissions ?? [];
   const qc = useQueryClient();
 
   const actions = getAvailableTransitions(currentStatus, permissions);

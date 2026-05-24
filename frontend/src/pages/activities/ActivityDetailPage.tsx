@@ -27,7 +27,8 @@ export default function ActivityDetailPage() {
   const [filingModal, setFilingModal] = useState<"pack" | "handover" | null>(
     null
   );
-  const permissions = useAuthStore((s) => s.user?.permissions || []);
+  const userPermissions = useAuthStore((s) => s.user?.permissions);
+  const permissions = userPermissions ?? [];
   const showFiling =
     permissions.includes("pack_filing") &&
     activity?.status === "待备案申请";
