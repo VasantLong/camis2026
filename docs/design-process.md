@@ -108,5 +108,6 @@ DashboardService    → 数据聚合查询、报表导出
 | 待补齐：交接触发状态变更 | ✅ | confirm_handover → ws.transition |
 | 待补齐：强制变更写归档 | ✅ | _force_terminal INSERT implementation_records |
 | 待补齐：驳回多角色通知 | ✅ | Reject 通知 AdminStaff + SecurityOfficer |
+| 待补齐：并发冲突保护 | ❌ | WorkflowService.transition 有空窗 |
 | 待补齐：DocumentService 类 | ✅ | app/services/document_service.py |
 | 待补齐：电子签名跟踪 | ✅ | has_signature 字段已添加 |
