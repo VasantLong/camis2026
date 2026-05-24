@@ -117,5 +117,9 @@ DashboardService    → 数据聚合查询、报表导出
 | 质量：请求追踪 middleware | ❌ | 无 request ID，日志无法关联 |
 | 质量：审计日志 | ⏳ | 操作日志、下载日志、越权拦截日志，待功能完成后实施 |
 | 安全：JWT refresh token + 登录保护 | ✅ 已采纳方案 | refresh token + 失败锁定 + 撤销 |
+| 安全：越权访问保护 (IDOR) | ❌ | 仅角色检查，无所有权校验 |
+| 安全：默认凭据清理 | ❌ | config.py 有硬编码 fallback 值 |
+| 安全：输入长度限制 | ❌ | Text 字段无 max_length，可被超大 payload DoS |
+| 安全：文件内容检查 | ❌ | 只查扩展名/MIME，不扫描恶意内容 |
 | 待补齐：DocumentService 类 | ✅ | app/services/document_service.py |
 | 待补齐：电子签名跟踪 | ✅ | has_signature 字段已添加 |
