@@ -124,3 +124,4 @@ DashboardService    → 数据聚合查询、报表导出
 | 待补齐：DocumentService 类 | ✅ | app/services/document_service.py |
 | 待补齐：电子签名跟踪 | ✅ | has_signature 字段已添加 |
 | 前端：React SPA 实施 | ✅ | docs/frontend.md (48 TS 文件, 9 页面, 8 API 模块) |
+| 质量：浏览器端到端测试 | ✅ | docs/browser-tests.md (7 脚本, 37 断言) |

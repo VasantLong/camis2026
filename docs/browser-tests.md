@@ -1,0 +1,127 @@
+# 浏览器测试手册
+
+基于 Playwright + Windows Edge CDP 的前端自动化测试套件。
+
+## 前提
+
+- Windows 端 Edge 浏览器以调试模式运行
+- Docker 服务运行（`docker compose up -d`）
+- 后端运行（端口 8000）
+- 前端运行（端口 5173）
+- Python 环境已安装 `playwright` 包
+
+## 启动 Edge 调试模式
+
+在 Windows PowerShell 中（管理员）：
+
+```powershell
+taskkill /F /IM msedge.exe
+& "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --remote-debugging-port=9222
+```
+
+## 执行测试
+
+所有脚本从项目根目录运行，复用同一个 CDP 连接：
+
+```bash
+cd /home/vasant/projects/work/camis2026
+python tests/browser/01_auth.py
+python tests/browser/02_activity_crud.py
+# ... 依次执行
+```
+
+WSL2 镜像网络模式下，`127.0.0.1:9222` 直接连通 Windows Edge。
+
+## 测试清单
+
+| 脚本 | 覆盖场景 | 断言数 | 说明 |
+|------|---------|--------|------|
+| `00_inspect.py` | 页面侦察 | — | 截图所有页面 + 列出交互元素，为后续脚本提供 selector |
+| `01_auth.py` | 认证 | 5 | 登录/错误密码/登出/注册/重定向 |
+| `02_activity_crud.py` | 活动 CRUD | 8 | API 创建活动 → 浏览器验证列表/详情/历史/文档/筛选 |
+| `03_workflow.py` | 工作流 | 8 | 状态流转→驳回→签署→强制取消→终态锁定 |
+| `04_permissions.py` | 权限 | 5 | 无角色 403 + 有角色侧边栏权限项显隐 |
+| `05_gov_liaison.py` | 政府审批 | 6 | 审批通过/补充材料/驳回—不通过 |
+| `06_dashboard.py` | 仪表盘 | 5 | 统计卡片/状态分布/异常列表/月报导出 |
+
+**合计 37 断言。**
+
+## 架构
+
+```
+tests/browser/
+├── 00_inspect.py          # 页面侦察
+├── 01_auth.py             # 认证
+├── 02_activity_crud.py    # 活动 CRUD
+├── 03_workflow.py         # 工作流
+├── 04_permissions.py      # 权限
+├── 05_gov_liaison.py      # 政府审批
+├── 06_dashboard.py        # 仪表盘
+└── screenshots/           # 测试截图输出
+```
+
+## 关键设计决策
+
+### CDP 连接而非本地浏览器
+
+WSL2 内 Playwright 通过 `connect_over_cdp("http://127.0.0.1:9222")` 连接 Windows 端 Edge。WSL2 网络镜像模式下 `127.0.0.1` 等同 Windows localhost。优势：
+- 无 Chromium 版本兼容问题（Ubuntu 26.04 无预编译包）
+- 测试时可实时观察浏览器操作
+- 截图分辨率等于本机显示器（2560x1600）
+
+### API 创建数据 + 浏览器验证渲染
+
+避免 Playwright 操作复杂的 Ant Design 组件（DatePicker showTime、Upload 拖拽），用 API 创建测试数据，浏览器端只验证渲染和交互。
+
+### 客户端路由导航
+
+登录后使用侧边栏点击（React Router 客户端导航）而非 `page.goto()`，避免 SPA 全量重载丢失 Zustand auth 状态。
+
+### `:visible` 选择器
+
+Ant Design Modal 关闭后 DOM 不销毁，使用 `.ant-modal:visible` 前缀限定当前可见 Modal 内的元素，避免选中隐藏的旧 Modal 子元素。
+
+### 模块级 `didRefresh` 标志
+
+React 19 StrictMode 双重挂载组件时，第一次 API 调用消耗 refresh token，第二次调用失败。`didRefresh` 模块级变量跨挂载去重，且 `setChecking(false)` 始终执行，防止 Spin 死锁。
+
+## 添加新测试
+
+复制任一脚本骨架：
+
+```python
+from pathlib import Path
+from playwright.sync_api import sync_playwright
+
+CDP = "http://127.0.0.1:9222"
+BASE = "http://localhost:5173"
+OUT = Path(__file__).parent / "screenshots"
+failed = 0
+
+def check(cond, msg):
+    global failed
+    if cond: print(f"  OK: {msg}")
+    else: failed += 1; print(f"  FAIL: {msg}")
+
+with sync_playwright() as p:
+    browser = p.chromium.connect_over_cdp(CDP)
+    page = browser.new_page()
+    page.set_viewport_size({"width": 2560, "height": 1600})
+    page.context.clear_cookies()
+
+    errors = []
+    page.on("console", lambda m: errors.append(f"[{m.type}] {m.text}"))
+    page.on("pageerror", lambda e: errors.append(f"PAGE_ERROR: {e}"))
+
+    # ... test steps ...
+
+    page.screenshot(path=f"{OUT / 'name_final.png'}", full_page=True)
+    page.close()
+
+    for e in errors:
+        if "[error]" in e or "PAGE_ERROR" in e:
+            print(f"  {e}")
+
+    if failed > 0:
+        raise SystemExit(1)
+```

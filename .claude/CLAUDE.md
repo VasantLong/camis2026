@@ -147,8 +147,8 @@ camis2026/
 │   ├── schemas/                # Pydantic: activity, workflow, filing, dashboard
 │   ├── routers/                # 20 REST 端点 (health, auth, documents, activities, workflows, filings, dashboard)
 │   └── services/               # 7 服务: ActivityService, WorkflowService, DocumentService, FilingService, NotificationService, DashboardService, MinIO client
-├── tests/                      # 29 测试用例 (auth, activity, workflow, filing, dashboard, upload, download)
+├── tests/                      # pytest (7 文件/29 用例) + browser (7 脚本/37 断言), 见 docs/browser-tests.md
 ├── frontend/                   # React SPA (Vite + Ant Design + TanStack Query + Zustand)
 │   └── src/                    # 48 TS 文件, 9 页面, 8 API 模块, 见 docs/frontend.md
-└── docs/                       # 设计文档 (UML, 状态机, API路由, 服务设计, ADR, 前端)
+└── docs/                       # 设计文档 (UML, 状态机, API路由, 服务设计, ADR, 前端, 测试)
 ```
