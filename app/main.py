@@ -5,6 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import engine
+from app.errors import AppError, app_error_handler
+from app.middleware import RequestIDMiddleware
 from app.routers import activities, auth, dashboard, documents, filings, health, workflows
 from app.services.minio_client import check_bucket, minio_client
 from app.services.redis_client import close_redis, get_redis
@@ -22,6 +24,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="CAMIS API", version="0.1.0", lifespan=lifespan)
 
+app.add_middleware(RequestIDMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in settings.allow_origins.split(",")],
@@ -37,3 +40,5 @@ app.include_router(activities.router)
 app.include_router(workflows.router)
 app.include_router(filings.router)
 app.include_router(dashboard.router)
+
+app.add_exception_handler(AppError, app_error_handler)

@@ -1,9 +1,18 @@
+import hashlib
+import secrets
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
 from jose import jwt
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.models.auth import RefreshToken
+
+MAX_LOGIN_ATTEMPTS = 5
+LOCKOUT_MINUTES = 15
+REFRESH_TOKEN_DAYS = 7
 
 
 def hash_password(password: str) -> str:
@@ -25,3 +34,61 @@ def create_access_token(user_id: str, username: str) -> str:
 
 def decode_access_token(token: str) -> dict:
     return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+
+
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+async def create_refresh_token(db: AsyncSession, user_id: str) -> str:
+    raw = secrets.token_urlsafe(48)
+    token = RefreshToken(
+        user_id=user_id,
+        token_hash=_hash_token(raw),
+        expires_at=datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_DAYS),
+    )
+    db.add(token)
+    await db.commit()
+    return raw
+
+
+async def verify_refresh_token(db: AsyncSession, raw: str) -> RefreshToken | None:
+    result = await db.execute(
+        select(RefreshToken).where(
+            RefreshToken.token_hash == _hash_token(raw),
+            RefreshToken.revoked == False,
+            RefreshToken.expires_at > datetime.now(timezone.utc),
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def revoke_user_tokens(db: AsyncSession, user_id: str) -> None:
+    from sqlalchemy import update
+    await db.execute(
+        update(RefreshToken)
+        .where(RefreshToken.user_id == user_id, RefreshToken.revoked == False)
+        .values(revoked=True)
+    )
+    await db.commit()
+
+
+async def check_login_blocked(db: AsyncSession, username: str) -> bool:
+    since = datetime.now(timezone.utc) - timedelta(minutes=LOCKOUT_MINUTES)
+    from sqlalchemy import text
+    result = await db.execute(
+        text("SELECT count(*) FROM login_attempts WHERE username = :u AND success = false AND created_at > :s"),
+        {"u": username, "s": since},
+    )
+    count = result.scalar() or 0
+    return count >= MAX_LOGIN_ATTEMPTS
+
+
+async def record_login_attempt(db: AsyncSession, username: str, success: bool) -> None:
+    from sqlalchemy import text
+    await db.execute(
+        text("INSERT INTO login_attempts (username, success) VALUES (:u, :s)"),
+        {"u": username, "s": success},
+    )
+    await db.commit()
+
