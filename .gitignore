@@ -19,5 +19,8 @@ Thumbs.db
 # Frontend
 node_modules
 
+# Logs
+logs/
+
 # Skills
 .claude/skills/

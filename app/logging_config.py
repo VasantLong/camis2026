@@ -2,8 +2,13 @@
 import logging
 import logging.config
 from contextvars import ContextVar
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
 request_id_var: ContextVar[str] = ContextVar("request_id", default="-")
+
+LOG_DIR = Path("logs")
+LOG_FILE = LOG_DIR / "camis.log"
 
 
 class RequestIDFilter(logging.Filter):
@@ -28,13 +33,26 @@ LOGGING = {
             "formatter": "default",
             "filters": ["request_id"],
         },
+        "file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": str(LOG_FILE),
+            "maxBytes": 10 * 1024 * 1024,
+            "backupCount": 5,
+            "formatter": "default",
+            "filters": ["request_id"],
+        },
     },
     "loggers": {
-        "sqlalchemy.engine": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "sqlalchemy.engine": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+            "propagate": False,
+        },
     },
-    "root": {"handlers": ["console"], "level": "INFO"},
+    "root": {"handlers": ["console", "file"], "level": "INFO"},
 }
 
 
 def setup_logging() -> None:
+    LOG_DIR.mkdir(exist_ok=True)
     logging.config.dictConfig(LOGGING)
