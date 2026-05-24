@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.activity import Activity, ActivityStatusLog
@@ -57,11 +57,17 @@ class WorkflowService:
             raise ValueError(f"不允许从 {activity.status} 转换到 {to_status}")
 
         from_status = activity.status
-        activity.status = to_status
-        self.db.add(activity)
+
+        result = await self.db.execute(
+            update(Activity)
+            .where(Activity.id == activity_id, Activity.status == from_status)
+            .values(status=to_status)
+        )
+        if result.rowcount == 0:
+            raise ValueError("状态已被他人变更，请刷新后重试")
 
         log = ActivityStatusLog(
-            activity_id=activity.id,
+            activity_id=activity_id,
             from_status=from_status,
             to_status=to_status,
             operator_id=operator.id,
