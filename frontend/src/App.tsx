@@ -8,6 +8,8 @@ import RegisterPage from "@/pages/RegisterPage";
 import NotFoundPage from "@/pages/NotFoundPage";
 import ForbiddenPage from "@/pages/ForbiddenPage";
 import ActivityListPage from "@/pages/activities/ActivityListPage";
+import ActivityCreatePage from "@/pages/activities/ActivityCreatePage";
+import ActivityDetailPage from "@/pages/activities/ActivityDetailPage";
 
 export default function App() {
   return (
@@ -27,6 +29,22 @@ export default function App() {
               element={
                 <ProtectedRoute requiredPermissions={["view_owned_activity"]}>
                   <ActivityListPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/activities/new"
+              element={
+                <ProtectedRoute requiredPermissions={["create_activity"]}>
+                  <ActivityCreatePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/activities/:id"
+              element={
+                <ProtectedRoute requiredPermissions={["view_owned_activity"]}>
+                  <ActivityDetailPage />
                 </ProtectedRoute>
               }
             />
