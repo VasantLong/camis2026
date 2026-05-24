@@ -94,93 +94,55 @@ pnpm dev
 
 ## 实时查看系统日志
 
-### 1. 后端 API 请求日志
+启动 uvicorn 后，终端会实时输出所有后端活动。日志同时持久化到 `logs/camis.log`（10MB 轮转，5 个备份）。
 
-后端 uvicorn 终端直接输出每一条 HTTP 请求：
+### 统一日志格式
 
 ```
-INFO:     127.0.0.1:42888 - "POST /auth/login HTTP/1.1" 200 OK
-INFO:     127.0.0.1:42900 - "GET /activities HTTP/1.1" 200 OK
-INFO:     127.0.0.1:42900 - "PUT /activities/{id}/status HTTP/1.1" 200 OK
+2026-05-24 23:56:29 INFO  [5d9c44477528] redis GET key=doc:ca67... hit=False
+2026-05-24 23:56:29 INFO  [5d9c44477528] SELECT users WHERE username = $1
+2026-05-24 23:56:29 INFO  [5d9c44477528] minio put_object bucket=company-docs key=...
+2026-05-24 23:56:29 WARN  [5d9c44477528] 404 NOT_FOUND: 活动不存在
+2026-05-24 23:56:29 INFO  [5d9c44477528] POST /auth/login → 200 222ms
 ```
 
-每条请求显示：客户端 IP、方法、路径、状态码。错误（4xx/5xx）同样在此显示。
+每条日志包含：`时间 级别 [request_id] 内容`。同一请求的所有 SQL、Redis、MinIO、HTTP 日志共享一个 `[request_id]`。
 
-### 2. 数据库查询日志（SQL 级别）
+### 覆盖范围
 
-**方式一：临时开启（重启后失效）**
+| 层级 | 内容 | 示例 |
+|------|------|------|
+| HTTP 请求 | 方法、路径、状态码、耗时 | `POST /auth/login → 200 222ms` |
+| SQL 查询 | 完整 SQL + 参数 + 耗时 | `SELECT users WHERE ... $1::VARCHAR ('tester1',)` |
+| Redis | GET/SET/DEL + 命中状态 | `redis GET key=doc:123 hit=True` |
+| MinIO | put_object / presigned_url | `minio put_object bucket=company-docs key=... size=302` |
+| 业务错误 | 状态码 + 错误码 + 详情 | `404 NOT_FOUND: 活动不存在` |
+
+### 日志文件
 
 ```bash
-docker exec doc_postgres psql -U docapp -d doc_metadata \
-  -c "ALTER SYSTEM SET log_statement = 'all';" \
-  -c "SELECT pg_reload_conf();"
+# 实时查看
+tail -f logs/camis.log
+
+# 按 request_id 过滤
+grep "5d9c44477528" logs/camis.log
 ```
 
-然后实时查看：
+### 请求追踪
 
-```bash
-docker compose logs -f postgres
-```
+后端每个响应头带 `X-Request-ID`。浏览器 DevTools → Network → 选任一 API 请求 → Response Headers 可见。用此 ID 在日志中 `grep` 即可定位该请求的完整链路。
 
-输出示例：
-
-```
-LOG:  execute <unnamed>: SELECT users.id, users.username, users.email ...
-DETAIL:  parameters: $1 = 'tester1'
-LOG:  execute <unnamed>: INSERT INTO activities (name, type, ...) VALUES ($1, $2, ...)
-```
-
-**关闭查询日志**（减少噪音）：
-
-```bash
-docker exec doc_postgres psql -U docapp -d doc_metadata \
-  -c "ALTER SYSTEM SET log_statement = 'none';" \
-  -c "SELECT pg_reload_conf();"
-```
-
-**方式二：应用层 SQLAlchemy 日志**（更精细，推荐开发调试用）
-
-在 `app/database.py` 中给 engine 添加 `echo=True`：
-
-```python
-engine = create_async_engine(DATABASE_URL, echo=True)
-```
-
-修改后重启 uvicorn，所有 SQL 语句会输出在 uvicorn 终端中，与 HTTP 请求日志交织在一起，便于追踪「哪个请求触发了哪些 SQL」。
-
-**`log_statement` 可选值**：
-| 值 | 含义 |
-|----|------|
-| `none` | 不记录（默认） |
-| `ddl` | 只记录建表/改表语句 |
-| `mod` | DDL + INSERT/UPDATE/DELETE |
-| `all` | 所有语句（含 SELECT） |
-
-### 3. Docker 服务日志
-
-```bash
-docker compose logs -f postgres    # PostgreSQL 日志（含 SQL 查询，如已开启）
-docker compose logs -f minio       # MinIO 对象存储操作
-docker compose logs -f redis       # Redis 缓存操作
-
-docker compose logs -f             # 全部服务汇总
-```
-
-### 4. 请求追踪
-
-后端每个响应头带 `X-Request-ID`。浏览器 DevTools → Network → 选任一 API 请求 → Response Headers 可见。可用此 ID 在日志中关联前后端事件。
-
-### 5. 前端浏览器日志
+### 前端浏览器日志
 
 打开浏览器 DevTools（F12）：
 
-| 面板                  | 用途                                                |
-| --------------------- | --------------------------------------------------- |
-| Console               | React 渲染警告/错误、API 错误详情                   |
-| Network               | API 请求/响应完整内容（Header、Body、状态码、耗时） |
-| Application → Cookies | 查看 `refresh_token` cookie 是否存在、过期时间      |
+| 面板 | 用途 |
+|------|------|
+| Console | React 渲染警告/错误、API 错误详情 |
+| Network | API 请求/响应完整内容（Header、Body、状态码、耗时） |
+| Application → Cookies | 查看 `refresh_token` cookie 是否存在、过期时间 |
 
-### 6. 前端 Vite 编译日志
+### 前端 Vite 编译日志
 
 运行 `pnpm dev` 的终端输出：
 
@@ -193,11 +155,11 @@ docker compose logs -f             # 全部服务汇总
 
 ## 推荐调试工作流
 
-开发测试时，开 4 个终端窗口：
+开发测试时，开 2 个终端窗口：
 
-| 终端 | 运行内容                                    | 看什么                      |
-| ---- | ------------------------------------------- | --------------------------- |
-| 1    | `docker compose logs -f postgres`           | 每条 SQL 查询               |
-| 2    | `uvicorn app.main:app --reload --port 8000` | HTTP 请求 + SQLAlchemy echo |
-| 3    | `cd frontend && pnpm dev`                   | 前端编译热更新              |
-| 4    | 浏览器 DevTools (F12) → Network 面板        | API 请求详情                |
+| 终端 | 运行内容 | 看什么 |
+|------|---------|--------|
+| 1 | `uvicorn app.main:app --reload --port 8000` | HTTP + SQL + Redis + MinIO 全链路日志 |
+| 2 | `cd frontend && pnpm dev` | 前端编译热更新 |
+
+浏览器 DevTools (F12) → Network 面板查看 API 请求详情。

@@ -141,6 +141,7 @@ camis2026/
 │   ├── auth.py                 # bcrypt + JWT + refresh token + 登录保护
 │   ├── deps.py                 # get_current_user 依赖注入 (Bearer token)
 │   ├── errors.py               # AppError 层级 + FastAPI exception handler
+│   ├── logging_config.py       # 统一日志: request_id + console + 文件轮转
 │   ├── middleware.py            # RequestIDMiddleware (X-Request-ID)
 │   ├── rbac.py                 # require_permission 依赖工厂
 │   ├── models/                 # ORM: User, Project, Document, Activity + 子实体, FilingDoc, RBAC, Notification, RefreshToken
@@ -148,6 +149,7 @@ camis2026/
 │   ├── routers/                # 20 REST 端点 (health, auth, documents, activities, workflows, filings, dashboard)
 │   └── services/               # 7 服务: ActivityService, WorkflowService, DocumentService, FilingService, NotificationService, DashboardService, MinIO client
 ├── tests/                      # pytest (7 文件/29 用例) + browser (7 脚本/37 断言), 见 docs/browser-tests.md
+├── logs/                        # 应用日志 (10MB 轮转, gitignored)
 ├── frontend/                   # React SPA (Vite + Ant Design + TanStack Query + Zustand)
 │   └── src/                    # 48 TS 文件, 9 页面, 8 API 模块, 见 docs/frontend.md
 └── docs/                       # 设计文档 (UML, 状态机, API路由, 服务设计, ADR, 前端, 测试)
