@@ -113,10 +113,10 @@ DashboardService    → 数据聚合查询、报表导出
 | 部署：Dockerfile | ❌ | FastAPI 无容器化 |
 | 部署：生产 ASGI (gunicorn) | ❌ | 仅 uvicorn 单进程 |
 | 部署：CORS 收窄 | ✅ | 从 ALLOW_ORIGINS 环境变量读取 |
-| 质量：统一错误响应格式 | ❌ | ValueError/LookupError/HTTPException 混用 |
-| 质量：请求追踪 middleware | ❌ | 无 request ID，日志无法关联 |
+| 质量：统一错误响应格式 | ✅ | AppError hierarchy + exception handler |
+| 质量：请求追踪 middleware | ✅ | RequestIDMiddleware + X-Request-ID |
 | 质量：审计日志 | ⏳ | 操作日志、下载日志、越权拦截日志，待功能完成后实施 |
-| 安全：JWT refresh token + 登录保护 | ✅ 已采纳方案 | refresh token + 失败锁定 + 撤销 |
+| 安全：JWT refresh token + 登录保护 | ✅ | refresh + logout + login brute force 5→15min |
 | 安全：越权访问保护 (IDOR) | ❌ | 仅角色检查，无所有权校验 |
 | 安全：默认凭据清理 | ✅ | JWT_SECRET 必填 + field_validator |
 | 安全：输入长度限制 | ✅ | comment/reason capped at 2000 chars |
