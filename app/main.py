@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -6,17 +7,23 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import engine
 from app.errors import AppError, app_error_handler
+from app.logging_config import setup_logging
 from app.middleware import RequestIDMiddleware
 from app.routers import activities, auth, dashboard, documents, filings, health, workflows
 from app.services.minio_client import check_bucket, minio_client
 from app.services.redis_client import close_redis, get_redis
 
+setup_logging()
+logger = logging.getLogger("camis")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    logger.info("startup: checking MinIO bucket...")
     await check_bucket()
     redis = await get_redis()
     await redis.ping()
+    logger.info("startup: Redis ok, closing startup connection")
     await close_redis()
     yield
     await engine.dispose()
