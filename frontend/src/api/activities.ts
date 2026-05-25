@@ -22,4 +22,12 @@ export const activitiesApi = {
 
   getDocuments: (id: string) =>
     client.get<DocumentResponse[]>(`/activities/${id}/documents`),
+
+  getSecurityPlan: (id: string) =>
+    client.get<{
+      risk_level: string | null;
+      audit_status: string | null;
+      manager_name: string | null;
+      sign_time: string | null;
+    }>(`/activities/${id}/security-plan`),
 };

@@ -3,6 +3,7 @@ import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 
 logger = logging.getLogger("camis.redis")
 
@@ -10,6 +11,7 @@ from sqlalchemy import select
 
 from app.database import get_db
 from app.deps import get_current_user
+from app.models.activity import SecurityPlan
 from app.models.document import Document
 from app.models.user import User
 from app.models.rbac import Role, UserRole
@@ -166,3 +168,37 @@ async def list_activity_documents(
     logger.info("redis SET key=%s ex=300", cache_key)
     await redis.set(cache_key, json.dumps(items), ex=300)
     return items
+
+
+class SecurityPlanResponse(BaseModel):
+    risk_level: str | None = None
+    audit_status: str | None = None
+    manager_name: str | None = None
+    sign_time: str | None = None
+
+
+@router.get("/{activity_id}/security-plan", response_model=SecurityPlanResponse)
+async def get_security_plan(
+    activity_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db=Depends(get_db),
+    _perm: None = require_permission("view_owned_activity"),
+):
+    result = await db.execute(
+        select(SecurityPlan).where(SecurityPlan.activity_id == activity_id)
+    )
+    sp = result.scalar_one_or_none()
+    if sp is None:
+        return SecurityPlanResponse()
+
+    manager_name = None
+    if sp.manager_id:
+        mgr = await db.get(User, sp.manager_id)
+        manager_name = mgr.username if mgr else None
+
+    return SecurityPlanResponse(
+        risk_level=sp.risk_level,
+        audit_status=sp.audit_status,
+        manager_name=manager_name,
+        sign_time=sp.sign_time.isoformat() if sp.sign_time else None,
+    )
