@@ -83,8 +83,9 @@ class FilingService:
     async def pack_materials(self, activity_id: UUID) -> FilingPackResult:
         validations = await self.validate_materials(activity_id)
         qualified = [v for v in validations if v.is_qualified and not v.issues]
+        all_ok = len(qualified) == len(validations) and len(validations) > 0
 
-        from app.models.filing import FilingDoc  # lazy import to avoid circular
+        from app.models.filing import FilingDoc
 
         doc = await self.db.execute(
             select(FilingDoc).where(FilingDoc.activity_id == activity_id)
@@ -94,16 +95,26 @@ class FilingService:
         if filing_doc is None:
             filing_doc = FilingDoc(
                 activity_id=activity_id,
-                is_qualified=len(qualified) == len(validations) and len(validations) > 0,
-                generated_at=datetime.now(timezone.utc),
+                is_qualified=all_ok,
+                generated_at=datetime.now(timezone.utc) if all_ok else None,
             )
             self.db.add(filing_doc)
             await self.db.commit()
             await self.db.refresh(filing_doc)
         else:
-            filing_doc.is_qualified = len(qualified) == len(validations) and len(validations) > 0
-            filing_doc.generated_at = datetime.now(timezone.utc)
+            filing_doc.is_qualified = all_ok
+            if all_ok:
+                filing_doc.generated_at = datetime.now(timezone.utc)
             await self.db.commit()
+
+        if not all_ok:
+            return FilingPackResult(
+                filing_doc_id=filing_doc.id,
+                materials_count=len(validations),
+                qualified_count=len(qualified),
+                missing_signatures=[v.name for v in validations if not v.is_qualified],
+                ready=False,
+            )
 
         from app.models.activity import Activity
         activity = await self.db.get(Activity, activity_id)
@@ -117,8 +128,8 @@ class FilingService:
             filing_doc_id=filing_doc.id,
             materials_count=len(validations),
             qualified_count=len(qualified),
-            missing_signatures=[v.name for v in validations if not v.is_qualified],
-            ready=len(validations) > 0 and filing_doc.is_qualified,
+            missing_signatures=[],
+            ready=True,
         )
 
     async def confirm_handover(self, activity_id: UUID, operator: User) -> FilingDoc:

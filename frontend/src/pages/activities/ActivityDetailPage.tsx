@@ -53,6 +53,12 @@ export default function ActivityDetailPage() {
     enabled: !!id,
   });
 
+  const { data: filingStatus, refetch: refetchFilingStatus } = useQuery({
+    queryKey: ["activities", id, "filing", "status"],
+    queryFn: () => filingsApi.getStatus(id!).then((r) => r.data),
+    enabled: showFiling,
+  });
+
   if (isLoading) {
     return (
       <div style={{ textAlign: "center", padding: 100 }}>
@@ -172,7 +178,17 @@ export default function ActivityDetailPage() {
             ? [
                 {
                   key: "filing" as string,
-                  label: "备案",
+                  label: (
+                    <span>
+                      备案
+                      {filingStatus?.handed_over && (
+                        <Tag color="green" style={{ marginLeft: 8 }}>已交接</Tag>
+                      )}
+                      {filingStatus?.packed && !filingStatus?.handed_over && (
+                        <Tag color="blue" style={{ marginLeft: 8 }}>已打包</Tag>
+                      )}
+                    </span>
+                  ),
                   children: (
                     <div>
                       {validationLoading ? (
@@ -180,29 +196,44 @@ export default function ActivityDetailPage() {
                       ) : (
                         <FilingValidatePanel data={validation} />
                       )}
-                      {canOperateFiling && (
+                      {canOperateFiling && filingStatus && (
                         <div style={{ marginTop: 16 }}>
-                          <Button
-                            type="primary"
-                            onClick={() => setFilingModal("pack")}
-                            style={{ marginRight: 8 }}
-                          >
-                            打包备案材料
-                          </Button>
-                          <Button onClick={() => setFilingModal("handover")}>
-                            确认纸质交接
-                          </Button>
+                          {!filingStatus.packed && (
+                            <Button
+                              type="primary"
+                              onClick={() => setFilingModal("pack")}
+                            >
+                              打包备案材料
+                            </Button>
+                          )}
+                          {filingStatus.packed && !filingStatus.handed_over && (
+                            <>
+                              <Tag color="blue" style={{ marginRight: 8 }}>已打包 ✓</Tag>
+                              <Button onClick={() => setFilingModal("handover")}>
+                                确认纸质交接
+                              </Button>
+                            </>
+                          )}
+                          {filingStatus.handed_over && (
+                            <Tag color="green">已交接 ✓</Tag>
+                          )}
                         </div>
                       )}
                       <FilingPackModal
                         open={filingModal === "pack"}
                         activityId={id!}
-                        onClose={() => setFilingModal(null)}
+                        onClose={() => {
+                          setFilingModal(null);
+                          refetchFilingStatus();
+                        }}
                       />
                       <HandoverConfirm
                         open={filingModal === "handover"}
                         activityId={id!}
-                        onClose={() => setFilingModal(null)}
+                        onClose={() => {
+                          setFilingModal(null);
+                          refetchFilingStatus();
+                        }}
                       />
                     </div>
                   ),

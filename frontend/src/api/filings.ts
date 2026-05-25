@@ -16,4 +16,9 @@ export const filingsApi = {
     client.post<{ filing_doc_id: string; handover_status: string }>(
       `/activities/${activityId}/filing/handover`
     ),
+
+  getStatus: (activityId: string) =>
+    client.get<{ packed: boolean; handed_over: boolean; generated_at: string | null }>(
+      `/activities/${activityId}/filing/status`
+    ),
 };
