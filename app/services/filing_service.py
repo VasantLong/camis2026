@@ -7,6 +7,7 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.activity import Activity
+from app.models.material import KeyMaterial, MaterialAudit
 from app.models.user import User
 from app.schemas.filing import FilingPackResult, MaterialValidation
 
@@ -152,3 +153,49 @@ class FilingService:
         await self.db.commit()
         await self.db.refresh(filing_doc)
         return filing_doc
+
+    async def sign_material(self, activity_id: UUID, material_id: UUID,
+                            user_id: UUID) -> dict:
+        mat = await self.db.get(KeyMaterial, material_id)
+        if mat is None:
+            raise LookupError("材料不存在")
+        if mat.sign_status == "signed":
+            raise ValueError("材料已签署")
+
+        mat.sign_status = "signed"
+        self.db.add(mat)
+        self.db.add(MaterialAudit(
+            material_id=material_id,
+            user_id=user_id,
+            action="sign",
+        ))
+        await self.db.commit()
+        return {"material_id": str(material_id), "sign_status": "signed"}
+
+    async def audit_material(self, activity_id: UUID, material_id: UUID,
+                              user_id: UUID, conclusion: str,
+                              opinion: str | None = None) -> dict:
+        if conclusion not in ("qualified", "unqualified"):
+            raise ValueError("结论必须为 qualified 或 unqualified")
+
+        mat = await self.db.get(KeyMaterial, material_id)
+        if mat is None:
+            raise LookupError("材料不存在")
+
+        mat.is_qualified = (conclusion == "qualified")
+        mat.opinion = opinion
+        mat.audit_round += 1
+        self.db.add(mat)
+        self.db.add(MaterialAudit(
+            material_id=material_id,
+            user_id=user_id,
+            action="audit",
+            conclusion=conclusion,
+            opinion=opinion,
+        ))
+        await self.db.commit()
+        return {
+            "material_id": str(material_id),
+            "is_qualified": mat.is_qualified,
+            "audit_round": mat.audit_round,
+        }

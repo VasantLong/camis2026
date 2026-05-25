@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Descriptions, Tabs, Button, Tag, Spin, Typography } from "antd";
-import { ArrowLeftOutlined } from "@ant-design/icons";
+import { Descriptions, Tabs, Button, Tag, Spin, Typography, Space, Modal, Input, message, List } from "antd";
+import { ArrowLeftOutlined, CheckOutlined, CloseOutlined, EditOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useActivity, useActivityHistory, useActivityDocuments } from "@/hooks/useActivityQueries";
 import StatusTimeline from "@/components/activities/StatusTimeline";
 import DocumentUpload from "@/components/documents/DocumentUpload";
@@ -14,6 +14,7 @@ import FilingPackModal from "@/components/filings/FilingPackModal";
 import HandoverConfirm from "@/components/filings/HandoverConfirm";
 import { filingsApi } from "@/api/filings";
 import { activitiesApi } from "@/api/activities";
+import { materialsApi } from "@/api/materials";
 import { useAuthStore } from "@/stores/authStore";
 import { STATUS_COLOR_MAP } from "@/utils/constants";
 
@@ -58,6 +59,50 @@ export default function ActivityDetailPage() {
     queryFn: () => filingsApi.getStatus(id!).then((r) => r.data),
     enabled: showFiling,
   });
+
+  const { data: materials = [], refetch: refetchMaterials } = useQuery({
+    queryKey: ["activities", id, "materials"],
+    queryFn: () => materialsApi.list(id!).then((r) => r.data),
+    enabled: showFiling,
+  });
+
+  const { data: auditHistory = [] } = useQuery({
+    queryKey: ["activities", id, "materials", "audit-history"],
+    queryFn: () => materialsApi.getAuditHistory(id!).then((r) => r.data),
+    enabled: showFiling,
+  });
+
+  const queryClient = useQueryClient();
+  const [auditTarget, setAuditTarget] = useState<{ id: string; name: string } | null>(null);
+  const [auditConclusion, setAuditConclusion] = useState<string>("qualified");
+  const [auditOpinion, setAuditOpinion] = useState("");
+
+  const signMutation = useMutation({
+    mutationFn: (matId: string) => materialsApi.sign(id!, matId),
+    onSuccess: () => {
+      message.success("签署成功");
+      refetchMaterials();
+    },
+    onError: (err: any) => message.error(err?.detail || "签署失败"),
+  });
+
+  const auditMutation = useMutation({
+    mutationFn: ({ matId, conclusion, opinion }: { matId: string; conclusion: string; opinion?: string }) =>
+      materialsApi.audit(id!, matId, conclusion, opinion),
+    onSuccess: () => {
+      message.success("审核完成");
+      setAuditTarget(null);
+      refetchMaterials();
+      queryClient.invalidateQueries({ queryKey: ["activities", id, "materials", "audit-history"] });
+    },
+    onError: (err: any) => message.error(err?.detail || "审核失败"),
+  });
+
+  const canSign = permissions.includes("sign_document");
+  const canAudit = permissions.includes("audit_material");
+  const allSigned = materials.length > 0 && materials.every(m => m.sign_status === "signed");
+  const allQualified = materials.length > 0 && materials.every(m => m.is_qualified);
+  const canPack = canOperateFiling && allSigned && !filingStatus?.packed;
 
   if (isLoading) {
     return (
@@ -196,15 +241,99 @@ export default function ActivityDetailPage() {
                       ) : (
                         <FilingValidatePanel data={validation} />
                       )}
+                      {/* materials with sign/audit */}
+                      {materials.length > 0 && (
+                        <div style={{ marginTop: 16 }}>
+                          <Typography.Text strong>关键材料</Typography.Text>
+                          <List
+                            size="small"
+                            dataSource={materials}
+                            renderItem={(m) => (
+                              <List.Item
+                                actions={[
+                                  canSign && m.sign_status !== "signed" && (
+                                    <Button
+                                      size="small"
+                                      icon={<EditOutlined />}
+                                      onClick={() => signMutation.mutate(m.id)}
+                                      loading={signMutation.isPending}
+                                    >
+                                      签署
+                                    </Button>
+                                  ),
+                                  canAudit && (
+                                    <Button
+                                      size="small"
+                                      icon={m.is_qualified ? <CheckOutlined /> : <CloseOutlined />}
+                                      onClick={() => {
+                                        setAuditTarget({ id: m.id, name: m.name });
+                                        setAuditConclusion(m.is_qualified ? "qualified" : "unqualified");
+                                        setAuditOpinion("");
+                                      }}
+                                    >
+                                      审查
+                                    </Button>
+                                  ),
+                                ].filter(Boolean)}
+                              >
+                                <List.Item.Meta
+                                  title={m.name}
+                                  description={
+                                    <Space size={4} wrap>
+                                      <Tag color={m.sign_status === "signed" ? "green" : "default"}>
+                                        {m.sign_status === "signed" ? "已签署" : "未签署"}
+                                      </Tag>
+                                      <Tag color={m.is_qualified ? "green" : "red"}>
+                                        {m.is_qualified ? "合格" : "不合格"}
+                                      </Tag>
+                                      {m.audit_round > 0 && (
+                                        <Tag>审核 {m.audit_round} 轮</Tag>
+                                      )}
+                                    </Space>
+                                  }
+                                />
+                              </List.Item>
+                            )}
+                          />
+                        </div>
+                      )}
+
+                      {/* audit history */}
+                      {auditHistory.length > 0 && (
+                        <div style={{ marginTop: 16 }}>
+                          <Typography.Text strong>审核记录</Typography.Text>
+                          <List
+                            size="small"
+                            dataSource={auditHistory}
+                            renderItem={(h) => (
+                              <List.Item>
+                                <List.Item.Meta
+                                  title={`${h.user_name} · ${h.action === "sign" ? "签署" : "审查"}`}
+                                  description={h.opinion || h.conclusion || "-"}
+                                />
+                                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                                  {new Date(h.created_at).toLocaleString("zh-CN")}
+                                </Typography.Text>
+                              </List.Item>
+                            )}
+                          />
+                        </div>
+                      )}
+
                       {canOperateFiling && filingStatus && (
                         <div style={{ marginTop: 16 }}>
-                          {!filingStatus.packed && (
+                          {canPack && (
                             <Button
                               type="primary"
                               onClick={() => setFilingModal("pack")}
                             >
                               打包备案材料
                             </Button>
+                          )}
+                          {!allSigned && materials.length > 0 && (
+                            <Typography.Text type="secondary" style={{ display: "block", marginTop: 4 }}>
+                              需全部材料签署后方可打包
+                            </Typography.Text>
                           )}
                           {filingStatus.packed && !filingStatus.handed_over && (
                             <>
@@ -219,6 +348,46 @@ export default function ActivityDetailPage() {
                           )}
                         </div>
                       )}
+
+                      {/* audit modal */}
+                      <Modal
+                        title={`审查: ${auditTarget?.name}`}
+                        open={!!auditTarget}
+                        onCancel={() => setAuditTarget(null)}
+                        onOk={() => {
+                          if (auditTarget) {
+                            auditMutation.mutate({
+                              matId: auditTarget.id,
+                              conclusion: auditConclusion,
+                              opinion: auditOpinion || undefined,
+                            });
+                          }
+                        }}
+                        confirmLoading={auditMutation.isPending}
+                        okText="提交审查"
+                        cancelText="取消"
+                      >
+                        <div style={{ marginBottom: 8 }}>
+                          <Tag
+                            color={auditConclusion === "qualified" ? "green" : "red"}
+                            style={{ cursor: "pointer" }}
+                            onClick={() => setAuditConclusion(
+                              auditConclusion === "qualified" ? "unqualified" : "qualified"
+                            )}
+                          >
+                            {auditConclusion === "qualified" ? "合格" : "不合格"}
+                          </Tag>
+                          <Typography.Text type="secondary" style={{ marginLeft: 8 }}>
+                            点击切换结论
+                          </Typography.Text>
+                        </div>
+                        <Input.TextArea
+                          placeholder="审查意见（可选）"
+                          rows={2}
+                          value={auditOpinion}
+                          onChange={(e) => setAuditOpinion(e.target.value)}
+                        />
+                      </Modal>
                       <FilingPackModal
                         open={filingModal === "pack"}
                         activityId={id!}

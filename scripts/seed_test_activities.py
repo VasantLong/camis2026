@@ -393,10 +393,13 @@ async def seed():
                 ]
                 if is_bad:
                     materials.append(("活动预算明细", False))
+                pre_signed = target not in ("待备案申请", "待补充备案材料", "待安保方案设计")
                 for mat_name, qualified in materials:
                     await db.execute(sa_text(
-                        "INSERT INTO key_materials (name, is_qualified) VALUES (:n, :q)"
-                    ), {"n": mat_name, "q": qualified})
+                        "INSERT INTO key_materials (name, is_qualified, sign_status) "
+                        "VALUES (:n, :q, :s)"
+                    ), {"n": mat_name, "q": qualified,
+                        "s": "signed" if pre_signed else "unsigned"})
                     mat_result = await db.execute(sa_text(
                         "SELECT id FROM key_materials WHERE name=:n ORDER BY created_at DESC LIMIT 1"
                     ), {"n": mat_name})
