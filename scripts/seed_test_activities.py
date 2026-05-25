@@ -16,6 +16,7 @@ from app.models.activity import (
     Activity, ActivityPlan, ActivityStatusLog, ApprovalRecord,
     ImplementationRecord, SecurityPlan,
 )
+from app.models.document import Document
 from app.models.rbac import Role, UserRole
 from app.models.user import User
 from app.services.minio_client import upload_file
@@ -98,6 +99,10 @@ async def seed():
                 plan_path = f"activities/{activity.id}/{uuid4().hex}.txt"
                 await upload_file(plan_path, plan_bytes, "text/plain")
 
+                _add_doc(db, activity.id, promoter.id,
+                         f"{name}_活动方案.txt", plan_path,
+                         len(plan_bytes), "text/plain", ["方案"])
+
                 db.add(ActivityPlan(
                     activity_id=activity.id,
                     content=plan_text,
@@ -113,6 +118,10 @@ async def seed():
                 sec_bytes = sec_text.encode("utf-8")
                 sec_path = f"activities/{activity.id}/{uuid4().hex}.txt"
                 await upload_file(sec_path, sec_bytes, "text/plain")
+
+                _add_doc(db, activity.id, security.id,
+                         f"{name}_安保方案.txt", sec_path,
+                         len(sec_bytes), "text/plain", ["安保"])
 
                 db.add(SecurityPlan(
                     activity_id=activity.id,
@@ -139,6 +148,10 @@ async def seed():
                     appr_bytes = appr_text.encode("utf-8")
                     approval_path = f"activities/{activity.id}/{uuid4().hex}.txt"
                     await upload_file(approval_path, appr_bytes, "text/plain")
+
+                    _add_doc(db, activity.id, liaison.id,
+                             f"{name}_政府批文.txt", approval_path,
+                             len(appr_bytes), "text/plain", ["批文"])
 
                 db.add(ApprovalRecord(
                     activity_id=activity.id,
@@ -195,6 +208,18 @@ async def seed():
             print(f"created: {name} → {target}")
 
     print("done")
+
+
+def _add_doc(db, activity_id, uploader_id, filename, minio_path, file_size, content_type, tags=None):
+    db.add(Document(
+        activity_id=activity_id,
+        uploader_id=uploader_id,
+        filename=filename,
+        minio_path=minio_path,
+        file_size=file_size,
+        content_type=content_type,
+        tags=tags or [],
+    ))
 
 
 async def _ensure_user(db, username, email, role_names):
