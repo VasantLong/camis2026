@@ -33,7 +33,7 @@
 
 ## UC 3：安保方案设计
 
-​ 参与者：安保部人员（含负责人）
+​ 参与者：安保部人员 (SecurityOfficer) + 安保部负责人 (SecurityManager)
 ​ 前置条件：宣策部已提交活动详细方案，安保部收到系统提示。
 ​ 后置条件：安保材料签署完毕，状态变更为“待备案申请”。
 ​ 主事件流：
@@ -61,17 +61,17 @@
 
 ## UC 5：审批安保方案（政府对接）
 
-​ 参与者：对接政府审批人员
-​ 前置条件：已线下收到安保部递交的纸质备案材料。
-​ 后置条件：政府电子批文存入系统，审核状态已更新。
+​ 参与者：对接政府审批人员 (GovLiaison)
+​ 前置条件：已线下收到安保部递交的纸质备案材料，活动状态为”备案材料已交接”。
+​ 后置条件：政府电子批文存入系统，所有关键材料审核完毕，审核状态已更新。
 ​ 主事件流：
-​ 对接人员携带纸质材料，线下前往政府对应部门（公安/交管等）窗口进行申报，获取政府出具的正式批文（同意或驳回意见）。
-​ 对接人员登录 MIS 系统，进入对应活动项目。
-​ 用户扫描并上传政府批文的电子版（PDF/图片）。
-​ 用户在系统中明确标注审核状态（“通过”或 “需补充材料”或“驳回”），并保存存入数据库。
+​ 对接人员登录 MIS 系统，进入对应活动项目 → 备案 tab。
+​ 对接人员逐条审查关键材料（消防验收证明、安全责任书等），对每条材料标记”合格”或”不合格”，填写审查意见。
+​ 全部合格后，对接人员扫描并上传政府批文电子版（PDF/图片）。
+​ 用户在系统中标注审批结果（”通过”），系统更新活动状态为”审批通过”。
 ​ 备选事件流：
-​ 4a. 政府要求补充材料： 政府窗口未直接驳回，但要求补充材料。对接人员在系统中勾选“需补充材料”，填写政府要求。系统状态变更为“待补充备案材料”，向安保部发送待办任务。
-​ 4b. 政府直接驳回： 对接人员取得驳回通知书，在系统中上传该通知书，勾选“政府审核结果：不通过”并保存。
+​ 4a. 政府要求补充材料： 部分材料不合格。对接人员标记不合格材料并填写整改意见。系统状态变更为”待补充备案材料”，通知安保部修正后重新打包提交（支持多轮审查）。
+​ 4b. 政府直接驳回： 对接人员取得驳回通知书，上传该通知书，标注”不通过”。活动进入”不通过/已终止”终态。
 
 ## UC 6：登记审批结果
 
@@ -113,14 +113,19 @@
 
 # 实体类及其属性
 
-**1. Promoter / SecurityOfficer / AdminStaff / GovLiaison (各类人员通用/特有)**
+**1. 角色体系（RBAC，详见 docs/rbac.md）**
 
-- `- empID: String` —— 工号 (Employee ID)
-- `- name: String` —— 姓名
-- `- contactInfo: String` —— 联系方式
-- `- duty: String` —— 职责
-- `- accessLevel: Integer` —— 权限等级
-- `- liaisonWindow: String` —— 对接窗口 (仅政府对接人员独有)
+| 角色 | 权限数 | 核心职责 |
+|------|--------|----------|
+| SuperAdmin | 2 | 用户 CRUD、角色审批 |
+| AdminManager | 5 | 继承 AdminStaff + 角色审批 |
+| AdminStaff | 4 | 仪表盘、强制变更 |
+| SecurityManager | 7 | 继承 SecurityOfficer + 审核安保方案、状态流转 |
+| SecurityOfficer | 4 | 上传材料、签署、打包备案 |
+| Promoter | 3 | 创建活动、上传方案 |
+| GovLiaison | 4 | 审查材料合规、上传批文、标注审批 |
+
+> OO 阶段原 manual 属性模型（empID/name/duty/accessLevel）已被 RBAC 替代。
 
 **5. Activity (活动项目)**
 
@@ -709,8 +714,29 @@ classDiagram
         +UUID id
         +String name
         +Boolean is_qualified
+        +String sign_status
+        +Integer audit_round
         +String opinion
         +DateTime upload_time
+    }
+
+    class MaterialAudit {
+        +UUID id
+        +UUID material_id
+        +UUID user_id
+        +String action
+        +String conclusion
+        +String opinion
+        +DateTime created_at
+    }
+
+    class RoleRequest {
+        +UUID id
+        +UUID user_id
+        +UUID role_id
+        +String status
+        +String comment
+        +DateTime created_at
     }
 
     class ActivityRule {
@@ -748,7 +774,7 @@ classDiagram
     %% === 聚合（Activity 为聚合根） ===
     Activity "1" *-- "1..*" ActivityPlan : 包含
     Activity "1" *-- "1..*" SecurityPlan : 包含
-    Activity "1" *-- "1" FilingDoc : 包含
+    Activity "1" *-- "*" FilingDoc : 多轮打包
     Activity "1" *-- "1..*" ApprovalRecord : 包含
     Activity "1" *-- "1" ImplementationRecord : 包含
     Activity "1..*" -- "1..*" ActivityRule : 受约束
@@ -756,6 +782,9 @@ classDiagram
     %% === 材料引用 ===
     SecurityPlan "1" o-- "1..*" KeyMaterial : 包含
     FilingDoc "1" o-- "1..*" KeyMaterial : 包含
+    KeyMaterial "1" *-- "*" MaterialAudit : 审核/签署记录
+    User "1" *-- "*" RoleRequest : 角色申请
+    Role "1" *-- "*" RoleRequest : 申请目标角色
 ```
 
 > **与 OO 类图的关键差异**：
@@ -793,6 +822,8 @@ classDiagram
 
     class FilingService {
         +pack_materials(activity_id) FilingDoc
+        +sign_material(activity_id, material_id, user_id) dict
+        +audit_material(activity_id, material_id, user_id, conclusion, opinion) dict
         +validate_signatures(activity_id) bool
         +confirm_handover(activity_id) void
     }
