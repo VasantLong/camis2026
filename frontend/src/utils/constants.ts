@@ -1,3 +1,19 @@
+export const ROLE_LABEL_MAP: Record<string, string> = {
+  SuperAdmin: "超级管理员",
+  Promoter: "宣策部",
+  SecurityOfficer: "安保部",
+  AdminStaff: "行政部",
+  GovLiaison: "政府对接",
+};
+
+export const ROLE_DESC_MAP: Record<string, string> = {
+  SuperAdmin: "管理用户角色、系统配置",
+  Promoter: "创建立项、编制活动方案",
+  SecurityOfficer: "编制安保方案、审核材料、确认审批结果",
+  AdminStaff: "监控活动面板、强制变更状态、管理用户",
+  GovLiaison: "上传批文、标注审批结果",
+};
+
 export const ACTIVITY_STATUSES = [
   "待设计方案",
   "待安保方案设计",

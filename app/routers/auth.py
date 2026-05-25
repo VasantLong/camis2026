@@ -185,6 +185,30 @@ async def logout(response: Response, current_user: User = Depends(get_current_us
     return {"message": "已登出"}
 
 
+class RoleOption(BaseModel):
+    id: str
+    name: str
+    label: str
+
+
+@router.get("/roles", response_model=list[RoleOption])
+async def list_roles(db=Depends(get_db)):
+    result = await db.execute(
+        select(Role).where(Role.name != "SuperAdmin").order_by(Role.name)
+    )
+    roles = result.scalars().all()
+    label_map = {
+        "Promoter": "宣策部",
+        "SecurityOfficer": "安保部",
+        "AdminStaff": "行政部",
+        "GovLiaison": "政府对接",
+    }
+    return [
+        RoleOption(id=str(r.id), name=r.name, label=label_map.get(r.name, r.name))
+        for r in roles
+    ]
+
+
 @router.post("/me/role-request", response_model=RoleRequestResponse, status_code=status.HTTP_201_CREATED)
 async def request_role(
     body: RoleRequestCreate,

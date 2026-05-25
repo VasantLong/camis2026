@@ -23,4 +23,11 @@ export interface UserResponse {
   is_active: boolean;
   permissions: string[];
   roles: string[];
+  pending_role_request?: {
+    id: string;
+    role_id: string;
+    role_name: string;
+    status: string;
+    created_at: string;
+  } | null;
 }

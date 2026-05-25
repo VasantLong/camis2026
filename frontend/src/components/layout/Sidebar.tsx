@@ -3,6 +3,8 @@ import {
   UnorderedListOutlined,
   PlusOutlined,
   DashboardOutlined,
+  UserOutlined,
+  TeamOutlined,
 } from "@ant-design/icons";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
@@ -52,14 +54,39 @@ export default function Sidebar() {
     });
   }
 
+  if (permissions.includes("manage_users")) {
+    items.push({
+      key: "admin-group",
+      label: "用户管理",
+      icon: <TeamOutlined />,
+      children: [
+        {
+          key: "/admin/role-requests",
+          label: "角色审批",
+          icon: <TeamOutlined />,
+        },
+      ],
+    });
+  }
+
+  items.push({
+    key: "/profile",
+    label: "个人中心",
+    icon: <UserOutlined />,
+  });
+
   const selectedKey =
     location.pathname === "/activities/new"
       ? "/activities/new"
-      : location.pathname.startsWith("/activities")
-        ? "/activities"
-        : location.pathname.startsWith("/dashboard")
-          ? "/dashboard"
-          : undefined;
+      : location.pathname.startsWith("/admin")
+        ? "/admin/role-requests"
+        : location.pathname.startsWith("/activities")
+          ? "/activities"
+          : location.pathname.startsWith("/dashboard")
+            ? "/dashboard"
+            : location.pathname.startsWith("/profile")
+              ? "/profile"
+              : undefined;
 
   return (
     <Menu

@@ -6,6 +6,12 @@ import type {
   UserResponse,
 } from "@/types/auth";
 
+export interface RoleOption {
+  id: string;
+  name: string;
+  label: string;
+}
+
 export const authApi = {
   login: (data: LoginRequest) =>
     client.post<TokenResponse>("/auth/login", data),
@@ -18,4 +24,6 @@ export const authApi = {
   refresh: () => client.post<TokenResponse>("/auth/refresh"),
 
   logout: () => client.post("/auth/logout"),
+
+  getRoles: () => client.get<RoleOption[]>("/auth/roles"),
 };

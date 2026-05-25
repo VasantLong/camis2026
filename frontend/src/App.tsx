@@ -12,6 +12,8 @@ import ActivityListPage from "@/pages/activities/ActivityListPage";
 import ActivityCreatePage from "@/pages/activities/ActivityCreatePage";
 import ActivityDetailPage from "@/pages/activities/ActivityDetailPage";
 import DashboardPage from "@/pages/dashboard/DashboardPage";
+import ProfilePage from "@/pages/profile/ProfilePage";
+import RoleRequestsPage from "@/pages/admin/RoleRequestsPage";
 
 export default function App() {
   return (
@@ -60,6 +62,22 @@ export default function App() {
                 element={
                   <ProtectedRoute requiredPermissions={["view_dashboard"]}>
                     <DashboardPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <ProfilePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/role-requests"
+                element={
+                  <ProtectedRoute requiredPermissions={["manage_users"]}>
+                    <RoleRequestsPage />
                   </ProtectedRoute>
                 }
               />
