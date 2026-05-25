@@ -16,7 +16,7 @@ roles ──< role_permissions >── permissions
 | `permissions` | 权限定义 (resource + action) | `id` (UUID) |
 | `role_permissions` | 角色 ↔ 权限，多对多 | (`role_id`, `permission_id`) |
 | `user_roles` | 用户 ↔ 角色，多对多 | (`user_id`, `role_id`) |
-| `role_requests` | 角色申请（待审批/已批准/已驳回） | `id` (UUID) | |
+| `role_requests` | 角色申请（待审批/已批准/已驳回） | `id` (UUID) |
 
 一个用户可拥有多个角色，一个角色可拥有多个权限。角色 UUID 由 `uuid_generate_v4()` 在 INSERT 时生成，引用角色时按 `name` 查询。
 
@@ -26,21 +26,23 @@ roles ──< role_permissions >── permissions
 
 | 角色 | 部门 | 职责 | 权限数 |
 |------|------|------|--------|
-| **SuperAdmin** | 系统 | 管理用户角色、系统配置 | 1 |
+| **SuperAdmin** | 系统 | 用户 CRUD、角色审批、系统配置 | 2 |
+| **AdminManager** | 行政部 | 审批角色申请、管理仪表盘 | 5 |
+| **AdminStaff** | 行政部 | 监控活动面板、强制变更状态 | 4 |
 | **Promoter** | 宣策部 | 创建立项、编制活动方案 | 3 |
 | **SecurityOfficer** | 安保部 | 编制安保方案、审核材料、确认审批结果 | 7 |
-| **AdminStaff** | 行政部 | 监控活动面板、强制变更状态、管理用户 | 5 |
 | **GovLiaison** | 政府对接 | 上传批文、标注审批结果 | 2 |
 
 ---
 
-## 权限全量（18 项）
+## 权限全量（19 项）
 
-### SuperAdmin（1 项）
+### SuperAdmin（2 项）
 
 | 权限名 | 资源 | 操作 | 对应用例 |
 |--------|------|------|---------|
 | `manage_users` | users | manage | 查看/审批/驳回角色申请 |
+| `administer_users` | users | administer | 用户列表、修改角色、禁用/启用、删除 |
 
 ### Promoter（3 项）
 
@@ -62,7 +64,9 @@ roles ──< role_permissions >── permissions
 | `reject_approval` | activities | reject_approval | 驳回审批结果（打回政府对接） |
 | `pack_filing` | filing | pack | 校验材料、打包、纸质交接 |
 
-### AdminStaff（5 项）
+### AdminManager（5 项）
+
+行政部负责人，拥有 AdminStaff 全部权限 + 角色审批。
 
 | 权限名 | 资源 | 操作 | 对应用例 |
 |--------|------|------|---------|
@@ -71,6 +75,17 @@ roles ──< role_permissions >── permissions
 | `force_postpone` | activities | force_postpone | 强制延期活动 |
 | `export_report` | dashboard | export_report | 导出月报 |
 | `manage_users` | users | manage | 查看/审批/驳回角色申请 |
+
+### AdminStaff（4 项）
+
+普通行政人员，不包含角色审批权限。
+
+| 权限名 | 资源 | 操作 | 对应用例 |
+|--------|------|------|---------|
+| `view_dashboard` | dashboard | view | 查看活动面板、活动详情统计 |
+| `force_cancel` | activities | force_cancel | 强制取消活动 |
+| `force_postpone` | activities | force_postpone | 强制延期活动 |
+| `export_report` | dashboard | export_report | 导出月报 |
 
 ### GovLiaison（2 项）
 
@@ -81,14 +96,19 @@ roles ──< role_permissions >── permissions
 
 ---
 
-## 路由权限映射（实际生效的 18 个端点）
+## 路由权限映射（实际生效的 23 个端点）
 
 | 方法 | 路径 | 权限 | 角色 |
 |------|------|------|------|
 | `POST` | `/auth/me/role-request` | 登录即可 | 任意用户 |
-| `GET` | `/admin/role-requests` | `manage_users` | SuperAdmin / AdminStaff |
-| `POST` | `/admin/role-requests/{id}/approve` | `manage_users` | SuperAdmin / AdminStaff |
-| `POST` | `/admin/role-requests/{id}/reject` | `manage_users` | SuperAdmin / AdminStaff |
+| `GET` | `/admin/role-requests` | `manage_users` | SuperAdmin / AdminManager |
+| `POST` | `/admin/role-requests/{id}/approve` | `manage_users` | SuperAdmin / AdminManager |
+| `POST` | `/admin/role-requests/{id}/reject` | `manage_users` | SuperAdmin / AdminManager |
+| `GET` | `/admin/users` | `administer_users` | SuperAdmin |
+| `GET` | `/admin/users/{id}` | `administer_users` | SuperAdmin |
+| `PUT` | `/admin/users/{id}/roles` | `administer_users` | SuperAdmin |
+| `PATCH` | `/admin/users/{id}/status` | `administer_users` | SuperAdmin |
+| `DELETE` | `/admin/users/{id}` | `administer_users` | SuperAdmin |
 | `POST` | `/activities` | `create_activity` | Promoter |
 | `GET` | `/activities` | `view_owned_activity` | Promoter |
 | `GET` | `/activities/{id}` | `view_owned_activity` | Promoter |

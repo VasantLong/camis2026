@@ -14,10 +14,12 @@ import ActivityDetailPage from "@/pages/activities/ActivityDetailPage";
 import DashboardPage from "@/pages/dashboard/DashboardPage";
 import ProfilePage from "@/pages/profile/ProfilePage";
 import RoleRequestsPage from "@/pages/admin/RoleRequestsPage";
+import UserManagementPage from "@/pages/admin/UserManagementPage";
 import { useAuthStore } from "@/stores/authStore";
 
 function HomeRedirect() {
   const permissions = useAuthStore((s) => s.user?.permissions) ?? [];
+  if (permissions.includes("administer_users")) return <Navigate to="/admin/users" replace />;
   if (permissions.includes("manage_users")) return <Navigate to="/admin/role-requests" replace />;
   if (permissions.includes("view_dashboard")) return <Navigate to="/dashboard" replace />;
   if (permissions.includes("view_owned_activity")) return <Navigate to="/activities" replace />;
@@ -87,6 +89,14 @@ export default function App() {
                 element={
                   <ProtectedRoute requiredPermissions={["manage_users"]}>
                     <RoleRequestsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/users"
+                element={
+                  <ProtectedRoute requiredPermissions={["administer_users"]}>
+                    <UserManagementPage />
                   </ProtectedRoute>
                 }
               />

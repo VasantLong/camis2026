@@ -1,28 +1,32 @@
 -- ============================================================
--- SuperAdmin 角色 + 角色申请表
+-- SuperAdmin + AdminManager 角色 + 角色申请表
 -- 对应决策: docs/rbac.md
 -- ============================================================
 
--- 新增权限：管理用户
+-- 新增权限
 INSERT INTO permissions (name, resource, action) VALUES
-    ('manage_users', 'users', 'manage')
+    ('manage_users', 'users', 'manage'),
+    ('administer_users', 'users', 'administer')
 ON CONFLICT (name) DO NOTHING;
 
--- 新增角色：超级管理员
+-- 新增角色
 INSERT INTO roles (name, description) VALUES
-    ('SuperAdmin', '超级管理员 — 管理用户角色、系统配置')
+    ('SuperAdmin', '超级管理员 — 用户 CRUD、系统配置'),
+    ('AdminManager', '行政部负责人 — 审批角色申请、管理仪表盘')
 ON CONFLICT (name) DO NOTHING;
 
--- SuperAdmin ← manage_users
+-- SuperAdmin ← manage_users + administer_users
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r, permissions p
-WHERE r.name = 'SuperAdmin' AND p.name IN ('manage_users')
+WHERE r.name = 'SuperAdmin' AND p.name IN ('manage_users', 'administer_users')
 ON CONFLICT DO NOTHING;
 
--- AdminStaff ← manage_users（行政部也可管理用户）
+-- AdminManager ← AdminStaff 全部权限 + manage_users
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r, permissions p
-WHERE r.name = 'AdminStaff' AND p.name IN ('manage_users')
+WHERE r.name = 'AdminManager' AND p.name IN (
+    'manage_users', 'view_dashboard', 'force_cancel', 'force_postpone', 'export_report'
+)
 ON CONFLICT DO NOTHING;
 
 -- ============================================================

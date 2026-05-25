@@ -1,8 +1,12 @@
 """创建预设测试用户。幂等，可重复执行。"""
 
 import asyncio
+import sys
+from pathlib import Path
 
-from sqlalchemy import select, text
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from sqlalchemy import select
 
 from app.auth import hash_password
 from app.database import async_session
@@ -13,7 +17,7 @@ SEED_USERS = [
     ("superadmin", "superadmin@test.com", "pass123", ["SuperAdmin"]),
     ("promoter", "promoter@test.com", "pass123", ["Promoter"]),
     ("security", "security@test.com", "pass123", ["SecurityOfficer"]),
-    ("admin", "admin@test.com", "pass123", ["AdminStaff"]),
+    ("admin", "admin@test.com", "pass123", ["AdminStaff", "AdminManager"]),
     ("liaison", "liaison@test.com", "pass123", ["GovLiaison"]),
     ("tester1", "tester1@test.com", "pass123", ["Promoter", "AdminStaff"]),
     ("testuser", "testuser@test.com", "test123", []),

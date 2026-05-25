@@ -12,6 +12,21 @@ export interface RoleRequestItem {
   reviewed_at: string | null;
 }
 
+export interface UserListItem {
+  id: string;
+  username: string;
+  email: string;
+  display_name: string | null;
+  is_active: boolean;
+  roles: string[];
+  created_at: string;
+}
+
+export interface UserDetail extends UserListItem {
+  permissions: string[];
+  updated_at: string;
+}
+
 export const adminApi = {
   getRoleRequests: () =>
     client.get<RoleRequestItem[]>("/admin/role-requests"),
@@ -24,4 +39,19 @@ export const adminApi = {
       status: "rejected",
       comment,
     }),
+
+  getUsers: () => client.get<UserListItem[]>("/admin/users"),
+
+  getUser: (id: string) => client.get<UserDetail>(`/admin/users/${id}`),
+
+  updateUserRoles: (id: string, roleIds: string[]) =>
+    client.put<UserDetail>(`/admin/users/${id}/roles`, { role_ids: roleIds }),
+
+  updateUserStatus: (id: string, isActive: boolean) =>
+    client.patch<UserDetail>(`/admin/users/${id}/status`, {
+      is_active: isActive,
+    }),
+
+  deleteUser: (id: string) =>
+    client.delete(`/admin/users/${id}`),
 };
