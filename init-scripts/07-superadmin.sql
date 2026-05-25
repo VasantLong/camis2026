@@ -1,5 +1,5 @@
 -- ============================================================
--- SuperAdmin + AdminManager 角色 + 角色申请表
+-- SuperAdmin + AdminManager + SecurityManager 角色 + 角色申请表
 -- 对应决策: docs/rbac.md
 -- ============================================================
 
@@ -12,7 +12,8 @@ ON CONFLICT (name) DO NOTHING;
 -- 新增角色
 INSERT INTO roles (name, description) VALUES
     ('SuperAdmin', '超级管理员 — 用户 CRUD、系统配置'),
-    ('AdminManager', '行政部负责人 — 审批角色申请、管理仪表盘')
+    ('AdminManager', '行政部负责人 — 审批角色申请、管理仪表盘'),
+    ('SecurityManager', '安保部负责人 — 编制安保方案、审核签署、确认审批结果')
 ON CONFLICT (name) DO NOTHING;
 
 -- SuperAdmin ← manage_users + administer_users
@@ -26,6 +27,16 @@ INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r, permissions p
 WHERE r.name = 'AdminManager' AND p.name IN (
     'manage_users', 'view_dashboard', 'force_cancel', 'force_postpone', 'export_report'
+)
+ON CONFLICT DO NOTHING;
+
+-- SecurityManager ← SecurityOfficer 全部权限 + 管理权限
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id FROM roles r, permissions p
+WHERE r.name = 'SecurityManager' AND p.name IN (
+    'view_owned_activity',
+    'manage_security', 'sign_document', 'confirm_approval', 'reject_approval',
+    'upload_security_material', 'audit_material', 'pack_filing'
 )
 ON CONFLICT DO NOTHING;
 

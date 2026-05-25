@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.database import get_db
 from app.deps import get_current_user
 from app.models.user import User
-from app.rbac import require_permission
+from app.rbac import get_user_permissions, require_permission
 from app.schemas.activity import StatusLogEntry
 from app.schemas.workflow import ForceChangeRequest, RejectRequest, StatusTransition
 from app.services.notification_service import NotificationService
@@ -24,9 +24,16 @@ async def update_status(
     activity_id: UUID,
     body: StatusTransition,
     current_user: User = Depends(get_current_user),
+    db=Depends(get_db),
     svc: WorkflowService = Depends(_service),
     _perm: None = require_permission("manage_security"),
 ):
+    if body.to_status == "审批通过-待举办":
+        perms = await get_user_permissions(user=current_user, db=db)
+        if "confirm_approval" not in perms:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="缺少权限: confirm_approval"
+            )
     try:
         return await svc.transition(activity_id, body.to_status, current_user, body.comment)
     except LookupError as e:

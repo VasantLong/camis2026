@@ -68,7 +68,7 @@ async def security_token(client):
     async with async_session() as db:
         await db.execute(text(
             "INSERT INTO user_roles (user_id, role_id) "
-            "SELECT :uid, id FROM roles WHERE name='SecurityOfficer' "
+            "SELECT :uid, id FROM roles WHERE name IN ('SecurityOfficer', 'SecurityManager') "
             "ON CONFLICT DO NOTHING"
         ), {"uid": user_id})
         await db.commit()
