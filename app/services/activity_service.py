@@ -85,10 +85,13 @@ class ActivityService:
 
         return ActivityResponse.model_validate(activity)
 
-    async def get(self, activity_id: UUID, user_id: UUID | None = None) -> ActivityResponse:
+    async def get(self, activity_id: UUID, user_id: UUID | None = None,
+                 allowed_statuses: set[str] | None = None) -> ActivityResponse:
         query = select(Activity).where(Activity.id == activity_id)
         if user_id:
             query = query.where(Activity.owner_id == user_id)
+        if allowed_statuses:
+            query = query.where(Activity.status.in_(allowed_statuses))
         result = await self.db.execute(query)
         activity = result.scalar_one_or_none()
         if activity is None:
@@ -96,12 +99,16 @@ class ActivityService:
         await self._auto_start_if_due(activity)
         return ActivityResponse.model_validate(activity)
 
-    async def list(self, params: ActivityListParams, user_id: UUID | None = None) -> tuple[list[ActivityResponse], int]:
+    async def list(self, params: ActivityListParams, user_id: UUID | None = None,
+                   allowed_statuses: set[str] | None = None) -> tuple[list[ActivityResponse], int]:
         query = select(Activity)
         count_query = select(func.count(Activity.id))
         if user_id:
             query = query.where(Activity.owner_id == user_id)
             count_query = count_query.where(Activity.owner_id == user_id)
+        if allowed_statuses:
+            query = query.where(Activity.status.in_(allowed_statuses))
+            count_query = count_query.where(Activity.status.in_(allowed_statuses))
 
         if params.status:
             query = query.where(Activity.status == params.status)

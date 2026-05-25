@@ -12,7 +12,8 @@ from app.database import get_db
 from app.deps import get_current_user
 from app.models.document import Document
 from app.models.user import User
-from app.rbac import require_permission
+from app.models.rbac import Role, UserRole
+from app.rbac import get_user_permissions, require_permission
 from app.schemas.activity import ActivityCreate, ActivityListParams, ActivityResponse, StatusLogEntry
 from app.services.activity_service import ActivityService
 from app.services.redis_client import get_redis
@@ -23,6 +24,46 @@ router = APIRouter(prefix="/activities", tags=["activities"])
 
 def _service(db=Depends(get_db)) -> ActivityService:
     return ActivityService(db)
+
+
+SECURITY_OFFICER_STATUSES = {"待安保方案设计"}
+SECURITY_MANAGER_STATUSES = {
+    "待安保方案设计", "待备案申请", "备案材料已交接",
+    "审批通过", "待补充备案材料",
+}
+GOV_LIAISON_STATUSES = {"备案材料已交接"}
+
+
+async def _visibility(current_user: User, db) -> tuple[UUID | None, set[str] | None]:
+    """返回 (owner_id_filter, allowed_statuses) 控制活动可见性。"""
+    role_result = await db.execute(
+        select(Role.name)
+        .join(UserRole, UserRole.role_id == Role.id)
+        .where(UserRole.user_id == current_user.id)
+    )
+    roles = {row[0] for row in role_result.all()}
+
+    # Admin/Manager 看全部
+    if roles & {"AdminStaff", "AdminManager"}:
+        return None, None
+
+    # SecurityManager 看安保流程所有状态
+    if "SecurityManager" in roles:
+        return None, SECURITY_MANAGER_STATUSES
+
+    # SecurityOfficer 只看待安保方案设计
+    if "SecurityOfficer" in roles:
+        return None, SECURITY_OFFICER_STATUSES
+
+    # GovLiaison 只看备案材料已交接
+    if "GovLiaison" in roles:
+        return None, GOV_LIAISON_STATUSES
+
+    # Promoter 看自己创建的所有状态
+    if "Promoter" in roles:
+        return current_user.id, None
+
+    return current_user.id, None
 
 
 @router.post("", response_model=ActivityResponse, status_code=status.HTTP_201_CREATED)
@@ -49,9 +90,11 @@ async def list_activities(
     current_user: User = Depends(get_current_user),
     svc: ActivityService = Depends(_service),
     _perm: None = require_permission("view_owned_activity"),
+    db=Depends(get_db),
 ):
     from datetime import datetime
 
+    owner_id, allowed = await _visibility(current_user, db)
     params = ActivityListParams(
         status=status_filter,
         keyword=keyword,
@@ -60,7 +103,7 @@ async def list_activities(
         page=page,
         size=size,
     )
-    items, _ = await svc.list(params, current_user.id)
+    items, _ = await svc.list(params, owner_id, allowed)
     return items
 
 
@@ -70,9 +113,11 @@ async def get_activity(
     current_user: User = Depends(get_current_user),
     svc: ActivityService = Depends(_service),
     _perm: None = require_permission("view_owned_activity"),
+    db=Depends(get_db),
 ):
     try:
-        return await svc.get(activity_id, current_user.id)
+        owner_id, allowed = await _visibility(current_user, db)
+        return await svc.get(activity_id, owner_id, allowed)
     except LookupError as e:
         raise NotFoundError(str(e))
 
