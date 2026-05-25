@@ -10,7 +10,12 @@ export const documentsApi = {
     return client.post<DocumentResponse>("/documents/upload", formData);
   },
 
-  download: (docId: string) => {
-    window.open(`/api/documents/${docId}`, "_blank");
+  download: async (docId: string) => {
+    try {
+      const res = await client.get<{ url: string }>(`/documents/${docId}/url`);
+      window.open(res.data.url, "_blank");
+    } catch {
+      // error handled by Axios interceptor
+    }
   },
 };

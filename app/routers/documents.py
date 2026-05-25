@@ -76,6 +76,27 @@ async def upload_document(
     return _to_response(doc)
 
 
+class PresignedUrlResponse(BaseModel):
+    url: str
+    filename: str
+
+
+@router.get("/{doc_id}/url", response_model=PresignedUrlResponse)
+async def get_download_url(
+    doc_id: str,
+    current_user: User = Depends(get_current_user),
+    svc: DocumentService = Depends(_service),
+):
+    from app.models.document import Document as DocModel
+
+    d = await svc.db.get(DocModel, doc_id)
+    if d is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+    url = await svc.get_presigned_download_url(doc_id)
+    return PresignedUrlResponse(url=url, filename=d.filename)
+
+
 @router.get("/{doc_id}")
 async def download_document(
     doc_id: str,
