@@ -44,7 +44,7 @@ export default function App() {
                 path="/activities"
                 element={
                   <ProtectedRoute
-                    requiredPermissions={["view_owned_activity"]}
+                    requiredPermissions={["view_owned_activity", "view_dashboard"]}
                   >
                     <ActivityListPage />
                   </ProtectedRoute>

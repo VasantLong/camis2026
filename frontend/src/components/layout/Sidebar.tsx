@@ -25,7 +25,10 @@ export default function Sidebar() {
     children?: typeof items;
   }> = [];
 
-  if (permissions.includes("view_owned_activity")) {
+  const canViewActivities =
+    permissions.includes("view_owned_activity") || permissions.includes("view_dashboard");
+
+  if (canViewActivities) {
     const children = [
       {
         key: "/activities",
