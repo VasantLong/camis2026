@@ -5,7 +5,9 @@
 ```
 roles ──< role_permissions >── permissions
   │
-  └──< user_roles >── users
+  ├──< user_roles >── users
+  │
+  └──< role_requests >── users (角色申请)
 ```
 
 | 表 | 用途 | 主键 |
@@ -14,6 +16,7 @@ roles ──< role_permissions >── permissions
 | `permissions` | 权限定义 (resource + action) | `id` (UUID) |
 | `role_permissions` | 角色 ↔ 权限，多对多 | (`role_id`, `permission_id`) |
 | `user_roles` | 用户 ↔ 角色，多对多 | (`user_id`, `role_id`) |
+| `role_requests` | 角色申请（待审批/已批准/已驳回） | `id` (UUID) | |
 
 一个用户可拥有多个角色，一个角色可拥有多个权限。角色 UUID 由 `uuid_generate_v4()` 在 INSERT 时生成，引用角色时按 `name` 查询。
 
@@ -23,14 +26,21 @@ roles ──< role_permissions >── permissions
 
 | 角色 | 部门 | 职责 | 权限数 |
 |------|------|------|--------|
+| **SuperAdmin** | 系统 | 管理用户角色、系统配置 | 1 |
 | **Promoter** | 宣策部 | 创建立项、编制活动方案 | 3 |
 | **SecurityOfficer** | 安保部 | 编制安保方案、审核材料、确认审批结果 | 7 |
-| **AdminStaff** | 行政部 | 监控活动面板、强制变更状态、归档 | 4 |
+| **AdminStaff** | 行政部 | 监控活动面板、强制变更状态、管理用户 | 5 |
 | **GovLiaison** | 政府对接 | 上传批文、标注审批结果 | 2 |
 
 ---
 
-## 权限全量（17 项）
+## 权限全量（18 项）
+
+### SuperAdmin（1 项）
+
+| 权限名 | 资源 | 操作 | 对应用例 |
+|--------|------|------|---------|
+| `manage_users` | users | manage | 查看/审批/驳回角色申请 |
 
 ### Promoter（3 项）
 
@@ -52,7 +62,7 @@ roles ──< role_permissions >── permissions
 | `reject_approval` | activities | reject_approval | 驳回审批结果（打回政府对接） |
 | `pack_filing` | filing | pack | 校验材料、打包、纸质交接 |
 
-### AdminStaff（4 项）
+### AdminStaff（5 项）
 
 | 权限名 | 资源 | 操作 | 对应用例 |
 |--------|------|------|---------|
@@ -60,6 +70,7 @@ roles ──< role_permissions >── permissions
 | `force_cancel` | activities | force_cancel | 强制取消活动 |
 | `force_postpone` | activities | force_postpone | 强制延期活动 |
 | `export_report` | dashboard | export_report | 导出月报 |
+| `manage_users` | users | manage | 查看/审批/驳回角色申请 |
 
 ### GovLiaison（2 项）
 
@@ -70,10 +81,14 @@ roles ──< role_permissions >── permissions
 
 ---
 
-## 路由权限映射（实际生效的 15 个端点）
+## 路由权限映射（实际生效的 18 个端点）
 
 | 方法 | 路径 | 权限 | 角色 |
 |------|------|------|------|
+| `POST` | `/auth/me/role-request` | 登录即可 | 任意用户 |
+| `GET` | `/admin/role-requests` | `manage_users` | SuperAdmin / AdminStaff |
+| `POST` | `/admin/role-requests/{id}/approve` | `manage_users` | SuperAdmin / AdminStaff |
+| `POST` | `/admin/role-requests/{id}/reject` | `manage_users` | SuperAdmin / AdminStaff |
 | `POST` | `/activities` | `create_activity` | Promoter |
 | `GET` | `/activities` | `view_owned_activity` | Promoter |
 | `GET` | `/activities/{id}` | `view_owned_activity` | Promoter |
@@ -120,6 +135,29 @@ require_permission("create_activity") (app/rbac.py:26)
 
 ---
 
+## 角色申请流程
+
+```
+用户注册 → 无角色 → GET /auth/me 返回 pending_role_request=null
+  │
+  ▼
+POST /auth/me/role-request {role_id} → status=pending
+  │
+  ▼
+SuperAdmin / AdminStaff:
+  GET /admin/role-requests → 待审批列表
+  │
+  ├─ POST /admin/role-requests/{id}/approve → INSERT user_roles → 权限生效
+  └─ POST /admin/role-requests/{id}/reject   → status=rejected（含驳回原因）
+```
+
+约束：
+- 每个用户同时只能有 1 个 `pending` 申请
+- 不能申请 SuperAdmin 角色
+- 管理员审批后即时生效（INSERT user_roles），无需用户重新登录
+
+---
+
 ## 已知 Gap
 
 ### 定义了但未使用的权限（7 项）
@@ -136,9 +174,6 @@ require_permission("create_activity") (app/rbac.py:26)
 | `upload_approval` | GovLiaison |
 | `update_approval_status` | GovLiaison |
 
-### 文档中有但代码中缺失的角色：安保部负责人
+### 安保部负责人（计划中）
 
-- `docs/camis-UML.md` 的时序图中存在 **"安保部负责人"（Manager）** 角色，负责审批安保方案、电子签署
-- `app/models/activity.py` 的 `SecurityPlan` 表有 `manager_id` 外键指向 `users.id`——"负责人"被建模为**具体用户引用**而非角色
-- 代码中没有 `Manager`、`Leader`、`Director` 角色，也没有对应的权限检查
-- 这意味着目前任何有 `manage_security` 权限的 SecurityOfficer 都可以执行所有安保部操作，不区分"普通安保人员"和"负责人"
+UML 文档中"安保部负责人"概念尚未在代码中有对应角色（`manager_id` 字段为死代码）。将在后续分支 `feat/security-manager` 实现。

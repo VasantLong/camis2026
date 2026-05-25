@@ -108,26 +108,24 @@ curl http://localhost:8000/health
 
 ## 测试帐号
 
-| 用户名     | 密码      | 角色                  | 可访问页面           |
-| ---------- | --------- | --------------------- | -------------------- |
-| `tester1`  | `pass123` | Promoter + AdminStaff | 活动管理、仪表盘     |
-| `testuser` | `test123` | 无角色                | 仅登录（无功能权限） |
+用 `python scripts/seed_test_users.py` 一键创建（幂等，可重复执行）：
 
-> 如需其他角色（SecurityOfficer、GovLiaison），可在数据库分配：
->
-> ```bash
-> docker exec doc_postgres psql -U docapp -d doc_metadata \
->   -c "INSERT INTO user_roles (user_id, role_id) VALUES ('<user-uuid>', '<role-uuid>');"
-> ```
->
-> 角色 UUID：
->
-> ```
-> Promoter        dc865a6e-6da6-4add-8667-885e128377ea
-> SecurityOfficer 2c977316-1e85-43bf-a2fa-6bedf92b5feb
-> AdminStaff      c598f8e4-361c-4296-b291-3328e38ed3a6
-> GovLiaison      162c159b-cdc8-439e-89f8-9be31d88eb8b
-> ```
+| 用户名 | 密码 | 角色 | 可访问页面 |
+|--------|------|------|-----------|
+| `superadmin` | `pass123` | SuperAdmin | 管理用户角色申请 |
+| `promoter` | `pass123` | Promoter | 活动管理 |
+| `security` | `pass123` | SecurityOfficer | 安保方案、审批流转 |
+| `admin` | `pass123` | AdminStaff | 仪表盘、强制变更、管理用户 |
+| `liaison` | `pass123` | GovLiaison | 批文上传、审批标注 |
+| `tester1` | `pass123` | Promoter + AdminStaff | 活动管理、仪表盘 |
+| `testuser` | `test123` | 无角色 | 仅登录（可提交角色申请） |
+
+## 角色申请流程
+
+1. 用 `testuser` 登录 → 查看 `/auth/me`，`pending_role_request` 为 `null`
+2. `POST /auth/me/role-request {"role_id": "<Promoter-UUID>"}` → 提交申请
+3. 用 `superadmin` 登录 → `GET /admin/role-requests` → 查看待审批
+4. `POST /admin/role-requests/{id}/approve` → 批准后 testuser 立即获得 Promoter 权限
 
 ---
 
@@ -144,7 +142,7 @@ curl http://localhost:8000/health
 
 ### 场景 B：安保部（SecurityOfficer）— 审批流转
 
-> 前提：先在数据库给 tester1 分配 SecurityOfficer 角色（保留 Promoter）
+用 `security / pass123` 登录（已预设 SecurityOfficer 角色）。
 
 1. 打开某个「待设计方案」的活动详情
 2. 点击「提交到安保方案设计」→ 状态变为「待安保方案设计」
@@ -154,7 +152,7 @@ curl http://localhost:8000/health
 
 ### 场景 C：政府对接（GovLiaison）— 批文上传
 
-> 前提：分配 GovLiaison 角色，活动处于「备案材料已交接」状态
+用 `liaison / pass123` 登录（已预设 GovLiaison 角色），活动需处于「备案材料已交接」状态。
 
 1. 打开活动详情
 2. 点击「审批通过」→ 状态变为「审批通过」

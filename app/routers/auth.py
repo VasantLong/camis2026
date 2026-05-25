@@ -14,8 +14,10 @@ from app.auth import (
 )
 from app.database import get_db
 from app.deps import get_current_user
-from app.models.rbac import Permission, Role, RolePermission, UserRole
+from app.errors import ConflictError
+from app.models.rbac import Permission, Role, RolePermission, RoleRequest, UserRole
 from app.models.user import User
+from app.schemas.role_request import RoleRequestCreate, RoleRequestResponse
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -37,6 +39,14 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
+class PendingRoleRequest(BaseModel):
+    id: str
+    role_id: str
+    role_name: str
+    status: str
+    created_at: str
+
+
 class UserResponse(BaseModel):
     id: str
     username: str
@@ -45,6 +55,7 @@ class UserResponse(BaseModel):
     is_active: bool
     permissions: list[str] = []
     roles: list[str] = []
+    pending_role_request: PendingRoleRequest | None = None
 
 
 @router.post("/register", response_model=TokenResponse)
@@ -107,6 +118,28 @@ async def me(current_user: User = Depends(get_current_user), db=Depends(get_db))
     )
     roles = [row[0] for row in role_result.all()]
 
+    pending_rr = None
+    rr_result = await db.execute(
+        select(RoleRequest, Role.name)
+        .join(Role, Role.id == RoleRequest.role_id)
+        .where(
+            RoleRequest.user_id == current_user.id,
+            RoleRequest.status == "pending",
+        )
+        .order_by(RoleRequest.created_at.desc())
+        .limit(1)
+    )
+    row = rr_result.first()
+    if row:
+        rr, role_name = row
+        pending_rr = PendingRoleRequest(
+            id=str(rr.id),
+            role_id=str(rr.role_id),
+            role_name=role_name,
+            status=rr.status,
+            created_at=rr.created_at.isoformat(),
+        )
+
     return UserResponse(
         id=str(current_user.id),
         username=current_user.username,
@@ -115,6 +148,7 @@ async def me(current_user: User = Depends(get_current_user), db=Depends(get_db))
         is_active=current_user.is_active,
         permissions=permissions,
         roles=roles,
+        pending_role_request=pending_rr,
     )
 
 
@@ -149,3 +183,41 @@ async def logout(response: Response, current_user: User = Depends(get_current_us
     await revoke_user_tokens(db, str(current_user.id))
     response.delete_cookie("refresh_token", path="/")
     return {"message": "已登出"}
+
+
+@router.post("/me/role-request", response_model=RoleRequestResponse, status_code=status.HTTP_201_CREATED)
+async def request_role(
+    body: RoleRequestCreate,
+    current_user: User = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    existing = await db.execute(
+        select(RoleRequest).where(
+            RoleRequest.user_id == current_user.id,
+            RoleRequest.status == "pending",
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise ConflictError("您已有待审批的角色申请")
+
+    role = await db.get(Role, body.role_id)
+    if role is None:
+        from app.errors import NotFoundError
+        raise NotFoundError("角色不存在")
+    if role.name == "SuperAdmin":
+        from app.errors import ForbiddenError
+        raise ForbiddenError("不能申请超级管理员角色")
+
+    rr = RoleRequest(user_id=current_user.id, role_id=body.role_id)
+    db.add(rr)
+    await db.commit()
+    await db.refresh(rr)
+
+    return RoleRequestResponse(
+        id=rr.id,
+        user_id=rr.user_id,
+        role_id=rr.role_id,
+        role_name=role.name,
+        status=rr.status,
+        created_at=rr.created_at,
+    )

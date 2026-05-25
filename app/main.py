@@ -9,7 +9,7 @@ from app.database import engine
 from app.errors import AppError, app_error_handler
 from app.logging_config import setup_logging
 from app.middleware import RequestIDMiddleware
-from app.routers import activities, auth, dashboard, documents, filings, health, workflows
+from app.routers import activities, admin, auth, dashboard, documents, filings, health, workflows
 from app.services.minio_client import check_bucket, minio_client
 from app.services.redis_client import close_redis, get_redis
 
@@ -47,5 +47,6 @@ app.include_router(activities.router)
 app.include_router(workflows.router)
 app.include_router(filings.router)
 app.include_router(dashboard.router)
+app.include_router(admin.router)
 
 app.add_exception_handler(AppError, app_error_handler)
