@@ -93,6 +93,60 @@ def _make_csv(rows: list[list[str]]) -> bytes:
     return "\n".join(",".join(v.replace(",", "，") for v in row) for row in rows).encode("utf-8")
 
 
+def _make_docx(title: str, body: str) -> bytes:
+    """生成最小有效 DOCX（ZIP + WordprocessingML）。"""
+    import zipfile
+    from io import BytesIO
+
+    buf = BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("[Content_Types].xml", (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+            '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+            '<Default Extension="xml" ContentType="application/xml"/>'
+            '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
+            '</Types>'
+        ))
+        zf.writestr("_rels/.rels", (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'
+            '</Relationships>'
+        ))
+        paragraphs = "".join(
+            f'<w:p><w:r><w:t xml:space="preserve">{line}</w:t></w:r></w:p>'
+            for line in body.split("\n")
+        )
+        zf.writestr("word/document.xml", (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+            f'<w:body>{paragraphs}</w:body></w:document>'
+        ))
+    return buf.getvalue()
+
+
+def _make_jpg() -> bytes:
+    """生成 1x1 白色 JPEG。"""
+    import struct
+    from io import BytesIO
+
+    buf = BytesIO()
+    # SOI
+    buf.write(b'\xff\xd8')
+    # APP0
+    buf.write(b'\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00')
+    # DQT
+    buf.write(b'\xff\xdb\x00C\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07\x07\t\t\x08\n\x0c\x14\r\x0c\x0b\x0b\x0c\x19\x12\x13\x0f\x14\x1d\x1a\x1f\x1e\x1d\x1a\x1c\x1c $.\' ",#\x1c\x1c(7),01444\x1f\'9=82<.342')
+    # SOF0
+    buf.write(b'\xff\xc0\x00\x0b\x08\x00\x01\x00\x01\x01\x01\x11\x00')
+    # DHT
+    buf.write(b'\xff\xc4\x00\x1f\x00\x00\x01\x05\x01\x01\x01\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b')
+    # SOS
+    buf.write(b'\xff\xda\x00\x08\x01\x01\x00\x00?\x00\xd2\xcf \xff\xd9')
+    return buf.getvalue()
+
+
 # ── activity definitions ──
 # (name, type, location, sponsor, estimated_days, deadline_days, target_status)
 # days > 0 = future, days < 0 = past, days = 0 = today
@@ -195,9 +249,10 @@ async def seed():
                          f"{name}_安保方案.pdf", sec_path,
                          len(sec_bytes), "application/pdf", ["安保"])
 
+                risk = {"社区志愿服务日": "低", "职工运动会": "高"}.get(name, "一般")
                 db.add(SecurityPlan(
                     activity_id=activity.id,
-                    risk_level="一般",
+                    risk_level=risk,
                     audit_status="已审核",
                     manager_id=security.id,
                     sign_time=now,
@@ -268,6 +323,29 @@ async def seed():
                          f"{name}_工作安排.csv", csv_path,
                          len(csv_bytes), "text/csv; charset=utf-8", ["安排"])
 
+            if target in ("审批通过-待举办", "举办中", "已结束"):
+                docx_bytes = _make_docx(f"《{name}》安保责任书",
+                    f"《{name}》安保责任书\n\n"
+                    f"主办方：{sponsor}\n"
+                    f"安保负责人：安保部\n"
+                    f"已签署，责任明确。")
+                docx_path = f"activities/{activity.id}/{uuid4().hex}.docx"
+                await upload_file(docx_path, docx_bytes,
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+                _add_doc(db, activity.id, security.id,
+                         f"{name}_安保责任书.docx", docx_path,
+                         len(docx_bytes),
+                         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                         ["签署"])
+
+            if target in ("举办中", "已结束"):
+                jpg_bytes = _make_jpg()
+                jpg_path = f"activities/{activity.id}/{uuid4().hex}.jpg"
+                await upload_file(jpg_path, jpg_bytes, "image/jpeg")
+                _add_doc(db, activity.id, promoter.id,
+                         f"{name}_现场照片.jpg", jpg_path,
+                         len(jpg_bytes), "image/jpeg", ["影像"])
+
             # ── set final status via transitions ──
             from app.services.workflow_service import WorkflowService
             wf = WorkflowService(db)
@@ -290,6 +368,59 @@ async def seed():
             path = PATH[target]
             for to_status in path:
                 await wf.transition(activity.id, to_status, security)
+
+            # ── FilingDoc for filing-ready activities ──
+            if target in ("备案材料已交接", "审批通过", "审批通过-待举办",
+                          "举办中", "已结束", "待补充备案材料", "不通过/已终止"):
+                from app.models.filing import FilingDoc
+                fd = FilingDoc(
+                    activity_id=activity.id,
+                    is_qualified=(target not in ("待补充备案材料", "不通过/已终止")),
+                    generated_at=now,
+                    handover_status="已交接" if target != "不通过/已终止" else None,
+                )
+                db.add(fd)
+
+            # ── key_materials for security plan activities ──
+            if "security_plan" in needs:
+                from sqlalchemy import text as sa_text
+                is_bad = (target == "待补充备案材料")
+                materials = [
+                    ("消防验收证明", True),
+                    ("安全责任书", True),
+                    ("场地审批表", True),
+                    ("应急预案", not is_bad),
+                ]
+                if is_bad:
+                    materials.append(("活动预算明细", False))
+                for mat_name, qualified in materials:
+                    await db.execute(sa_text(
+                        "INSERT INTO key_materials (name, is_qualified) VALUES (:n, :q)"
+                    ), {"n": mat_name, "q": qualified})
+                    mat_result = await db.execute(sa_text(
+                        "SELECT id FROM key_materials WHERE name=:n ORDER BY created_at DESC LIMIT 1"
+                    ), {"n": mat_name})
+                    mat_id = mat_result.scalar_one()
+                    # link to security plan
+                    sp_result = await db.execute(
+                        select(SecurityPlan).where(SecurityPlan.activity_id == activity.id)
+                    )
+                    sp = sp_result.scalar_one()
+                    await db.execute(sa_text(
+                        "INSERT INTO security_plan_materials (security_plan_id, material_id) "
+                        "VALUES (:sid, :mid) ON CONFLICT DO NOTHING"
+                    ), {"sid": sp.id, "mid": mat_id})
+                    # also link to filing doc if exists
+                    if "approval" in needs and target not in ("不通过/已终止",):
+                        fd_result = await db.execute(
+                            select(FilingDoc).where(FilingDoc.activity_id == activity.id)
+                        )
+                        fd = fd_result.scalar_one_or_none()
+                        if fd:
+                            await db.execute(sa_text(
+                                "INSERT INTO filing_doc_materials (filing_doc_id, material_id) "
+                                "VALUES (:fid, :mid) ON CONFLICT DO NOTHING"
+                            ), {"fid": fd.id, "mid": mat_id})
 
             # force-cancel / force-postpone
             if target in ("已取消", "已延期") and activity.status == "待设计方案":

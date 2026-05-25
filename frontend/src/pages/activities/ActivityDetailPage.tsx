@@ -13,6 +13,7 @@ import FilingValidatePanel from "@/components/filings/FilingValidatePanel";
 import FilingPackModal from "@/components/filings/FilingPackModal";
 import HandoverConfirm from "@/components/filings/HandoverConfirm";
 import { filingsApi } from "@/api/filings";
+import { activitiesApi } from "@/api/activities";
 import { useAuthStore } from "@/stores/authStore";
 import { STATUS_COLOR_MAP } from "@/utils/constants";
 
@@ -29,14 +30,27 @@ export default function ActivityDetailPage() {
   );
   const userPermissions = useAuthStore((s) => s.user?.permissions);
   const permissions = userPermissions ?? [];
-  const showFiling =
-    permissions.includes("pack_filing") &&
-    activity?.status === "待备案申请";
+
+  const FILING_STATUSES = [
+    "待备案申请", "备案材料已交接", "审批通过", "审批通过-待举办",
+    "举办中", "已结束", "待补充备案材料", "不通过/已终止",
+  ];
+  const showFiling = activity?.status
+    ? FILING_STATUSES.includes(activity.status)
+    : false;
+  const canOperateFiling =
+    showFiling && activity?.status === "待备案申请" && permissions.includes("pack_filing");
 
   const { data: validation = [], isLoading: validationLoading } = useQuery({
     queryKey: ["activities", id, "filing", "validate"],
     queryFn: () => filingsApi.validate(id!).then((r) => r.data),
     enabled: showFiling,
+  });
+
+  const { data: securityPlan } = useQuery({
+    queryKey: ["activities", id, "security-plan"],
+    queryFn: () => activitiesApi.getSecurityPlan(id!).then((r) => r.data),
+    enabled: !!id,
   });
 
   if (isLoading) {
@@ -114,6 +128,22 @@ export default function ActivityDetailPage() {
                 <Descriptions.Item label="更新时间">
                   {dayjs(activity.updated_at).format("YYYY-MM-DD HH:mm")}
                 </Descriptions.Item>
+                {securityPlan?.risk_level && (
+                  <Descriptions.Item label="风险等级">
+                    <Tag color={
+                      securityPlan.risk_level === "高" ? "red"
+                      : securityPlan.risk_level === "低" ? "green"
+                      : "orange"
+                    }>
+                      {securityPlan.risk_level}
+                    </Tag>
+                  </Descriptions.Item>
+                )}
+                {securityPlan?.audit_status && (
+                  <Descriptions.Item label="安保审核">
+                    {securityPlan.audit_status}
+                  </Descriptions.Item>
+                )}
               </Descriptions>
             ),
           },
@@ -150,18 +180,20 @@ export default function ActivityDetailPage() {
                       ) : (
                         <FilingValidatePanel data={validation} />
                       )}
-                      <div style={{ marginTop: 16 }}>
-                        <Button
-                          type="primary"
-                          onClick={() => setFilingModal("pack")}
-                          style={{ marginRight: 8 }}
-                        >
-                          打包备案材料
-                        </Button>
-                        <Button onClick={() => setFilingModal("handover")}>
-                          确认纸质交接
-                        </Button>
-                      </div>
+                      {canOperateFiling && (
+                        <div style={{ marginTop: 16 }}>
+                          <Button
+                            type="primary"
+                            onClick={() => setFilingModal("pack")}
+                            style={{ marginRight: 8 }}
+                          >
+                            打包备案材料
+                          </Button>
+                          <Button onClick={() => setFilingModal("handover")}>
+                            确认纸质交接
+                          </Button>
+                        </div>
+                      )}
                       <FilingPackModal
                         open={filingModal === "pack"}
                         activityId={id!}
