@@ -4,29 +4,51 @@
 
 ## 路由总览
 
-| 方法   | 路径                               | 服务             | 用例        | 权限                                  |
-| ------ | ---------------------------------- | ---------------- | ----------- | ------------------------------------- |
-| `POST` | `/auth/register`                   | Auth             | —           | 公开                                  |
-| `POST` | `/auth/login`                      | Auth             | —           | 公开                                  |
-| `GET`  | `/auth/me`                         | Auth             | —           | 登录用户                              |
-| `GET`  | `/health`                          | Health           | —           | 公开                                  |
-| `GET`  | `/activities`                      | ActivityService  | UC7         | AdminStaff                            |
-| `POST` | `/activities`                      | ActivityService  | UC1         | Promoter                              |
-| `GET`  | `/activities/{id}`                 | ActivityService  | UC1-7       | 登录用户                              |
-| `GET`  | `/activities/{id}/history`         | ActivityService  | UC7         | 登录用户                              |
-| `PUT`  | `/activities/{id}/status`          | WorkflowService  | UC2/3/4/5/6 | 各阶段对应角色                        |
-| `POST` | `/activities/{id}/reject`          | WorkflowService  | UC3/6       | 负责人/安保部                         |
-| `POST` | `/activities/{id}/force-cancel`    | WorkflowService  | UC7         | AdminStaff                            |
-| `POST` | `/activities/{id}/force-postpone`  | WorkflowService  | UC7         | AdminStaff                            |
-| `GET`  | `/activities/{id}/documents`       | DocumentService  | UC2/3/5     | 登录用户                              |
-| `POST` | `/activities/{id}/documents`       | DocumentService  | UC2/3/5     | Promoter, SecurityOfficer, GovLiaison |
-| `GET`  | `/documents/{id}`                  | DocumentService  | UC2-6       | 登录用户（302 重定向至预签名 URL）    |
-| `POST` | `/activities/{id}/filing/pack`     | FilingService    | UC4         | SecurityOfficer                       |
-| `POST` | `/activities/{id}/filing/handover` | FilingService    | UC4         | SecurityOfficer                       |
-| `GET`  | `/activities/{id}/filing/validate` | FilingService    | UC4         | SecurityOfficer                       |
-| `GET`  | `/dashboard`                       | DashboardService | UC7         | AdminStaff                            |
-| `GET`  | `/dashboard/activities/{id}`       | DashboardService | UC7         | AdminStaff                            |
-| `POST` | `/dashboard/reports/monthly`       | DashboardService | UC7         | AdminStaff                            |
+| 方法   | 路径 | 权限 |
+| ------ | ---- | ---- |
+| `POST` | `/auth/register` | 公开 |
+| `POST` | `/auth/login` | 公开 |
+| `GET`  | `/auth/me` | 登录用户 |
+| `GET`  | `/auth/roles` | 登录用户 |
+| `POST` | `/auth/me/role-request` | 登录用户 |
+| `POST` | `/auth/refresh` | Cookie |
+| `POST` | `/auth/logout` | 登录用户 |
+| `GET`  | `/health` | 公开 |
+| `GET`  | `/activities` | `view_owned_activity` |
+| `POST` | `/activities` | `create_activity` |
+| `GET`  | `/activities/{id}` | `view_owned_activity` |
+| `GET`  | `/activities/{id}/history` | `view_owned_activity` |
+| `GET`  | `/activities/{id}/documents` | `view_owned_activity` |
+| `GET`  | `/activities/{id}/security-plan` | `view_owned_activity` |
+| `PUT`  | `/activities/{id}/status` | `manage_security`¹ |
+| `POST` | `/activities/{id}/reject` | `reject_approval` |
+| `POST` | `/activities/{id}/force-cancel` | `force_cancel` |
+| `POST` | `/activities/{id}/force-postpone` | `force_postpone` |
+| `POST` | `/documents/upload` | 登录用户 |
+| `GET`  | `/documents/{id}` | 登录用户（302 重定向） |
+| `GET`  | `/documents/{id}/url` | 登录用户（返回 presigned URL） |
+| `GET`  | `/activities/{id}/materials` | 登录用户 |
+| `POST` | `/activities/{id}/materials/{mid}/sign` | `sign_document` |
+| `POST` | `/activities/{id}/materials/{mid}/audit` | `audit_material` |
+| `GET`  | `/activities/{id}/materials/audit-history` | 登录用户 |
+| `POST` | `/activities/{id}/filing/pack` | `pack_filing` |
+| `POST` | `/activities/{id}/filing/handover` | `pack_filing` |
+| `GET`  | `/activities/{id}/filing/validate` | `pack_filing` |
+| `GET`  | `/activities/{id}/filing/status` | 登录用户 |
+| `GET`  | `/dashboard` | `view_dashboard` |
+| `GET`  | `/dashboard/activities/{id}` | `view_dashboard` |
+| `POST` | `/dashboard/reports/monthly` | `export_report` |
+| `GET`  | `/admin/role-requests` | `manage_users` |
+| `POST` | `/admin/role-requests/{id}/approve` | `manage_users` |
+| `POST` | `/admin/role-requests/{id}/reject` | `manage_users` |
+| `GET`  | `/admin/users` | `administer_users` |
+| `GET`  | `/admin/users/{id}` | `administer_users` |
+| `PUT`  | `/admin/users/{id}/roles` | `administer_users` |
+| `PATCH`| `/admin/users/{id}/status` | `administer_users` |
+| `DELETE`| `/admin/users/{id}` | `administer_users` |
+
+> ¹ 目标状态为"审批通过-待举办"时额外要求 `confirm_approval`。
+> 活动可见性按角色自动过滤状态（见 `docs/rbac.md`）。
 
 ## 端点详细说明
 

@@ -48,6 +48,11 @@ frontend/src/
 │   │   └── ActivityDetailPage.tsx  # 详情/历史/文档/备案
 │   └── dashboard/
 │       └── DashboardPage.tsx       # 统计卡片 + 状态分布 + 异常列表 + 月报
+│   ├── profile/
+│   │   └── ProfilePage.tsx         # 用户信息、角色状态、角色申请
+│   └── admin/
+│       ├── RoleRequestsPage.tsx    # 待审批角色申请表格
+│       └── UserManagementPage.tsx  # 用户列表、角色编辑、禁用/删除
 ├── components/
 │   ├── auth/
 │   │   ├── AuthInitializer.tsx     # App 启动时静默 refresh
@@ -84,17 +89,20 @@ frontend/src/
 
 ## 路由
 
-| 路径              | 页面                     | 权限                  | 布局      |
-| ----------------- | ------------------------ | --------------------- | --------- |
-| `/login`          | LoginPage                | 公开                  | 无        |
-| `/register`       | RegisterPage             | 公开                  | 无        |
-| `/403`            | ForbiddenPage            | 公开                  | 无        |
-| `/`               | → redirect `/activities` | —                     | AppLayout |
-| `/activities`     | ActivityListPage         | `view_owned_activity` | AppLayout |
-| `/activities/new` | ActivityCreatePage       | `create_activity`     | AppLayout |
-| `/activities/:id` | ActivityDetailPage       | `view_owned_activity` | AppLayout |
-| `/dashboard`      | DashboardPage            | `view_dashboard`      | AppLayout |
-| `*`               | NotFoundPage             | 公开                  | 无        |
+| 路径 | 页面 | 权限 | 布局 |
+| ---- | ---- | ---- | ---- |
+| `/login` | LoginPage | 公开 | 无 |
+| `/register` | RegisterPage | 公开 | 无 |
+| `/403` | ForbiddenPage | 公开 | 无 |
+| `/` | → HomeRedirect | — | AppLayout |
+| `/activities` | ActivityListPage | `view_owned_activity` or `view_dashboard` | AppLayout |
+| `/activities/new` | ActivityCreatePage | `create_activity` | AppLayout |
+| `/activities/:id` | ActivityDetailPage | `view_owned_activity` or `view_dashboard` | AppLayout |
+| `/dashboard` | DashboardPage | `view_dashboard` | AppLayout |
+| `/profile` | ProfilePage | 登录即可 | AppLayout |
+| `/admin/role-requests` | RoleRequestsPage | `manage_users` | AppLayout |
+| `/admin/users` | UserManagementPage | `administer_users` | AppLayout |
+| `*` | NotFoundPage | 公开 | 无 |
 
 ## 认证流程
 
