@@ -14,6 +14,15 @@ import ActivityDetailPage from "@/pages/activities/ActivityDetailPage";
 import DashboardPage from "@/pages/dashboard/DashboardPage";
 import ProfilePage from "@/pages/profile/ProfilePage";
 import RoleRequestsPage from "@/pages/admin/RoleRequestsPage";
+import { useAuthStore } from "@/stores/authStore";
+
+function HomeRedirect() {
+  const permissions = useAuthStore((s) => s.user?.permissions) ?? [];
+  if (permissions.includes("manage_users")) return <Navigate to="/admin/role-requests" replace />;
+  if (permissions.includes("view_dashboard")) return <Navigate to="/dashboard" replace />;
+  if (permissions.includes("view_owned_activity")) return <Navigate to="/activities" replace />;
+  return <Navigate to="/profile" replace />;
+}
 
 export default function App() {
   return (
@@ -28,7 +37,7 @@ export default function App() {
 
             {/* protected routes — inside AppLayout */}
             <Route element={<AppLayout />}>
-              <Route path="/" element={<Navigate to="/activities" replace />} />
+              <Route path="/" element={<HomeRedirect />} />
               <Route
                 path="/activities"
                 element={
