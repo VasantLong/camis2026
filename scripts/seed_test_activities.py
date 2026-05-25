@@ -21,6 +21,78 @@ from app.models.rbac import Role, UserRole
 from app.models.user import User
 from app.services.minio_client import upload_file
 
+
+def _make_pdf(title: str, text: str) -> bytes:
+    from io import BytesIO
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfgen import canvas
+
+    buf = BytesIO()
+    c = canvas.Canvas(buf, pagesize=A4)
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(50, 780, title)
+    c.setFont("Helvetica", 11)
+    y = 740
+    for line in text.split("\n"):
+        c.drawString(50, y, line)
+        y -= 18
+        if y < 50:
+            c.showPage()
+            y = 780
+    c.save()
+    return buf.getvalue()
+
+
+def _make_xlsx(title: str, rows: list[list[str]]) -> bytes:
+    """生成最小有效 XLSX（ZIP + XML）。"""
+    import zipfile
+    from io import BytesIO
+
+    buf = BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("[Content_Types].xml", (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+            '<Default Extension="xml" ContentType="application/xml"/>'
+            '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+            '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+            '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+            '</Types>'
+        ))
+        zf.writestr("_rels/.rels", (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+            '</Relationships>'
+        ))
+        zf.writestr("xl/workbook.xml", (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            '<sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets>'
+            '</workbook>'
+        ))
+        zf.writestr("xl/_rels/workbook.xml.rels", (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+            '</Relationships>'
+        ))
+        rows_xml = "".join(
+            "<row>" + "".join(f"<c t=\"inlineStr\"><is><t>{v}</t></is></c>" for v in row) + "</row>"
+            for row in rows
+        )
+        zf.writestr("xl/worksheets/sheet1.xml", (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            f'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            f'<sheetData>{rows_xml}</sheetData></worksheet>'
+        ))
+    return buf.getvalue()
+
+
+def _make_csv(rows: list[list[str]]) -> bytes:
+    return "\n".join(",".join(v.replace(",", "，") for v in row) for row in rows).encode("utf-8")
+
+
 # ── activity definitions ──
 # (name, type, location, sponsor, estimated_days, deadline_days, target_status)
 # days > 0 = future, days < 0 = past, days = 0 = today
@@ -94,14 +166,14 @@ async def seed():
             needs = STATUS_NEEDS.get(target, [])
 
             if "plan" in needs:
-                plan_text = f"《{name}》活动方案\n主办方：{sponsor}\n地点：{location}\n类型：{atype}"
-                plan_bytes = plan_text.encode("utf-8")
-                plan_path = f"activities/{activity.id}/{uuid4().hex}.txt"
-                await upload_file(plan_path, plan_bytes, "text/plain; charset=utf-8")
+                plan_text = f"《{name}》活动方案\n主办方：{sponsor}\n地点：{location}\n类型：{atype}\n预计时间：{estimated}\n审批截止：{deadline}"
+                plan_bytes = _make_pdf(f"《{name}》活动方案", plan_text)
+                plan_path = f"activities/{activity.id}/{uuid4().hex}.pdf"
+                await upload_file(plan_path, plan_bytes, "application/pdf")
 
                 _add_doc(db, activity.id, promoter.id,
-                         f"{name}_活动方案.txt", plan_path,
-                         len(plan_bytes), "text/plain; charset=utf-8", ["方案"])
+                         f"{name}_活动方案.pdf", plan_path,
+                         len(plan_bytes), "application/pdf", ["方案"])
 
                 db.add(ActivityPlan(
                     activity_id=activity.id,
@@ -114,14 +186,14 @@ async def seed():
                 await db.flush()
 
             if "security_plan" in needs:
-                sec_text = f"《{name}》安保方案\n风险等级：一般"
-                sec_bytes = sec_text.encode("utf-8")
-                sec_path = f"activities/{activity.id}/{uuid4().hex}.txt"
-                await upload_file(sec_path, sec_bytes, "text/plain; charset=utf-8")
+                sec_text = f"《{name}》安保方案\n风险等级：一般\n负责人：安保部"
+                sec_bytes = _make_pdf(f"《{name}》安保方案", sec_text)
+                sec_path = f"activities/{activity.id}/{uuid4().hex}.pdf"
+                await upload_file(sec_path, sec_bytes, "application/pdf")
 
                 _add_doc(db, activity.id, security.id,
-                         f"{name}_安保方案.txt", sec_path,
-                         len(sec_bytes), "text/plain; charset=utf-8", ["安保"])
+                         f"{name}_安保方案.pdf", sec_path,
+                         len(sec_bytes), "application/pdf", ["安保"])
 
                 db.add(SecurityPlan(
                     activity_id=activity.id,
@@ -144,14 +216,14 @@ async def seed():
 
                 approval_path = None
                 if approval_status == "approved":
-                    appr_text = f"《{name}》政府批文\n批准举办"
-                    appr_bytes = appr_text.encode("utf-8")
-                    approval_path = f"activities/{activity.id}/{uuid4().hex}.txt"
-                    await upload_file(approval_path, appr_bytes, "text/plain; charset=utf-8")
+                    appr_text = f"《{name}》政府批文\n经审核，该活动符合相关规定，批准举办。\n批准日期：{now.strftime('%Y-%m-%d')}"
+                    appr_bytes = _make_pdf(f"《{name}》政府批文", appr_text)
+                    approval_path = f"activities/{activity.id}/{uuid4().hex}.pdf"
+                    await upload_file(approval_path, appr_bytes, "application/pdf")
 
                     _add_doc(db, activity.id, liaison.id,
-                             f"{name}_政府批文.txt", approval_path,
-                             len(appr_bytes), "text/plain; charset=utf-8", ["批文"])
+                             f"{name}_政府批文.pdf", approval_path,
+                             len(appr_bytes), "application/pdf", ["批文"])
 
                 db.add(ApprovalRecord(
                     activity_id=activity.id,
@@ -162,6 +234,39 @@ async def seed():
                     rectification_opinion=opinion,
                 ))
                 await db.flush()
+
+            # ── extra documents for variety ──
+            if target in ("待备案申请", "备案材料已交接", "审批通过", "审批通过-待举办",
+                          "举办中", "已结束"):
+                xlsx_rows = [
+                    ["项目", "内容", "状态"],
+                    ["场地审批", location, "已完成"],
+                    ["消防验收", "合格", "已完成"],
+                    ["安保人员", "已安排", "已完成"],
+                ]
+                xlsx_bytes = _make_xlsx(f"{name}备案材料清单", xlsx_rows)
+                xlsx_path = f"activities/{activity.id}/{uuid4().hex}.xlsx"
+                await upload_file(xlsx_path, xlsx_bytes,
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                _add_doc(db, activity.id, promoter.id,
+                         f"{name}_备案清单.xlsx", xlsx_path,
+                         len(xlsx_bytes),
+                         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                         ["备案"])
+
+            if target in ("审批通过", "审批通过-待举办", "举办中", "已结束"):
+                csv_rows = [
+                    ["时间", "事项", "负责人"],
+                    ["筹备期", "场地布置", "行政部"],
+                    ["活动当天", "现场安保", "安保部"],
+                    ["活动结束", "场地清理", "行政部"],
+                ]
+                csv_bytes = _make_csv(csv_rows)
+                csv_path = f"activities/{activity.id}/{uuid4().hex}.csv"
+                await upload_file(csv_path, csv_bytes, "text/csv; charset=utf-8")
+                _add_doc(db, activity.id, promoter.id,
+                         f"{name}_工作安排.csv", csv_path,
+                         len(csv_bytes), "text/csv; charset=utf-8", ["安排"])
 
             # ── set final status via transitions ──
             from app.services.workflow_service import WorkflowService

@@ -17,14 +17,19 @@ MAGIC_BYTES: dict[str, bytes] = {
     ".png": b"\x89PNG",
     ".doc": b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1",
     ".docx": b"PK\x03\x04",
+    ".xls": b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1",
+    ".xlsx": b"PK\x03\x04",
 }
 
-ALLOWED_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx"}
+ALLOWED_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx", ".xlsx", ".xls", ".csv"}
 ALLOWED_MIMES = {
     "application/pdf",
     "image/jpeg", "image/png",
     "application/msword",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-excel",
+    "text/csv",
 }
 MAX_FILE_SIZE = 50 * 1024 * 1024
 
