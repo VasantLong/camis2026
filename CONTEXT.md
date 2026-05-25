@@ -49,7 +49,7 @@
 | SuperAdmin | 系统 | 管理用户、审批角色申请 |
 | Promoter | 宣策部 | 创建立项、编制活动方案 |
 | SecurityOfficer | 安保部 | 编制安保方案、上传安保材料、审核备案材料 |
-| SecurityManager | 安保部 | 继承 SecurityOfficer 全部 + 管理安保流程（状态流转、电子签署、确认审批） |
+| SecurityManager | 安保部 | 继承 SecurityOfficer 全部 + 审核安保方案（通过/打回）、状态流转、确认审批 |
 | AdminStaff | 行政部 | 监控活动面板、强制变更状态、归档 |
 | AdminManager | 行政部 | 继承 AdminStaff 全部 + 审批角色申请 |
 | GovLiaison | 政府对接 | 上传批文、审查关键材料合规性、标注审批结果 |

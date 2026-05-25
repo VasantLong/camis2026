@@ -28,9 +28,9 @@ roles ──< role_permissions >── permissions
 |------|------|------|--------|
 | **SuperAdmin** | 系统 | 用户 CRUD、角色审批、系统配置 | 2 |
 | **AdminManager** | 行政部 | 审批角色申请、管理仪表盘 | 5 |
-| **SecurityManager** | 安保部 | 编制安保方案、审核签署、确认审批结果 | 7 |
+| **SecurityManager** | 安保部 | 审核安保方案、状态流转、确认审批结果 | 7 |
 | **AdminStaff** | 行政部 | 监控活动面板、强制变更状态 | 4 |
-| **SecurityOfficer** | 安保部 | 上传材料、打包备案 | 3 |
+| **SecurityOfficer** | 安保部 | 上传材料、电子签署、打包备案 | 4 |
 | **Promoter** | 宣策部 | 创建立项、编制活动方案 | 3 |
 | **GovLiaison** | 政府对接 | 上传批文、审查材料合规性、标注审批结果 | 4 |
 
@@ -53,28 +53,27 @@ roles ──< role_permissions >── permissions
 | `upload_plan` | activities | upload_plan | 上传活动方案文件 |
 | `view_owned_activity` | activities | view_owned | 查看自己创建的活动列表和详情 |
 
-### SecurityManager（8 项）
+### SecurityManager（7 项）
 
 安保部负责人，拥有 SecurityOfficer 全部权限 + 管理权限。
 
 | 权限名 | 资源 | 操作 | 对应用例 |
 |--------|------|------|---------|
 | `view_owned_activity` | activities | view_owned | 查看活动列表和详情 |
-| `manage_security` | activities | manage_security | 状态流转（提交安保方案设计、签署完成） |
-| `sign_document` | documents | sign | 电子签署 |
-| `confirm_approval` | activities | confirm_approval | 确认政府审批结果（转为"审批通过-待举办"） |
-| `reject_approval` | activities | reject_approval | 驳回审批结果（打回政府对接） |
+| `manage_security` | activities | manage_security | 状态流转 |
+| `review_security_plan` | activities | review_security_plan | 审核安保方案（通过/打回） |
+| `confirm_approval` | activities | confirm_approval | 确认政府审批结果 |
+| `reject_approval` | activities | reject_approval | 驳回审批结果 |
 | `upload_security_material` | documents | upload | 上传安保材料 |
 | `pack_filing` | filing | pack | 校验材料、打包、纸质交接 |
 
-### SecurityOfficer（3 项）
-
-普通安保人员，不包含管理审批权限。
+### SecurityOfficer（4 项）
 
 | 权限名 | 资源 | 操作 | 对应用例 |
 |--------|------|------|---------|
 | `view_owned_activity` | activities | view_owned | 查看活动列表和详情 |
 | `upload_security_material` | documents | upload | 上传安保材料 |
+| `sign_document` | documents | sign | 对上传的材料电子签署 |
 | `pack_filing` | filing | pack | 校验材料、打包、纸质交接 |
 
 ### AdminManager（5 项）

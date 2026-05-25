@@ -55,6 +55,7 @@ INSERT INTO permissions (name, resource, action) VALUES
 
     -- SecurityOfficer
     ('manage_security', 'activities', 'manage_security'),
+    ('review_security_plan', 'activities', 'review_security_plan'),
     ('upload_security_material', 'documents', 'upload'),
     ('audit_material', 'materials', 'audit'),
     ('sign_document', 'documents', 'sign'),
@@ -84,7 +85,7 @@ ON CONFLICT DO NOTHING;
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r, permissions p
 WHERE r.name = 'SecurityOfficer' AND p.name IN (
-    'view_owned_activity', 'upload_security_material', 'pack_filing'
+    'view_owned_activity', 'upload_security_material', 'sign_document', 'pack_filing'
 )
 ON CONFLICT DO NOTHING;
 

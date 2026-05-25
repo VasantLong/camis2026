@@ -36,7 +36,7 @@ INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r, permissions p
 WHERE r.name = 'SecurityManager' AND p.name IN (
     'view_owned_activity',
-    'manage_security', 'sign_document', 'confirm_approval', 'reject_approval',
+    'manage_security', 'review_security_plan', 'confirm_approval', 'reject_approval',
     'upload_security_material', 'pack_filing'
 )
 ON CONFLICT DO NOTHING;
