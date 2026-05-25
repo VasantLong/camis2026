@@ -97,11 +97,11 @@ async def seed():
                 plan_text = f"《{name}》活动方案\n主办方：{sponsor}\n地点：{location}\n类型：{atype}"
                 plan_bytes = plan_text.encode("utf-8")
                 plan_path = f"activities/{activity.id}/{uuid4().hex}.txt"
-                await upload_file(plan_path, plan_bytes, "text/plain")
+                await upload_file(plan_path, plan_bytes, "text/plain; charset=utf-8")
 
                 _add_doc(db, activity.id, promoter.id,
                          f"{name}_活动方案.txt", plan_path,
-                         len(plan_bytes), "text/plain", ["方案"])
+                         len(plan_bytes), "text/plain; charset=utf-8", ["方案"])
 
                 db.add(ActivityPlan(
                     activity_id=activity.id,
@@ -117,11 +117,11 @@ async def seed():
                 sec_text = f"《{name}》安保方案\n风险等级：一般"
                 sec_bytes = sec_text.encode("utf-8")
                 sec_path = f"activities/{activity.id}/{uuid4().hex}.txt"
-                await upload_file(sec_path, sec_bytes, "text/plain")
+                await upload_file(sec_path, sec_bytes, "text/plain; charset=utf-8")
 
                 _add_doc(db, activity.id, security.id,
                          f"{name}_安保方案.txt", sec_path,
-                         len(sec_bytes), "text/plain", ["安保"])
+                         len(sec_bytes), "text/plain; charset=utf-8", ["安保"])
 
                 db.add(SecurityPlan(
                     activity_id=activity.id,
@@ -147,11 +147,11 @@ async def seed():
                     appr_text = f"《{name}》政府批文\n批准举办"
                     appr_bytes = appr_text.encode("utf-8")
                     approval_path = f"activities/{activity.id}/{uuid4().hex}.txt"
-                    await upload_file(approval_path, appr_bytes, "text/plain")
+                    await upload_file(approval_path, appr_bytes, "text/plain; charset=utf-8")
 
                     _add_doc(db, activity.id, liaison.id,
                              f"{name}_政府批文.txt", approval_path,
-                             len(appr_bytes), "text/plain", ["批文"])
+                             len(appr_bytes), "text/plain; charset=utf-8", ["批文"])
 
                 db.add(ApprovalRecord(
                     activity_id=activity.id,
