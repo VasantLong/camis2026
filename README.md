@@ -43,6 +43,7 @@ open http://localhost:5173           # 前端
 | `docs/frontend.md`       | 前端实现文档（48 TS 文件）                  |
 | `docs/browser-tests.md`  | Playwright 浏览器测试手册（7 脚本 37 断言） |
 | `docs/user-guide.md`     | 用户操作手册（5 个测试场景）                |
+| `docs/rbac.md`            | RBAC 权限配置：4 角色、17 权限、路由映射     |
 | `docs/design-process.md` | 设计流程与进度                              |
 | `docs/adr/`              | 架构决策记录 (4 篇)                         |
 
