@@ -1,21 +1,108 @@
 # 用户操作手册
 
+## 服务器架构：Uvicorn vs Gunicorn
+
+FastAPI 应用本身不直接处理网络请求，需要 ASGI 服务器来运行：
+
+```
+请求 → ASGI 服务器 → FastAPI 应用 → 响应
+```
+
+| 服务器   | 定位     | 说明                                              |
+| -------- | -------- | ------------------------------------------------- |
+| Uvicorn  | 开发引擎 | 单进程 ASGI 服务器，支持 `--reload` 热重载        |
+| Gunicorn | 生产总管 | 进程管理器，通过 `UvicornWorker` 管理多个 Uvicorn |
+
+**关系**：Gunicorn 本身不理解 ASGI 协议，必须通过 Uvicorn worker 运行 FastAPI。开发时直接 uvicorn，足够快；生产时 Gunicorn 包一层，提供多进程管理、优雅重启和超时控制。
+
+---
+
 ## 启动系统
 
-```bash
-# 终端 1：Docker 服务（如未启动）
-docker compose up -d
+### 开发环境（日常使用）
 
-# 终端 2：后端 API
+Docker 只跑基础设施，FastAPI 和前端在本地跑，支持热重载：
+
+```bash
+# 终端 1：仅启动基础设施服务（数据库 + 存储 + 缓存）
+docker compose up -d postgres minio redis
+
+# 终端 2：后端 API（热重载，改代码自动重启）
 cd /home/vasant/projects/work/camis2026
-/home/vasant/miniforge3/bin/mamba run -n camis2026 uvicorn app.main:app --reload --port 8000 2>&1
+mamba activate camis2026
+uvicorn app.main:app --reload --port 8000
 
 # 终端 3：前端开发服务器
 cd /home/vasant/projects/work/camis2026/frontend
 pnpm dev
 ```
 
+> **注意**：不要用 `docker compose up -d` 全部启动，因为 Docker 里的 `app` 服务也会占用 8000 端口，会导致 uvicorn 启动失败（`Address already in use`）。如已启动全部，先 `docker compose stop app` 释放端口。
+
+### 生产验证（提交前/上线前）
+
+完整 Docker 栈启动，使用 Gunicorn + 4 个 Uvicorn worker：
+
+```bash
+# 启动全部服务（含 app）
+docker compose up -d
+
+# 查看 app 服务日志
+docker compose logs -f app
+
+# 验证健康检查
+curl http://localhost:8000/health
+
+# 停止全部
+docker compose down
+```
+
+> Gunicorn 配置见 `gunicorn.conf.py`：4 workers、120s 超时、`uvicorn.workers.UvicornWorker`。
+
 浏览器打开 **http://localhost:5173**
+
+---
+
+## 常用命令
+
+```bash
+# 启动所有服务 (在项目根目录执行)
+docker compose up -d
+
+# 停止所有服务
+docker compose down
+
+# 查看服务运行状态
+docker compose ps
+
+# 查看所有容器日志
+docker compose logs -f
+
+# 查看单个服务日志
+docker compose logs -f postgres
+docker compose logs -f minio
+docker compose logs -f redis
+
+# 重启某个服务
+docker compose restart postgres
+
+# 重新构建并启动 (修改 Dockerfile 后使用)
+docker compose up -d --build
+
+# 清除所有数据重新开始 (包括数据库卷)
+docker compose down -v
+docker compose up -d
+
+# 激活 Python 环境并安装依赖
+mamba activate camis2026
+pip install -r requirements.txt
+
+# 启动后端 (确认 Docker 服务已运行)
+uvicorn app.main:app --reload --port 8000
+
+# 健康检查
+curl http://localhost:8000/health
+```
 
 ---
 
@@ -110,13 +197,13 @@ pnpm dev
 
 ### 覆盖范围
 
-| 层级 | 内容 | 示例 |
-|------|------|------|
-| HTTP 请求 | 方法、路径、状态码、耗时 | `POST /auth/login → 200 222ms` |
-| SQL 查询 | 完整 SQL + 参数 + 耗时 | `SELECT users WHERE ... $1::VARCHAR ('tester1',)` |
-| Redis | GET/SET/DEL + 命中状态 | `redis GET key=doc:123 hit=True` |
-| MinIO | put_object / presigned_url | `minio put_object bucket=company-docs key=... size=302` |
-| 业务错误 | 状态码 + 错误码 + 详情 | `404 NOT_FOUND: 活动不存在` |
+| 层级      | 内容                       | 示例                                                    |
+| --------- | -------------------------- | ------------------------------------------------------- |
+| HTTP 请求 | 方法、路径、状态码、耗时   | `POST /auth/login → 200 222ms`                          |
+| SQL 查询  | 完整 SQL + 参数 + 耗时     | `SELECT users WHERE ... $1::VARCHAR ('tester1',)`       |
+| Redis     | GET/SET/DEL + 命中状态     | `redis GET key=doc:123 hit=True`                        |
+| MinIO     | put_object / presigned_url | `minio put_object bucket=company-docs key=... size=302` |
+| 业务错误  | 状态码 + 错误码 + 详情     | `404 NOT_FOUND: 活动不存在`                             |
 
 ### 日志文件
 
@@ -136,11 +223,11 @@ grep "5d9c44477528" logs/camis.log
 
 打开浏览器 DevTools（F12）：
 
-| 面板 | 用途 |
-|------|------|
-| Console | React 渲染警告/错误、API 错误详情 |
-| Network | API 请求/响应完整内容（Header、Body、状态码、耗时） |
-| Application → Cookies | 查看 `refresh_token` cookie 是否存在、过期时间 |
+| 面板                  | 用途                                                |
+| --------------------- | --------------------------------------------------- |
+| Console               | React 渲染警告/错误、API 错误详情                   |
+| Network               | API 请求/响应完整内容（Header、Body、状态码、耗时） |
+| Application → Cookies | 查看 `refresh_token` cookie 是否存在、过期时间      |
 
 ### 前端 Vite 编译日志
 
@@ -157,9 +244,9 @@ grep "5d9c44477528" logs/camis.log
 
 开发测试时，开 2 个终端窗口：
 
-| 终端 | 运行内容 | 看什么 |
-|------|---------|--------|
-| 1 | `uvicorn app.main:app --reload --port 8000` | HTTP + SQL + Redis + MinIO 全链路日志 |
-| 2 | `cd frontend && pnpm dev` | 前端编译热更新 |
+| 终端 | 运行内容                                    | 看什么                                |
+| ---- | ------------------------------------------- | ------------------------------------- |
+| 1    | `uvicorn app.main:app --reload --port 8000` | HTTP + SQL + Redis + MinIO 全链路日志 |
+| 2    | `cd frontend && pnpm dev`                   | 前端编译热更新                        |
 
 浏览器 DevTools (F12) → Network 面板查看 API 请求详情。

@@ -84,17 +84,17 @@ frontend/src/
 
 ## 路由
 
-| 路径 | 页面 | 权限 | 布局 |
-|------|------|------|------|
-| `/login` | LoginPage | 公开 | 无 |
-| `/register` | RegisterPage | 公开 | 无 |
-| `/403` | ForbiddenPage | 公开 | 无 |
-| `/` | → redirect `/activities` | — | AppLayout |
-| `/activities` | ActivityListPage | `view_owned_activity` | AppLayout |
-| `/activities/new` | ActivityCreatePage | `create_activity` | AppLayout |
-| `/activities/:id` | ActivityDetailPage | `view_owned_activity` | AppLayout |
-| `/dashboard` | DashboardPage | `view_dashboard` | AppLayout |
-| `*` | NotFoundPage | 公开 | 无 |
+| 路径              | 页面                     | 权限                  | 布局      |
+| ----------------- | ------------------------ | --------------------- | --------- |
+| `/login`          | LoginPage                | 公开                  | 无        |
+| `/register`       | RegisterPage             | 公开                  | 无        |
+| `/403`            | ForbiddenPage            | 公开                  | 无        |
+| `/`               | → redirect `/activities` | —                     | AppLayout |
+| `/activities`     | ActivityListPage         | `view_owned_activity` | AppLayout |
+| `/activities/new` | ActivityCreatePage       | `create_activity`     | AppLayout |
+| `/activities/:id` | ActivityDetailPage       | `view_owned_activity` | AppLayout |
+| `/dashboard`      | DashboardPage            | `view_dashboard`      | AppLayout |
+| `*`               | NotFoundPage             | 公开                  | 无        |
 
 ## 认证流程
 
@@ -120,13 +120,13 @@ App 启动
 
 ## 状态管理分工
 
-| 数据 | 方案 | 原因 |
-|------|------|------|
-| 活动列表/详情/历史/文档 | TanStack Query | 服务端数据，缓存/失效/后台刷新 |
-| 仪表盘、备案校验 | TanStack Query | 同上 |
-| 用户/token/权限 | Zustand `authStore` | 客户端会话，axios 拦截器需同步读取 |
-| 筛选条件 | URL `searchParams` | 可分享链接，刷新不丢失 |
-| 表单输入 | Ant Design Form 内部 | 提交时才同步到服务端 |
+| 数据                    | 方案                 | 原因                               |
+| ----------------------- | -------------------- | ---------------------------------- |
+| 活动列表/详情/历史/文档 | TanStack Query       | 服务端数据，缓存/失效/后台刷新     |
+| 仪表盘、备案校验        | TanStack Query       | 同上                               |
+| 用户/token/权限         | Zustand `authStore`  | 客户端会话，axios 拦截器需同步读取 |
+| 筛选条件                | URL `searchParams`   | 可分享链接，刷新不丢失             |
+| 表单输入                | Ant Design Form 内部 | 提交时才同步到服务端               |
 
 ## 权限模型
 
@@ -143,15 +143,15 @@ App 启动
 
 工作流按钮由 `getAvailableTransitions(status, permissions)` 函数计算：
 
-| 当前状态 | 可用操作 | 权限 |
-|---------|---------|------|
-| 待设计方案 | 提交→待安保方案设计 | `manage_security` |
-| 待安保方案设计 | 驳回（内部循环）、签署完成→待备案申请 | `reject_approval`, `manage_security` |
-| 待备案申请 | （备案 tab 中操作） | `pack_filing` |
-| 备案材料已交接 | 通过/补件/驳回 | `manage_security` |
-| 待补充备案材料 | 重新递交 | `manage_security` |
-| 审批通过 | 确认通过、驳回（逆向流转） | `confirm_approval`, `reject_approval` |
-| 任意非终态 | 强制取消、强制延期 | `force_cancel`, `force_postpone` |
+| 当前状态       | 可用操作                              | 权限                                  |
+| -------------- | ------------------------------------- | ------------------------------------- |
+| 待设计方案     | 提交→待安保方案设计                   | `manage_security`                     |
+| 待安保方案设计 | 驳回（内部循环）、签署完成→待备案申请 | `reject_approval`, `manage_security`  |
+| 待备案申请     | （备案 tab 中操作）                   | `pack_filing`                         |
+| 备案材料已交接 | 通过/补件/驳回                        | `manage_security`                     |
+| 待补充备案材料 | 重新递交                              | `manage_security`                     |
+| 审批通过       | 确认通过、驳回（逆向流转）            | `confirm_approval`, `reject_approval` |
+| 任意非终态     | 强制取消、强制延期                    | `force_cancel`, `force_postpone`      |
 
 终态（审批通过-待举办/不通过/已终止/已取消/已延期）不显示操作按钮。
 

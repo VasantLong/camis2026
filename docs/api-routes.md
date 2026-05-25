@@ -4,29 +4,29 @@
 
 ## 路由总览
 
-| 方法 | 路径 | 服务 | 用例 | 权限 |
-|------|------|------|------|------|
-| `POST` | `/auth/register` | Auth | — | 公开 |
-| `POST` | `/auth/login` | Auth | — | 公开 |
-| `GET` | `/auth/me` | Auth | — | 登录用户 |
-| `GET` | `/health` | Health | — | 公开 |
-| `GET` | `/activities` | ActivityService | UC7 | AdminStaff |
-| `POST` | `/activities` | ActivityService | UC1 | Promoter |
-| `GET` | `/activities/{id}` | ActivityService | UC1-7 | 登录用户 |
-| `GET` | `/activities/{id}/history` | ActivityService | UC7 | 登录用户 |
-| `PUT` | `/activities/{id}/status` | WorkflowService | UC2/3/4/5/6 | 各阶段对应角色 |
-| `POST` | `/activities/{id}/reject` | WorkflowService | UC3/6 | 负责人/安保部 |
-| `POST` | `/activities/{id}/force-cancel` | WorkflowService | UC7 | AdminStaff |
-| `POST` | `/activities/{id}/force-postpone` | WorkflowService | UC7 | AdminStaff |
-| `GET` | `/activities/{id}/documents` | DocumentService | UC2/3/5 | 登录用户 |
-| `POST` | `/activities/{id}/documents` | DocumentService | UC2/3/5 | Promoter, SecurityOfficer, GovLiaison |
-| `GET` | `/documents/{id}` | DocumentService | UC2-6 | 登录用户（302 重定向至预签名 URL） |
-| `POST` | `/activities/{id}/filing/pack` | FilingService | UC4 | SecurityOfficer |
-| `POST` | `/activities/{id}/filing/handover` | FilingService | UC4 | SecurityOfficer |
-| `GET` | `/activities/{id}/filing/validate` | FilingService | UC4 | SecurityOfficer |
-| `GET` | `/dashboard` | DashboardService | UC7 | AdminStaff |
-| `GET` | `/dashboard/activities/{id}` | DashboardService | UC7 | AdminStaff |
-| `POST` | `/dashboard/reports/monthly` | DashboardService | UC7 | AdminStaff |
+| 方法   | 路径                               | 服务             | 用例        | 权限                                  |
+| ------ | ---------------------------------- | ---------------- | ----------- | ------------------------------------- |
+| `POST` | `/auth/register`                   | Auth             | —           | 公开                                  |
+| `POST` | `/auth/login`                      | Auth             | —           | 公开                                  |
+| `GET`  | `/auth/me`                         | Auth             | —           | 登录用户                              |
+| `GET`  | `/health`                          | Health           | —           | 公开                                  |
+| `GET`  | `/activities`                      | ActivityService  | UC7         | AdminStaff                            |
+| `POST` | `/activities`                      | ActivityService  | UC1         | Promoter                              |
+| `GET`  | `/activities/{id}`                 | ActivityService  | UC1-7       | 登录用户                              |
+| `GET`  | `/activities/{id}/history`         | ActivityService  | UC7         | 登录用户                              |
+| `PUT`  | `/activities/{id}/status`          | WorkflowService  | UC2/3/4/5/6 | 各阶段对应角色                        |
+| `POST` | `/activities/{id}/reject`          | WorkflowService  | UC3/6       | 负责人/安保部                         |
+| `POST` | `/activities/{id}/force-cancel`    | WorkflowService  | UC7         | AdminStaff                            |
+| `POST` | `/activities/{id}/force-postpone`  | WorkflowService  | UC7         | AdminStaff                            |
+| `GET`  | `/activities/{id}/documents`       | DocumentService  | UC2/3/5     | 登录用户                              |
+| `POST` | `/activities/{id}/documents`       | DocumentService  | UC2/3/5     | Promoter, SecurityOfficer, GovLiaison |
+| `GET`  | `/documents/{id}`                  | DocumentService  | UC2-6       | 登录用户（302 重定向至预签名 URL）    |
+| `POST` | `/activities/{id}/filing/pack`     | FilingService    | UC4         | SecurityOfficer                       |
+| `POST` | `/activities/{id}/filing/handover` | FilingService    | UC4         | SecurityOfficer                       |
+| `GET`  | `/activities/{id}/filing/validate` | FilingService    | UC4         | SecurityOfficer                       |
+| `GET`  | `/dashboard`                       | DashboardService | UC7         | AdminStaff                            |
+| `GET`  | `/dashboard/activities/{id}`       | DashboardService | UC7         | AdminStaff                            |
+| `POST` | `/dashboard/reports/monthly`       | DashboardService | UC7         | AdminStaff                            |
 
 ## 端点详细说明
 
@@ -73,9 +73,24 @@ GET /activities?status=审批通过-待举办&page=1&size=20
 
 ```json
 [
-  {"from_status": null,         "to_status": "待设计方案",    "operator": "张三", "timestamp": "..."},
-  {"from_status": "待设计方案",   "to_status": "待安保方案设计", "operator": "李四", "timestamp": "..."},
-  {"from_status": "待安保方案设计", "to_status": "待备案申请",   "operator": "王五", "timestamp": "..."}
+  {
+    "from_status": null,
+    "to_status": "待设计方案",
+    "operator": "张三",
+    "timestamp": "..."
+  },
+  {
+    "from_status": "待设计方案",
+    "to_status": "待安保方案设计",
+    "operator": "李四",
+    "timestamp": "..."
+  },
+  {
+    "from_status": "待安保方案设计",
+    "to_status": "待备案申请",
+    "operator": "王五",
+    "timestamp": "..."
+  }
 ]
 ```
 
@@ -135,6 +150,7 @@ GET /activities?status=审批通过-待举办&page=1&size=20
 #### `POST /activities/{id}/documents` — 上传文件
 
 multipart/form-data：
+
 ```
 file: <binary>
 tags: "风险评估表,安保"
@@ -172,6 +188,7 @@ content_type: "application/pdf"
 #### `GET /dashboard` — 活动实施面板
 
 返回多维度聚合数据：
+
 ```json
 {
   "total": 156,
@@ -183,7 +200,11 @@ content_type: "application/pdf"
   },
   "compliance_rate": 0.92,
   "recent_anomalies": [
-    {"activity_id": "uuid", "reason": "红色暴雨取消", "change_status": "已取消"}
+    {
+      "activity_id": "uuid",
+      "reason": "红色暴雨取消",
+      "change_status": "已取消"
+    }
   ]
 }
 ```
@@ -192,61 +213,62 @@ content_type: "application/pdf"
 
 ```json
 // Request
-{"month": "2026-01"}
+{ "month": "2026-01" }
 // → 异步生成 PDF 报表，完成后通过 NotificationService 推送下载链接
 ```
 
 ## 实现状态
 
-| 端点 | 状态 |
-|------|------|
-| `GET /health` | ✅ |
-| `POST /auth/register` | ✅ |
-| `POST /auth/login` | ✅ |
-| `POST /auth/refresh` | ✅ |
-| `POST /auth/logout` | ✅ |
-| `GET /auth/me` | ✅ |
-| `POST /activities` | ✅ |
-| `GET /activities` | ✅ |
-| `GET /activities/{id}` | ✅ |
-| `GET /activities/{id}/history` | ✅ |
-| `PUT /activities/{id}/status` | ✅ |
-| `POST /activities/{id}/reject` | ✅ |
-| `POST /activities/{id}/force-cancel` | ✅ |
-| `POST /activities/{id}/force-postpone` | ✅ |
-| `POST /documents/upload` | ✅（待适配 activity_id） |
-| `GET /documents/{id}` | ✅ |
-| `GET /documents/project/{project_id}` | ✅（待改为 /activities/{id}/documents） |
-| `GET /activities/{id}/documents` | ❌ |
-| `POST /activities/{id}/documents` | ❌ |
-| `GET /activities/{id}/filing/validate` | ✅ |
-| `POST /activities/{id}/filing/pack` | ✅ |
-| `POST /activities/{id}/filing/handover` | ✅ |
-| `GET /dashboard` | ✅ |
-| `GET /dashboard/activities/{id}` | ✅ |
-| `POST /dashboard/reports/monthly` | ✅ |
+| 端点                                    | 状态                                    |
+| --------------------------------------- | --------------------------------------- |
+| `GET /health`                           | ✅                                      |
+| `POST /auth/register`                   | ✅                                      |
+| `POST /auth/login`                      | ✅                                      |
+| `POST /auth/refresh`                    | ✅                                      |
+| `POST /auth/logout`                     | ✅                                      |
+| `GET /auth/me`                          | ✅                                      |
+| `POST /activities`                      | ✅                                      |
+| `GET /activities`                       | ✅                                      |
+| `GET /activities/{id}`                  | ✅                                      |
+| `GET /activities/{id}/history`          | ✅                                      |
+| `PUT /activities/{id}/status`           | ✅                                      |
+| `POST /activities/{id}/reject`          | ✅                                      |
+| `POST /activities/{id}/force-cancel`    | ✅                                      |
+| `POST /activities/{id}/force-postpone`  | ✅                                      |
+| `POST /documents/upload`                | ✅（待适配 activity_id）                |
+| `GET /documents/{id}`                   | ✅                                      |
+| `GET /documents/project/{project_id}`   | ✅（待改为 /activities/{id}/documents） |
+| `GET /activities/{id}/documents`        | ❌                                      |
+| `POST /activities/{id}/documents`       | ❌                                      |
+| `GET /activities/{id}/filing/validate`  | ✅                                      |
+| `POST /activities/{id}/filing/pack`     | ✅                                      |
+| `POST /activities/{id}/filing/handover` | ✅                                      |
+| `GET /dashboard`                        | ✅                                      |
+| `GET /dashboard/activities/{id}`        | ✅                                      |
+| `POST /dashboard/reports/monthly`       | ✅                                      |
 
 > 已实现: 22/22 端点 + refresh/logout。全部实现。
 
 ## 错误响应格式
 
 统一格式：
+
 ```json
 {
   "detail": "错误描述",
   "code": "RESOURCE_CONFLICT",
-  "fields": {"location": "该场地涉及时段已被占用"}
+  "fields": { "location": "该场地涉及时段已被占用" }
 }
 ```
 
-| HTTP 状态码 | 场景 |
-|-------------|------|
-| 201 | 创建成功 |
-| 200 | 操作成功 |
-| 302 | 文件下载重定向 |
-| 400 | 校验失败（必填缺失、格式错误） |
-| 401 | 未登录或 token 过期 |
-| 403 | 已登录但无权限（角色不符） |
-| 404 | 活动/文档不存在 |
-| 409 | 资源冲突（场地冲突、状态不可变更） |
-| 422 | 业务规则阻断（材料不全、签名缺失） |
+| HTTP 状态码 | 场景                               |
+| ----------- | ---------------------------------- |
+| 201         | 创建成功                           |
+| 200         | 操作成功                           |
+| 302         | 文件下载重定向                     |
+| 400         | 校验失败（必填缺失、格式错误）     |
+| 401         | 未登录或 token 过期                |
+| 403         | 已登录但无权限（角色不符）         |
+| 404         | 活动/文档不存在                    |
+| 409         | 资源冲突（场地冲突、状态不可变更） |
+| 422         | 业务规则阻断（材料不全、签名缺失） |

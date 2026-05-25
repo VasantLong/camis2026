@@ -84,11 +84,11 @@ class ActivityService:
 
 ### 校验规则
 
-| 规则 | 条件 | 错误 |
-|------|------|------|
-| 必填字段 | name/type/location/sponsor/deadline/designer_id 为空 | 400 |
-| 截止时间 | deadline 不能早于当前时间 | 400 |
-| 场地冲突 | 同 location + 同 estimated_time + status IN ('审批通过-待举办','备案材料已交接','审批通过') | 409 |
+| 规则     | 条件                                                                                        | 错误 |
+| -------- | ------------------------------------------------------------------------------------------- | ---- |
+| 必填字段 | name/type/location/sponsor/deadline/designer_id 为空                                        | 400  |
+| 截止时间 | deadline 不能早于当前时间                                                                   | 400  |
+| 场地冲突 | 同 location + 同 estimated_time + status IN ('审批通过-待举办','备案材料已交接','审批通过') | 409  |
 
 ---
 
@@ -116,20 +116,20 @@ class ForceChangeRequest(BaseModel):
 
 ### 状态转换矩阵
 
-| from_status | to_status | 权限 | 用例 |
-|-------------|-----------|------|------|
-| `待设计方案` | `待安保方案设计` | Promoter | UC2 提交方案 |
-| `待安保方案设计` | `待备案申请` | SecurityOfficer | UC3 签署完成 |
-| `待安保方案设计` | `待安保方案设计` | SecurityOfficer | UC3 负责人驳回（循环） |
-| `待备案申请` | `备案材料已交接` | SecurityOfficer | UC4 交接确认 |
-| `备案材料已交接` | `审批通过` | GovLiaison | UC5 政府通过 |
-| `备案材料已交接` | `待补充备案材料` | GovLiaison | UC5 需补充材料 |
-| `备案材料已交接` | `不通过/已终止` | GovLiaison | UC5 政府驳回 |
-| `待补充备案材料` | `备案材料已交接` | SecurityOfficer | 补充后重新递交 |
-| `审批通过` | `审批通过-待举办` | SecurityOfficer | UC6 确认通过 |
-| `审批通过` | `待安保方案设计` | SecurityOfficer | UC6 驳回/需整改 |
-| 任意活跃状态 | `已取消` | AdminStaff | UC7 强制取消 |
-| 任意活跃状态 | `已延期` | AdminStaff | UC7 强制延期 |
+| from_status      | to_status         | 权限            | 用例                   |
+| ---------------- | ----------------- | --------------- | ---------------------- |
+| `待设计方案`     | `待安保方案设计`  | Promoter        | UC2 提交方案           |
+| `待安保方案设计` | `待备案申请`      | SecurityOfficer | UC3 签署完成           |
+| `待安保方案设计` | `待安保方案设计`  | SecurityOfficer | UC3 负责人驳回（循环） |
+| `待备案申请`     | `备案材料已交接`  | SecurityOfficer | UC4 交接确认           |
+| `备案材料已交接` | `审批通过`        | GovLiaison      | UC5 政府通过           |
+| `备案材料已交接` | `待补充备案材料`  | GovLiaison      | UC5 需补充材料         |
+| `备案材料已交接` | `不通过/已终止`   | GovLiaison      | UC5 政府驳回           |
+| `待补充备案材料` | `备案材料已交接`  | SecurityOfficer | 补充后重新递交         |
+| `审批通过`       | `审批通过-待举办` | SecurityOfficer | UC6 确认通过           |
+| `审批通过`       | `待安保方案设计`  | SecurityOfficer | UC6 驳回/需整改        |
+| 任意活跃状态     | `已取消`          | AdminStaff      | UC7 强制取消           |
+| 任意活跃状态     | `已延期`          | AdminStaff      | UC7 强制延期           |
 
 ### 方法签名
 
@@ -170,16 +170,16 @@ class WorkflowService:
 
 ### 通知触发表
 
-| 转换 | 通知目标 | 内容 |
-|------|---------|------|
-| → `待设计方案` | designer_id | "新活动待设计方案" |
-| → `待安保方案设计` | SecurityOfficer 角色 | "需进行安保方案设计" |
-| → `待备案申请` | SecurityOfficer 角色 | "材料齐备，可开始备案" |
-| → `待补充备案材料` | SecurityOfficer 角色 | "需补充备案材料" |
-| → `审批通过` | SecurityOfficer 角色 | "批文已上传，待确认" |
-| → `审批通过-待举办` | AdminStaff 角色 | "活动可合法举办" |
-| → `待安保方案设计` (驳回) | AdminStaff + 安保负责人 | "方案被驳回，需重做" |
-| → `已取消` / `已延期` | 活动相关人 | 变更原因 |
+| 转换                      | 通知目标                | 内容                   |
+| ------------------------- | ----------------------- | ---------------------- |
+| → `待设计方案`            | designer_id             | "新活动待设计方案"     |
+| → `待安保方案设计`        | SecurityOfficer 角色    | "需进行安保方案设计"   |
+| → `待备案申请`            | SecurityOfficer 角色    | "材料齐备，可开始备案" |
+| → `待补充备案材料`        | SecurityOfficer 角色    | "需补充备案材料"       |
+| → `审批通过`              | SecurityOfficer 角色    | "批文已上传，待确认"   |
+| → `审批通过-待举办`       | AdminStaff 角色         | "活动可合法举办"       |
+| → `待安保方案设计` (驳回) | AdminStaff + 安保负责人 | "方案被驳回，需重做"   |
+| → `已取消` / `已延期`     | 活动相关人              | 变更原因               |
 
 ---
 
@@ -219,10 +219,10 @@ class DocumentService:
 
 ### 校验规则
 
-| 规则 | 条件 |
-|------|------|
-| 文件格式 | PDF/JPG/PNG/DOC/DOCX |
-| 文件大小 | ≤ 50MB |
+| 规则      | 条件                 |
+| --------- | -------------------- |
+| 文件格式  | PDF/JPG/PNG/DOC/DOCX |
+| 文件大小  | ≤ 50MB               |
 | MIME 校验 | 禁止 .exe / 脚本文件 |
 
 ---
@@ -396,11 +396,11 @@ flowchart TD
 
 ## 服务内部设计进度
 
-| 服务 | Pydantic 模型 | 方法签名 | 业务规则 | 实现状态 |
-|------|:---:|:---:|:---:|:---:|
-| ActivityService | ✅ | ✅ | ✅ | ✅ |
-| WorkflowService | ✅ | ✅ | ✅ | ✅ |
-| DocumentService | ✅ | ✅ | ✅ | ⚠ 已有基础（待适配 activity_id） |
-| FilingService | ✅ | ✅ | ✅ | ✅ |
-| NotificationService | ✅ | ✅ | ✅ | ⚠ 存根（仅日志） |
-| DashboardService | ✅ | ✅ | ✅ | ✅ |
+| 服务                | Pydantic 模型 | 方法签名 | 业务规则 |             实现状态             |
+| ------------------- | :-----------: | :------: | :------: | :------------------------------: |
+| ActivityService     |      ✅       |    ✅    |    ✅    |                ✅                |
+| WorkflowService     |      ✅       |    ✅    |    ✅    |                ✅                |
+| DocumentService     |      ✅       |    ✅    |    ✅    | ⚠ 已有基础（待适配 activity_id） |
+| FilingService       |      ✅       |    ✅    |    ✅    |                ✅                |
+| NotificationService |      ✅       |    ✅    |    ✅    |         ⚠ 存根（仅日志）         |
+| DashboardService    |      ✅       |    ✅    |    ✅    |                ✅                |

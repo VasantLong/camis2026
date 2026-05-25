@@ -759,6 +759,7 @@ classDiagram
 ```
 
 > **与 OO 类图的关键差异**：
+>
 > - 四个 Actor 类 → User + Role + Permission（RBAC）
 > - 所有实体方法移除，实体只保留属性
 > - Actor→实体关系 → User 外键（owner_id / designer_id / manager_id / liaison_id / admin_id）
@@ -810,6 +811,7 @@ classDiagram
 ```
 
 > **方法来源映射**：
+>
 > - `ActivityService.create_project()` ← 原 `Promoter.createActivityProject()`
 > - `WorkflowService.transition()` ← 原 `Activity.updateActivityStatus()` + `submitForAudit()` 等
 > - `DocumentService.upload()` ← 原实体方法中涉及文件上传的逻辑
@@ -819,25 +821,26 @@ classDiagram
 
 ## 实体-表映射
 
-| 实体 | 表名 | 状态 |
-|------|------|------|
-| Activity | `activities` | ❌ |
-| ActivityPlan | `activity_plans` | ❌ |
-| SecurityPlan | `security_plans` | ❌ |
-| FilingDoc | `filing_docs` | ❌ |
-| ApprovalRecord | `approval_records` | ❌ |
-| ImplementationRecord | `implementation_records` | ❌ |
-| KeyMaterial | `key_materials` | ❌ |
-| ActivityRule | `activity_rules` | ❌ |
-| User | `users` | ✅ |
-| Document | `documents` | ✅ |
-| Project | `projects` | ✅ 骨架，待改造为 activities |
-| Role | `roles` | ❌ |
-| Permission | `permissions` | ❌ |
-| UserRole | `user_roles` | ❌ |
-| RolePermission | `role_permissions` | ❌ |
+| 实体                 | 表名                     | 状态                         |
+| -------------------- | ------------------------ | ---------------------------- |
+| Activity             | `activities`             | ❌                           |
+| ActivityPlan         | `activity_plans`         | ❌                           |
+| SecurityPlan         | `security_plans`         | ❌                           |
+| FilingDoc            | `filing_docs`            | ❌                           |
+| ApprovalRecord       | `approval_records`       | ❌                           |
+| ImplementationRecord | `implementation_records` | ❌                           |
+| KeyMaterial          | `key_materials`          | ❌                           |
+| ActivityRule         | `activity_rules`         | ❌                           |
+| User                 | `users`                  | ✅                           |
+| Document             | `documents`              | ✅                           |
+| Project              | `projects`               | ✅ 骨架，待改造为 activities |
+| Role                 | `roles`                  | ❌                           |
+| Permission           | `permissions`            | ❌                           |
+| UserRole             | `user_roles`             | ❌                           |
+| RolePermission       | `role_permissions`       | ❌                           |
 
 ---
+
 UC7顺序图
 
 ```

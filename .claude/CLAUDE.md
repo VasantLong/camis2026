@@ -28,47 +28,6 @@
 - **PostgreSQL 17**：当前最新稳定大版本，18.0 刚发布尚不稳定；17 相比 16 有显著性能提升，且阿里云/腾讯云/AWS 均已提供托管支持，确保上云时版本完全兼容。
 - **Redis 7.4**：7.x 系列最新稳定版，所有云厂商托管服务普遍支持。Redis 8.0 云上托管支持尚不普遍，暂不采用，待上云时再视情况升级。
 
-## 常用命令
-
-```bash
-# 启动所有服务 (在项目根目录执行)
-docker compose up -d
-
-# 停止所有服务
-docker compose down
-
-# 查看服务运行状态
-docker compose ps
-
-# 查看所有容器日志
-docker compose logs -f
-
-# 查看单个服务日志
-docker compose logs -f postgres
-docker compose logs -f minio
-docker compose logs -f redis
-
-# 重启某个服务
-docker compose restart postgres
-
-# 重新构建并启动 (修改 Dockerfile 后使用)
-docker compose up -d --build
-
-# 清除所有数据重新开始 (包括数据库卷)
-docker compose down -v
-docker compose up -d
-
-# 激活 Python 环境并安装依赖
-mamba activate camis2026
-pip install -r requirements.txt
-
-# 启动后端 (确认 Docker 服务已运行)
-uvicorn app.main:app --reload --port 8000
-
-# 健康检查
-curl http://localhost:8000/health
-```
-
 ## 架构设计核心约束
 
 ### 数据存储三原则
