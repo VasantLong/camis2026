@@ -28,11 +28,11 @@ roles ──< role_permissions >── permissions
 |------|------|------|--------|
 | **SuperAdmin** | 系统 | 用户 CRUD、角色审批、系统配置 | 2 |
 | **AdminManager** | 行政部 | 审批角色申请、管理仪表盘 | 5 |
-| **SecurityManager** | 安保部 | 编制安保方案、审核签署、确认审批结果 | 8 |
+| **SecurityManager** | 安保部 | 编制安保方案、审核签署、确认审批结果 | 7 |
 | **AdminStaff** | 行政部 | 监控活动面板、强制变更状态 | 4 |
-| **SecurityOfficer** | 安保部 | 上传材料、审核、打包备案 | 4 |
+| **SecurityOfficer** | 安保部 | 上传材料、打包备案 | 3 |
 | **Promoter** | 宣策部 | 创建立项、编制活动方案 | 3 |
-| **GovLiaison** | 政府对接 | 上传批文、标注审批结果 | 2 |
+| **GovLiaison** | 政府对接 | 上传批文、审查材料合规性、标注审批结果 | 4 |
 
 ---
 
@@ -65,10 +65,9 @@ roles ──< role_permissions >── permissions
 | `confirm_approval` | activities | confirm_approval | 确认政府审批结果（转为"审批通过-待举办"） |
 | `reject_approval` | activities | reject_approval | 驳回审批结果（打回政府对接） |
 | `upload_security_material` | documents | upload | 上传安保材料 |
-| `audit_material` | materials | audit | 审核备案材料 |
 | `pack_filing` | filing | pack | 校验材料、打包、纸质交接 |
 
-### SecurityOfficer（4 项）
+### SecurityOfficer（3 项）
 
 普通安保人员，不包含管理审批权限。
 
@@ -76,7 +75,6 @@ roles ──< role_permissions >── permissions
 |--------|------|------|---------|
 | `view_owned_activity` | activities | view_owned | 查看活动列表和详情 |
 | `upload_security_material` | documents | upload | 上传安保材料 |
-| `audit_material` | materials | audit | 审核备案材料 |
 | `pack_filing` | filing | pack | 校验材料、打包、纸质交接 |
 
 ### AdminManager（5 项）
@@ -102,10 +100,12 @@ roles ──< role_permissions >── permissions
 | `force_postpone` | activities | force_postpone | 强制延期活动 |
 | `export_report` | dashboard | export_report | 导出月报 |
 
-### GovLiaison（2 项）
+### GovLiaison（3 项）
 
 | 权限名 | 资源 | 操作 | 对应用例 |
 |--------|------|------|---------|
+| `view_owned_activity` | activities | view_owned | 查看备案材料已交接的活动 |
+| `audit_material` | materials | audit | 审查关键材料合规性 |
 | `upload_approval` | documents | upload_approval | 上传政府批文 |
 | `update_approval_status` | activities | update_approval_status | 标记审批结果（通过/需补充/不通过） |
 
@@ -223,12 +223,8 @@ SuperAdmin / AdminStaff:
 |------|------|
 | `upload_plan` | Promoter |
 | `upload_security_material` | SecurityOfficer |
-| `audit_material` | SecurityOfficer |
 | `sign_document` | SecurityOfficer |
-| `confirm_approval` | SecurityOfficer |
 | `upload_approval` | GovLiaison |
 | `update_approval_status` | GovLiaison |
 
-### 安保部负责人（计划中）
-
-UML 文档中"安保部负责人"概念尚未在代码中有对应角色（`manager_id` 字段为死代码）。将在后续分支 `feat/security-manager` 实现。
+> `audit_material` 已激活并移至 GovLiaison（`feat/filing-workflow`）。`sign_document`、`upload_security_material`、`upload_approval`、`update_approval_status` 将在同一分支激活。

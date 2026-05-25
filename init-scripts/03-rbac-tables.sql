@@ -84,7 +84,7 @@ ON CONFLICT DO NOTHING;
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r, permissions p
 WHERE r.name = 'SecurityOfficer' AND p.name IN (
-    'view_owned_activity', 'upload_security_material', 'audit_material', 'pack_filing'
+    'view_owned_activity', 'upload_security_material', 'pack_filing'
 )
 ON CONFLICT DO NOTHING;
 
@@ -98,6 +98,6 @@ ON CONFLICT DO NOTHING;
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r, permissions p
 WHERE r.name = 'GovLiaison' AND p.name IN (
-    'view_owned_activity', 'upload_approval', 'update_approval_status'
+    'view_owned_activity', 'upload_approval', 'update_approval_status', 'audit_material'
 )
 ON CONFLICT DO NOTHING;
