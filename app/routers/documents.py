@@ -1,7 +1,7 @@
 import json
 import logging
 
-from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, UploadFile, status
 
 logger = logging.getLogger("camis.redis")
 from fastapi.responses import RedirectResponse
@@ -84,6 +84,7 @@ class PresignedUrlResponse(BaseModel):
 @router.get("/{doc_id}/url", response_model=PresignedUrlResponse)
 async def get_download_url(
     doc_id: str,
+    inline: bool = Query(False),
     current_user: User = Depends(get_current_user),
     svc: DocumentService = Depends(_service),
 ):
@@ -93,7 +94,7 @@ async def get_download_url(
     if d is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
-    url = await svc.get_presigned_download_url(doc_id)
+    url = await svc.get_presigned_download_url(doc_id, inline=inline)
     return PresignedUrlResponse(url=url, filename=d.filename)
 
 

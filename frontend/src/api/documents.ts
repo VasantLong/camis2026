@@ -10,12 +10,14 @@ export const documentsApi = {
     return client.post<DocumentResponse>("/documents/upload", formData);
   },
 
-  download: async (docId: string) => {
-    try {
-      const res = await client.get<{ url: string }>(`/documents/${docId}/url`);
-      window.open(res.data.url, "_blank");
-    } catch {
-      // error handled by Axios interceptor
-    }
+  _getUrl: async (docId: string, inline: boolean) => {
+    const res = await client.get<{ url: string }>(
+      `/documents/${docId}/url?inline=${inline ? "1" : "0"}`
+    );
+    window.open(res.data.url, "_blank");
   },
+
+  download: (docId: string) => documentsApi._getUrl(docId, false),
+
+  preview: (docId: string) => documentsApi._getUrl(docId, true),
 };

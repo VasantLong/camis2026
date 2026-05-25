@@ -68,11 +68,11 @@ class DocumentService:
         await self.db.refresh(doc)
         return doc
 
-    async def get_presigned_download_url(self, doc_id: UUID) -> str:
+    async def get_presigned_download_url(self, doc_id: UUID, inline: bool = False) -> str:
         doc = await self.db.get(Document, doc_id)
         if doc is None:
             raise LookupError("文档不存在")
-        return await get_presigned_url(doc.minio_path)
+        return await get_presigned_url(doc.minio_path, filename=doc.filename, inline=inline)
 
     async def list_by_activity(self, activity_id: UUID) -> list[Document]:
         result = await self.db.execute(

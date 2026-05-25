@@ -34,10 +34,16 @@ async def upload_file(file_path: str, data: bytes, content_type: str) -> None:
     )
 
 
-async def get_presigned_url(object_name: str, expires: int = 1800) -> str:
-    logger.info("minio presigned_url key=%s expires=%ds", object_name, expires)
+async def get_presigned_url(object_name: str, expires: int = 1800,
+                          inline: bool = False, filename: str = "") -> str:
+    logger.info("minio presigned_url key=%s expires=%ds inline=%s", object_name, expires, inline)
+    extra_params: dict[str, str] = {}
+    if filename:
+        disp = "inline" if inline else "attachment"
+        extra_params["response-content-disposition"] = f'{disp}; filename="{filename}"'
     return minio_client.presigned_get_object(
         bucket_name=_bucket,
         object_name=object_name,
         expires=timedelta(seconds=expires),
+        extra_query_params=extra_params or None,
     )

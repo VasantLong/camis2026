@@ -1,5 +1,5 @@
-import { Table, Button, Empty, Spin } from "antd";
-import { DownloadOutlined } from "@ant-design/icons";
+import { Table, Button, Empty, Spin, Space } from "antd";
+import { DownloadOutlined, EyeOutlined } from "@ant-design/icons";
 import { documentsApi } from "@/api/documents";
 import type { DocumentResponse } from "@/types/document";
 
@@ -41,14 +41,24 @@ export default function DocumentList({ documents, loading }: Props) {
     {
       title: "操作",
       key: "action",
-      width: 100,
+      width: 160,
       render: (_: unknown, record: DocumentResponse) => (
-        <Button
-          icon={<DownloadOutlined />}
-          onClick={() => documentsApi.download(record.id)}
-        >
-          下载
-        </Button>
+        <Space>
+          <Button
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => documentsApi.preview(record.id)}
+          >
+            预览
+          </Button>
+          <Button
+            size="small"
+            icon={<DownloadOutlined />}
+            onClick={() => documentsApi.download(record.id)}
+          >
+            下载
+          </Button>
+        </Space>
       ),
     },
   ];
