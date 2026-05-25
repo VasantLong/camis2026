@@ -41,7 +41,7 @@ async def pack_materials(
         result = await svc.pack_materials(activity_id)
         if not result.ready:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=f"材料不齐全，缺失签名: {result.missing_signatures}",
             )
         return result
