@@ -17,9 +17,11 @@ TRANSITION_MATRIX: dict[str, set[str]] = {
     "备案材料已交接":  {"审批通过", "待补充备案材料", "不通过/已终止"},
     "待补充备案材料":  {"备案材料已交接"},
     "审批通过":       {"审批通过-待举办", "待安保方案设计"},
+    "审批通过-待举办": {"举办中"},
+    "举办中":         {"已结束"},
 }
 
-TERMINAL_STATUSES = {"审批通过-待举办", "不通过/已终止", "已取消", "已延期"}
+TERMINAL_STATUSES = {"已结束", "不通过/已终止", "已取消", "已延期"}
 
 NOTIFICATION_RULES: dict[str, tuple[list[str], str]] = {
     "待安保方案设计":  (["SecurityOfficer"], "需进行安保方案设计"),

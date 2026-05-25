@@ -21,6 +21,8 @@ export const ACTIVITY_STATUSES = [
   "备案材料已交接",
   "审批通过",
   "审批通过-待举办",
+  "举办中",
+  "已结束",
   "待补充备案材料",
   "不通过/已终止",
   "已取消",
@@ -34,6 +36,8 @@ export const STATUS_COLOR_MAP: Record<string, string> = {
   备案材料已交接: "purple",
   审批通过: "green",
   "审批通过-待举办": "gold",
+  举办中: "volcano",
+  已结束: "green",
   待补充备案材料: "orange",
   "不通过/已终止": "red",
   已取消: "default",
@@ -41,7 +45,7 @@ export const STATUS_COLOR_MAP: Record<string, string> = {
 };
 
 export const TERMINAL_STATUSES = [
-  "审批通过-待举办",
+  "已结束",
   "不通过/已终止",
   "已取消",
   "已延期",
@@ -94,6 +98,14 @@ export function getAvailableTransitions(
       actions.push({ label: "确认通过", mode: "transition", toStatus: "审批通过-待举办", permission: "confirm_approval" });
     if (has("reject_approval"))
       actions.push({ label: "驳回（逆向流转）", mode: "reject", permission: "reject_approval" });
+  }
+  if (status === "审批通过-待举办") {
+    if (has("manage_security"))
+      actions.push({ label: "活动开始举办", mode: "transition", toStatus: "举办中", permission: "manage_security" });
+  }
+  if (status === "举办中") {
+    if (has("manage_security"))
+      actions.push({ label: "活动结束", mode: "transition", toStatus: "已结束", permission: "manage_security" });
   }
 
   if (has("force_cancel"))

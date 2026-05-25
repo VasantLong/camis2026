@@ -13,13 +13,32 @@ from app.schemas.activity import (
     ActivityResponse,
     StatusLogEntry,
 )
+from app.services.workflow_service import WorkflowService
 
-CONFLICT_STATUSES = {"审批通过-待举办", "备案材料已交接", "审批通过"}
+CONFLICT_STATUSES = {"审批通过-待举办", "举办中", "备案材料已交接", "审批通过"}
 
 
 class ActivityService:
     def __init__(self, db: AsyncSession):
         self.db = db
+
+    async def _auto_start_if_due(self, activity: Activity) -> bool:
+        """如果活动审批通过且已到举办时间，自动转为举办中。"""
+        if activity.status != "审批通过-待举办":
+            return False
+        if activity.estimated_time and activity.estimated_time <= datetime.now(timezone.utc):
+            log = ActivityStatusLog(
+                activity_id=activity.id,
+                from_status="审批通过-待举办",
+                to_status="举办中",
+                operator_id=activity.owner_id,
+                comment="系统自动：已到达预计举办时间",
+            )
+            self.db.add(log)
+            activity.status = "举办中"
+            await self.db.commit()
+            return True
+        return False
 
     async def create(self, owner_id: UUID, data: ActivityCreate) -> ActivityResponse:
         if data.deadline <= datetime.now(timezone.utc):
@@ -74,6 +93,7 @@ class ActivityService:
         activity = result.scalar_one_or_none()
         if activity is None:
             raise LookupError("活动不存在")
+        await self._auto_start_if_due(activity)
         return ActivityResponse.model_validate(activity)
 
     async def list(self, params: ActivityListParams, user_id: UUID | None = None) -> tuple[list[ActivityResponse], int]:
@@ -103,6 +123,9 @@ class ActivityService:
         rows = (await self.db.execute(
             query.order_by(Activity.created_at.desc()).offset(offset).limit(params.size)
         )).scalars().all()
+
+        for r in rows:
+            await self._auto_start_if_due(r)
 
         return [ActivityResponse.model_validate(r) for r in rows], total
 
