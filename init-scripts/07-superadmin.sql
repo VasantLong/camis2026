@@ -26,7 +26,8 @@ ON CONFLICT DO NOTHING;
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r, permissions p
 WHERE r.name = 'AdminManager' AND p.name IN (
-    'manage_users', 'view_dashboard', 'force_cancel', 'force_postpone', 'export_report'
+    'manage_users', 'view_owned_activity', 'view_dashboard',
+    'force_cancel', 'force_postpone', 'export_report'
 )
 ON CONFLICT DO NOTHING;
 

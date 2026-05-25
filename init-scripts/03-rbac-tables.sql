@@ -91,13 +91,13 @@ ON CONFLICT DO NOTHING;
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r, permissions p
 WHERE r.name = 'AdminStaff' AND p.name IN (
-    'view_dashboard', 'force_cancel', 'force_postpone', 'export_report'
+    'view_owned_activity', 'view_dashboard', 'force_cancel', 'force_postpone', 'export_report'
 )
 ON CONFLICT DO NOTHING;
 
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r, permissions p
 WHERE r.name = 'GovLiaison' AND p.name IN (
-    'upload_approval', 'update_approval_status'
+    'view_owned_activity', 'upload_approval', 'update_approval_status'
 )
 ON CONFLICT DO NOTHING;
