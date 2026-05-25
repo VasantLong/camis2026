@@ -127,20 +127,38 @@ roles ──< role_permissions >── permissions
 | `POST` | `/activities` | `create_activity` | Promoter |
 | `GET` | `/activities` | `view_owned_activity` | Promoter |
 | `GET` | `/activities/{id}` | `view_owned_activity` | Promoter |
-| `GET` | `/activities/{id}/history` | `view_owned_activity` | Promoter |
-| `GET` | `/activities/{id}/documents` | `view_owned_activity` | Promoter |
+| `GET` | `/activities/{id}/history` | `view_owned_activity` | 所有 |
+| `GET` | `/activities/{id}/documents` | `view_owned_activity` | 所有 |
+| `GET` | `/activities/{id}/security-plan` | `view_owned_activity` | 所有 |
+| `GET` | `/activities/{id}/filing/status` | 登录即可 | 所有 |
 | `PUT` | `/activities/{id}/status` | `manage_security`¹ | SecurityManager |
 | `POST` | `/activities/{id}/reject` | `reject_approval` | SecurityManager |
 | `POST` | `/activities/{id}/force-cancel` | `force_cancel` | AdminStaff |
 | `POST` | `/activities/{id}/force-postpone` | `force_postpone` | AdminStaff |
-| `GET` | `/activities/{id}/filing/validate` | `pack_filing` | SecurityOfficer |
-| `POST` | `/activities/{id}/filing/pack` | `pack_filing` | SecurityOfficer |
-| `POST` | `/activities/{id}/filing/handover` | `pack_filing` | SecurityOfficer |
-| `GET` | `/dashboard` | `view_dashboard` | AdminStaff |
+| `GET` | `/activities/{id}/filing/validate` | `pack_filing` | SecurityOfficer/SecurityManager |
+| `POST` | `/activities/{id}/filing/pack` | `pack_filing` | SecurityOfficer/SecurityManager |
+| `POST` | `/activities/{id}/filing/handover` | `pack_filing` | SecurityOfficer/SecurityManager |
+| `GET` | `/dashboard` | `view_dashboard` | AdminStaff/AdminManager |
 | `GET` | `/dashboard/activities/{id}` | `view_dashboard` | AdminStaff |
 | `POST` | `/dashboard/reports/monthly` | `export_report` | AdminStaff |
 
 > ¹ `PUT /activities/{id}/status` 在目标状态为"审批通过-待举办"时，额外要求 `confirm_approval` 权限。
+
+---
+
+## 活动可见性
+
+活动列表和详情按角色自动过滤：
+
+| 角色 | 可见活动 | 过滤方式 |
+|------|---------|---------|
+| Promoter | 自己创建的（全状态） | `owner_id = 自己` |
+| SecurityOfficer | 待安保方案设计 | `status = 待安保方案设计` |
+| SecurityManager | 安保相关流程 | `status IN (待安保方案设计, 待备案申请, 备案材料已交接, 审批通过, 待补充备案材料)` |
+| GovLiaison | 待处理的审批活动 | `status = 备案材料已交接` |
+| AdminStaff/AdminManager | 全部活动（只读） | 无过滤 |
+
+多角色用户取最大可见范围（如 Promoter + AdminStaff → 全部）。
 
 ---
 
