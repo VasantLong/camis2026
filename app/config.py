@@ -36,6 +36,11 @@ class Settings(BaseSettings):
     def redis_url(self) -> str:
         return f"redis://:{self.redis_password}@{self.redis_host}:{self.redis_port}/{self.redis_db}"
 
+    # SMTP (Mailpit for dev)
+    smtp_host: str = "localhost"
+    smtp_port: int = 1025
+    smtp_from: str = "noreply@camis.local"
+
     # JWT — 生产环境必须覆盖
     jwt_secret: str = ""
     jwt_algorithm: str = "HS256"

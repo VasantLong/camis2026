@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Cookie, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
 
@@ -13,6 +13,7 @@ from app.auth import (
     verify_refresh_token,
 )
 from app.database import get_db
+from app.email import send_welcome_email
 from app.deps import get_current_user
 from app.errors import ConflictError
 from app.models.rbac import Permission, Role, RolePermission, RoleRequest, UserRole
@@ -58,7 +59,7 @@ class UserResponse(BaseModel):
 
 
 @router.post("/register", response_model=TokenResponse)
-async def register(body: RegisterRequest, response: Response, db=Depends(get_db)):
+async def register(body: RegisterRequest, response: Response, bg: BackgroundTasks, db=Depends(get_db)):
     existing = await db.execute(
         select(User).where(User.email == body.email)
     )
@@ -80,6 +81,7 @@ async def register(body: RegisterRequest, response: Response, db=Depends(get_db)
         httponly=True, secure=False, samesite="lax",
         max_age=7 * 24 * 3600, path="/",
     )
+    bg.add_task(send_welcome_email, user.email, user.display_name)
     return TokenResponse(access_token=token)
 
 
