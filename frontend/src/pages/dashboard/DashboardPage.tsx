@@ -40,10 +40,10 @@ export default function DashboardPage() {
           />
         </Card>
         <Card style={{ flex: 1 }}>
-          <Statistic title="已取消" value={cancelledCount} valueStyle={{ color: "#ff4d4f" }} />
+          <Statistic title="已取消" value={cancelledCount} styles={{ content: { color: "#ff4d4f" } }} />
         </Card>
         <Card style={{ flex: 1 }}>
-          <Statistic title="已延期" value={postponedCount} valueStyle={{ color: "#faad14" }} />
+          <Statistic title="已延期" value={postponedCount} styles={{ content: { color: "#faad14" } }} />
         </Card>
       </div>
       <StatusDistribution byStatus={data.by_status} total={data.total} />

@@ -24,7 +24,7 @@ export default function RegisterPage() {
       const { data: user } = await authApi.me();
       setUser(user);
       message.success("注册成功");
-      navigate("/activities", { replace: true });
+      navigate("/profile", { replace: true });
     } catch (err: unknown) {
       const detail =
         (err as { detail?: string })?.detail || "注册失败，请重试";

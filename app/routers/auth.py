@@ -59,12 +59,12 @@ class UserResponse(BaseModel):
 
 
 @router.post("/register", response_model=TokenResponse)
-async def register(body: RegisterRequest, db=Depends(get_db)):
+async def register(body: RegisterRequest, response: Response, db=Depends(get_db)):
     existing = await db.execute(
         select(User).where((User.username == body.username) | (User.email == body.email))
     )
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username or email already exists")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="用户名或邮箱已存在")
     user = User(
         username=body.username,
         email=body.email,
@@ -75,6 +75,12 @@ async def register(body: RegisterRequest, db=Depends(get_db)):
     await db.commit()
     await db.refresh(user)
     token = create_access_token(str(user.id), user.username)
+    refresh = await create_refresh_token(db, str(user.id))
+    response.set_cookie(
+        key="refresh_token", value=refresh,
+        httponly=True, secure=False, samesite="lax",
+        max_age=7 * 24 * 3600, path="/",
+    )
     return TokenResponse(access_token=token)
 
 
@@ -109,7 +115,7 @@ async def me(current_user: User = Depends(get_current_user), db=Depends(get_db))
         .join(UserRole, UserRole.role_id == RolePermission.role_id)
         .where(UserRole.user_id == current_user.id)
     )
-    permissions = [row[0] for row in perm_result.all()]
+    permissions = list({row[0] for row in perm_result.all()})
 
     role_result = await db.execute(
         select(Role.name)

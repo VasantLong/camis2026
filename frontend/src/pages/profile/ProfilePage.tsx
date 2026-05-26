@@ -133,7 +133,7 @@ export default function ProfilePage() {
           <Alert
             type="info"
             icon={<ClockCircleOutlined />}
-            message="等待审核"
+            title="等待审核"
             description={
               <>
                 您申请了 <strong>{ROLE_LABEL_MAP[pendingRR.role_name] || pendingRR.role_name}</strong>{" "}
@@ -146,7 +146,7 @@ export default function ProfilePage() {
           <div>
             <Alert
               type="warning"
-              message="尚未分配角色"
+              title="尚未分配角色"
               description="请选择您的职责并提交申请，管理员审核通过后即可使用系统功能。"
               showIcon
               style={{ marginBottom: 16 }}

@@ -62,7 +62,7 @@ export default function DocumentUpload({ activityId }: Props) {
   };
 
   return (
-    <Space direction="vertical" style={{ width: "100%" }}>
+    <Space orientation="vertical" style={{ width: "100%" }}>
       <Input
         placeholder="标签（可选，逗号分隔）"
         value={tags}

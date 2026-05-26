@@ -12,8 +12,9 @@ export default function LoginPage() {
   const setAccessToken = useAuthStore((s) => s.setAccessToken);
   const setUser = useAuthStore((s) => s.setUser);
 
-  const from = (location.state as { from?: { pathname: string } })?.from
-    ?.pathname || "/activities";
+  const from =
+    (location.state as { from?: { pathname: string } })?.from?.pathname ||
+    "/activities";
 
   const onFinish = async (values: { username: string; password: string }) => {
     setLoading(true);
@@ -25,8 +26,7 @@ export default function LoginPage() {
       message.success("登录成功");
       navigate(from, { replace: true });
     } catch (err: unknown) {
-      const detail =
-        (err as { detail?: string })?.detail || "登录失败，请重试";
+      const detail = (err as { detail?: string })?.detail || "登录失败，请重试";
       message.error(detail);
     } finally {
       setLoading(false);
@@ -45,7 +45,7 @@ export default function LoginPage() {
     >
       <Card style={{ width: 400 }}>
         <Typography.Title level={3} style={{ textAlign: "center" }}>
-          CAMIS 登录
+          欢迎使用 CAMIS
         </Typography.Title>
         <Form layout="vertical" onFinish={onFinish} size="large">
           <Form.Item
