@@ -88,7 +88,7 @@ async def login(body: LoginRequest, response: Response, request: Request, db=Dep
     user = result.scalar_one_or_none()
     if user is None or not verify_password(body.password, user.password_hash):
         await record_login_attempt(db, body.username, False)
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户名或密码错误")
 
     await record_login_attempt(db, body.username, True)
     token = create_access_token(str(user.id), user.username)
