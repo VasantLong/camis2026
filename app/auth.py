@@ -35,6 +35,22 @@ def decode_access_token(token: str) -> dict:
     return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
 
 
+EMAIL_CHANGE_EXPIRE_MINUTES = 15
+
+
+def create_email_change_token(user_id: str, new_email: str) -> str:
+    payload = {
+        "sub": user_id,
+        "email": new_email,
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=EMAIL_CHANGE_EXPIRE_MINUTES),
+    }
+    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+
+
+def verify_email_change_token(token: str) -> dict:
+    return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+
+
 def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 

@@ -29,4 +29,7 @@ export const authApi = {
 
   updateProfile: (data: { display_name: string }) =>
     client.patch<UserResponse>("/auth/me", data),
+
+  requestEmailChange: (new_email: string) =>
+    client.post("/auth/me/email-change", { new_email }),
 };

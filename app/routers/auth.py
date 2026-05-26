@@ -1,19 +1,22 @@
-from fastapi import APIRouter, BackgroundTasks, Cookie, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Cookie, Depends, HTTPException, Query, Request, Response, status
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
 
 from app.auth import (
     check_login_blocked,
     create_access_token,
+    create_email_change_token,
     create_refresh_token,
     hash_password,
     record_login_attempt,
     revoke_user_tokens,
+    verify_email_change_token,
     verify_password,
     verify_refresh_token,
 )
 from app.database import get_db
-from app.email import send_welcome_email
+from app.email import send_email_verification, send_welcome_email
 from app.deps import get_current_user
 from app.errors import ConflictError
 from app.models.rbac import Permission, Role, RolePermission, RoleRequest, UserRole
@@ -225,6 +228,56 @@ async def update_profile(
         permissions=list(perm_set), roles=roles,
         role_permissions=role_perms, pending_role_request=pending_rr,
     )
+
+
+class EmailChangeRequest(BaseModel):
+    new_email: EmailStr
+
+
+@router.post("/me/email-change", status_code=202)
+async def request_email_change(
+    body: EmailChangeRequest,
+    bg: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    # Check new email not already in use
+    existing = await db.execute(select(User).where(User.email == body.new_email))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="该邮箱已被注册")
+
+    token = create_email_change_token(str(current_user.id), body.new_email)
+    verify_url = f"http://localhost:8000/auth/verify-email?token={token}"
+    bg.add_task(send_email_verification, body.new_email, verify_url)
+    return {"message": "验证邮件已发送至新邮箱，请查收"}
+
+
+@router.get("/verify-email")
+async def verify_email(token: str = Query(...), db=Depends(get_db)):
+    try:
+        payload = verify_email_change_token(token)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证链接无效或已过期")
+
+    user_id = payload.get("sub")
+    new_email = payload.get("email")
+    if not user_id or not new_email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证链接无效")
+
+    # Check email not taken by another user
+    existing = await db.execute(select(User).where(User.email == new_email))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="该邮箱已被注册")
+
+    user = await db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
+
+    user.email = new_email
+    db.add(user)
+    await db.commit()
+
+    return RedirectResponse(url="http://localhost:5173/profile")
 
 
 @router.post("/refresh", response_model=TokenResponse)

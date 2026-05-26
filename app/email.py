@@ -28,3 +28,18 @@ def send_welcome_email(to: str, display_name: str) -> None:
 <p style="color:#888;font-size:12px">此邮件由 CAMIS 系统自动发送（开发环境 Mailpit 捕获），请勿回复。</p>
 </body></html>""",
     )
+
+
+def send_email_verification(to: str, verify_url: str) -> None:
+    send_email(
+        to=to,
+        subject="验证您的 CAMIS 邮箱",
+        body_html=f"""<html><body>
+<h2>验证您的邮箱地址</h2>
+<p>请点击下方链接验证您的邮箱：</p>
+<p><a href="{verify_url}">{verify_url}</a></p>
+<p>链接 15 分钟内有效。</p>
+<hr>
+<p style="color:#888;font-size:12px">此邮件由 CAMIS 系统自动发送（开发环境 Mailpit 捕获），请勿回复。</p>
+</body></html>""",
+    )

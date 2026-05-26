@@ -23,6 +23,8 @@ export default function ProfilePage() {
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState("");
+  const [editingEmail, setEditingEmail] = useState(false);
+  const [emailValue, setEmailValue] = useState("");
   const queryClient = useQueryClient();
   const setUser = useAuthStore((s) => s.setUser);
 
@@ -62,6 +64,17 @@ export default function ProfilePage() {
     },
   });
 
+  const emailChangeMutation = useMutation({
+    mutationFn: (new_email: string) => authApi.requestEmailChange(new_email),
+    onSuccess: () => {
+      message.success("验证邮件已发送至新邮箱，请查收邮件并点击验证链接");
+      setEditingEmail(false);
+    },
+    onError: (err: any) => {
+      message.error(err?.detail || "发送失败");
+    },
+  });
+
   if (isLoading) {
     return (
       <div style={{ textAlign: "center", padding: 100 }}>
@@ -93,7 +106,40 @@ export default function ProfilePage() {
           column={2}
           bordered
         >
-          <Descriptions.Item label="邮箱">{user.email}</Descriptions.Item>
+          <Descriptions.Item label="邮箱">
+            {editingEmail ? (
+              <Input
+                size="small"
+                value={emailValue}
+                onChange={(e) => setEmailValue(e.target.value)}
+                onBlur={() => {
+                  if (emailValue.trim() && emailValue !== user.email) {
+                    emailChangeMutation.mutate(emailValue.trim());
+                  } else {
+                    setEditingEmail(false);
+                  }
+                }}
+                onPressEnter={() => {
+                  if (emailValue.trim() && emailValue !== user.email) {
+                    emailChangeMutation.mutate(emailValue.trim());
+                  } else {
+                    setEditingEmail(false);
+                  }
+                }}
+                autoFocus
+                style={{ width: 240 }}
+              />
+            ) : (
+              <Typography.Link
+                onClick={() => {
+                  setEmailValue(user.email);
+                  setEditingEmail(true);
+                }}
+              >
+                {user.email}
+              </Typography.Link>
+            )}
+          </Descriptions.Item>
           <Descriptions.Item label="显示名称">
             {editingName ? (
               <Input
