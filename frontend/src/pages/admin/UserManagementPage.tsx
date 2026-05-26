@@ -12,7 +12,6 @@ import {
   Timeline,
   List,
   Spin,
-  Spin,
   Popconfirm,
   message,
 } from "antd";
