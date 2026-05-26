@@ -28,9 +28,9 @@ with sync_playwright() as p:
     uname = f"rr_{uuid.uuid4().hex[:6]}"
     page.goto(f"{BASE}/register")
     page.wait_for_load_state("networkidle")
-    page.fill('input[placeholder="用户名"]', uname)
     page.fill('input[placeholder="邮箱"]', f"{uname}@test.com")
     page.fill('input[type="password"]', "pass123")
+    page.fill('input[placeholder="显示名称"]', uname)
     page.click('button[type="submit"]')
     page.wait_for_timeout(3000)
     page.wait_for_load_state("networkidle")

@@ -194,7 +194,7 @@ async def get_security_plan(
     manager_name = None
     if sp.manager_id:
         mgr = await db.get(User, sp.manager_id)
-        manager_name = mgr.username if mgr else None
+        manager_name = mgr.display_name if mgr else None
 
     return SecurityPlanResponse(
         risk_level=sp.risk_level,

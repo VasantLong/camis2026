@@ -206,7 +206,7 @@ async def get_audit_history(
         return []
 
     result = await db.execute(
-        sa_select(MaterialAudit, User.username, KeyMaterial.name)
+        sa_select(MaterialAudit, User.display_name, KeyMaterial.name)
         .join(User, User.id == MaterialAudit.user_id)
         .join(KeyMaterial, KeyMaterial.id == MaterialAudit.material_id)
         .where(MaterialAudit.material_id.in_(material_ids))

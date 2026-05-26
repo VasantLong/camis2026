@@ -76,7 +76,6 @@ export default function ProfilePage() {
           column={2}
           bordered
         >
-          <Descriptions.Item label="用户名">{user.username}</Descriptions.Item>
           <Descriptions.Item label="邮箱">{user.email}</Descriptions.Item>
           <Descriptions.Item label="显示名称">
             {user.display_name || "-"}

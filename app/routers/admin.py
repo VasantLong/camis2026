@@ -149,7 +149,6 @@ async def list_users(
         roles = [row[0] for row in role_result.all()]
         output.append(UserListItem(
             id=u.id,
-            username=u.username,
             email=u.email,
             display_name=u.display_name,
             is_active=u.is_active,
@@ -187,7 +186,6 @@ async def get_user(
 
     return UserDetail(
         id=u.id,
-        username=u.username,
         email=u.email,
         display_name=u.display_name,
         is_active=u.is_active,
@@ -238,7 +236,6 @@ async def update_user_roles(
 
     return UserDetail(
         id=u.id,
-        username=u.username,
         email=u.email,
         display_name=u.display_name,
         is_active=u.is_active,
@@ -282,7 +279,6 @@ async def update_user_status(
 
     return UserDetail(
         id=u.id,
-        username=u.username,
         email=u.email,
         display_name=u.display_name,
         is_active=u.is_active,

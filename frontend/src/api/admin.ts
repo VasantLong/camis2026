@@ -14,9 +14,8 @@ export interface RoleRequestItem {
 
 export interface UserListItem {
   id: string;
-  username: string;
   email: string;
-  display_name: string | null;
+  display_name: string;
   is_active: boolean;
   roles: string[];
   created_at: string;

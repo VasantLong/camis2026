@@ -18,11 +18,10 @@ async def client():
 @pytest_asyncio.fixture
 async def auth_token(client):
     suffix = uuid.uuid4().hex[:8]
-    username = f"test_{suffix}"
     resp = await client.post("/auth/register", json={
-        "username": username,
-        "email": f"{username}@test.com",
+        "email": f"test_{suffix}@test.com",
         "password": "test1234",
+        "display_name": f"test_{suffix}",
     })
     return resp.json()["access_token"]
 
@@ -31,11 +30,10 @@ async def auth_token(client):
 async def promoter_token(client):
     """用户注册后赋予 Promoter 角色。"""
     suffix = uuid.uuid4().hex[:8]
-    username = f"promoter_{suffix}"
     resp = await client.post("/auth/register", json={
-        "username": username,
-        "email": f"{username}@test.com",
+        "email": f"promoter_{suffix}@test.com",
         "password": "test1234",
+        "display_name": f"promoter_{suffix}",
     })
     token = resp.json()["access_token"]
     me = await client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
@@ -55,11 +53,10 @@ async def promoter_token(client):
 async def security_token(client):
     """用户注册后赋予 SecurityOfficer 角色。"""
     suffix = uuid.uuid4().hex[:8]
-    username = f"security_{suffix}"
     resp = await client.post("/auth/register", json={
-        "username": username,
-        "email": f"{username}@test.com",
+        "email": f"security_{suffix}@test.com",
         "password": "test1234",
+        "display_name": f"security_{suffix}",
     })
     token = resp.json()["access_token"]
     me = await client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
@@ -89,11 +86,10 @@ async def transition(client, token, activity_id, to_status, comment=""):
 async def admin_token(client):
     """用户注册后赋予 AdminStaff 角色。"""
     suffix = uuid.uuid4().hex[:8]
-    username = f"admin_{suffix}"
     resp = await client.post("/auth/register", json={
-        "username": username,
-        "email": f"{username}@test.com",
+        "email": f"admin_{suffix}@test.com",
         "password": "test1234",
+        "display_name": f"admin_{suffix}",
     })
     token = resp.json()["access_token"]
     me = await client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})

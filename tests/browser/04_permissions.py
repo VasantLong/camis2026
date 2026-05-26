@@ -15,11 +15,11 @@ def check(cond, msg):
         failed += 1
         print(f"  FAIL: {msg}")
 
-def login_as(page, username, password):
+def login_as(page, email, password):
     page.context.clear_cookies()
     page.goto(f"{BASE}/login")
     page.wait_for_load_state("networkidle")
-    page.fill('input[placeholder="用户名"]', username)
+    page.fill('input[placeholder="邮箱"]', email)
     page.fill('input[type="password"]', password)
     page.click('button[type="submit"]')
     page.wait_for_timeout(3000)
@@ -36,7 +36,7 @@ with sync_playwright() as p:
 
     # 1. No-role user → /activities → 403 (authenticated but no permissions)
     print("1. testuser (no role) → /activities")
-    login_as(page, "testuser", "test123")
+    login_as(page, "testuser@test.com", "test123")
     check("/403" in page.url, f"testuser blocked at /403 (got {page.url})")
 
     # 2. Already on /403 from step 1 — verify 403 page content
@@ -47,7 +47,7 @@ with sync_playwright() as p:
     # 3. tester1 → sidebar has both sections
     print("3. tester1 login")
     page.context.clear_cookies()
-    login_as(page, "tester1", "pass123")
+    login_as(page, "tester1@test.com", "pass123")
     # After login, should be on /activities (has permissions)
     on_activities = "/activities" in page.url
     on_dashboard = "/dashboard" in page.url

@@ -70,7 +70,7 @@ with sync_playwright() as p:
     print("=== login as devtest ===")
     page.goto(f"{BASE}/login")
     page.wait_for_load_state("networkidle")
-    page.fill('input[placeholder="用户名"]', "devtest")
+    page.fill('input[placeholder="邮箱"]', "devtest@test.com")
     page.fill('input[type="password"]', "pass123")
     page.click('button[type="submit"]')
     page.wait_for_timeout(3000)

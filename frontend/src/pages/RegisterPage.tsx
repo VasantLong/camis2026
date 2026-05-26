@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Form, Input, Button, Card, Typography, message } from "antd";
-import { UserOutlined, LockOutlined, MailOutlined } from "@ant-design/icons";
+import { MailOutlined, LockOutlined, UserOutlined } from "@ant-design/icons";
 import { authApi } from "@/api/auth";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -12,10 +12,9 @@ export default function RegisterPage() {
   const setUser = useAuthStore((s) => s.setUser);
 
   const onFinish = async (values: {
-    username: string;
     email: string;
     password: string;
-    display_name?: string;
+    display_name: string;
   }) => {
     setLoading(true);
     try {
@@ -50,12 +49,6 @@ export default function RegisterPage() {
         </Typography.Title>
         <Form layout="vertical" onFinish={onFinish} size="large">
           <Form.Item
-            name="username"
-            rules={[{ required: true, message: "请输入用户名" }]}
-          >
-            <Input prefix={<UserOutlined />} placeholder="用户名" />
-          </Form.Item>
-          <Form.Item
             name="email"
             rules={[
               { required: true, message: "请输入邮箱" },
@@ -72,8 +65,9 @@ export default function RegisterPage() {
           </Form.Item>
           <Form.Item
             name="display_name"
+            rules={[{ required: true, message: "请输入显示名称" }]}
           >
-            <Input placeholder="显示名称（可选）" />
+            <Input prefix={<UserOutlined />} placeholder="显示名称" />
           </Form.Item>
           <Form.Item>
             <Button type="primary" htmlType="submit" loading={loading} block>

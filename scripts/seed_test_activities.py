@@ -185,10 +185,10 @@ STATUS_NEEDS = {
 async def seed():
     async with async_session() as db:
         # ── ensure users ──
-        promoter = await _ensure_user(db, "promoter", "promoter@test.com", ["Promoter"])
-        security = await _ensure_user(db, "security", "security@test.com",
+        promoter = await _ensure_user(db, "promoter@test.com", "promoter", ["Promoter"])
+        security = await _ensure_user(db, "security@test.com", "security",
                                        ["SecurityOfficer", "SecurityManager"])
-        liaison = await _ensure_user(db, "liaison", "liaison@test.com", ["GovLiaison"])
+        liaison = await _ensure_user(db, "liaison@test.com", "liaison", ["GovLiaison"])
 
         # ── check existing ──
         names = [a[0] for a in ACTIVITIES]
@@ -461,18 +461,17 @@ def _add_doc(db, activity_id, uploader_id, filename, minio_path, file_size, cont
     ))
 
 
-async def _ensure_user(db, username, email, role_names):
-    result = await db.execute(select(User).where(User.username == username))
+async def _ensure_user(db, email, display_name, role_names):
+    result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
     if user:
         return user
     role_result = await db.execute(select(Role).where(Role.name.in_(role_names)))
     roles = role_result.scalars().all()
     user = User(
-        username=username,
         email=email,
         password_hash=hash_password("pass123"),
-        display_name=username,
+        display_name=display_name,
     )
     db.add(user)
     await db.flush()

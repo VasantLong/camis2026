@@ -23,14 +23,13 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 class RegisterRequest(BaseModel):
-    username: str
     email: EmailStr
     password: str
-    display_name: str | None = None
+    display_name: str
 
 
 class LoginRequest(BaseModel):
-    username: str
+    email: str
     password: str
 
 
@@ -49,9 +48,8 @@ class PendingRoleRequest(BaseModel):
 
 class UserResponse(BaseModel):
     id: str
-    username: str
     email: str
-    display_name: str | None
+    display_name: str
     is_active: bool
     permissions: list[str] = []
     roles: list[str] = []
@@ -62,12 +60,12 @@ class UserResponse(BaseModel):
 @router.post("/register", response_model=TokenResponse)
 async def register(body: RegisterRequest, response: Response, db=Depends(get_db)):
     existing = await db.execute(
-        select(User).where((User.username == body.username) | (User.email == body.email))
+        select(User).where(User.email == body.email)
     )
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="用户名或邮箱已存在")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="邮箱已注册")
+
     user = User(
-        username=body.username,
         email=body.email,
         password_hash=hash_password(body.password),
         display_name=body.display_name,
@@ -75,7 +73,7 @@ async def register(body: RegisterRequest, response: Response, db=Depends(get_db)
     db.add(user)
     await db.commit()
     await db.refresh(user)
-    token = create_access_token(str(user.id), user.username)
+    token = create_access_token(str(user.id))
     refresh = await create_refresh_token(db, str(user.id))
     response.set_cookie(
         key="refresh_token", value=refresh,
@@ -87,18 +85,18 @@ async def register(body: RegisterRequest, response: Response, db=Depends(get_db)
 
 @router.post("/login", response_model=TokenResponse)
 async def login(body: LoginRequest, response: Response, request: Request, db=Depends(get_db)):
-    if await check_login_blocked(db, body.username):
+    if await check_login_blocked(db, body.email):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="登录尝试过多，请15分钟后再试")
 
-    result = await db.execute(select(User).where(User.username == body.username))
+    result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
     if user is None or not verify_password(body.password, user.password_hash):
-        await record_login_attempt(db, body.username, False)
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户名或密码错误")
+        await record_login_attempt(db, body.email, False)
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="邮箱或密码错误")
 
-    await record_login_attempt(db, body.username, True)
-    token = create_access_token(str(user.id), user.username)
+    await record_login_attempt(db, body.email, True)
+    token = create_access_token(str(user.id))
     refresh = await create_refresh_token(db, str(user.id))
     response.set_cookie(
         key="refresh_token", value=refresh,
@@ -157,7 +155,6 @@ async def me(current_user: User = Depends(get_current_user), db=Depends(get_db))
 
     return UserResponse(
         id=str(current_user.id),
-        username=current_user.username,
         email=current_user.email,
         display_name=current_user.display_name,
         is_active=current_user.is_active,
@@ -184,7 +181,7 @@ async def refresh(response: Response, refresh_token: str = Cookie(None), db=Depe
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
-    access = create_access_token(str(user.id), user.username)
+    access = create_access_token(str(user.id))
     new_refresh = await create_refresh_token(db, str(user.id))
     response.set_cookie(
         key="refresh_token", value=new_refresh,

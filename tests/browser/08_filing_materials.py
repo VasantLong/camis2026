@@ -13,12 +13,12 @@ def check(cond, msg):
     if cond: print(f"  OK: {msg}")
     else: failed += 1; print(f"  FAIL: {msg}")
 
-def login_as(page, username, password):
+def login_as(page, email, password):
     """User opens login page, fills form, clicks submit."""
     page.context.clear_cookies()
     page.goto(f"{BASE}/login")
     page.wait_for_load_state("networkidle")
-    page.fill('input[placeholder="用户名"]', username)
+    page.fill('input[placeholder="邮箱"]', email)
     page.fill('input[type="password"]', password)
     page.click('button[type="submit"]')
     page.wait_for_timeout(3000)
@@ -67,7 +67,7 @@ with sync_playwright() as p:
 
     # Step 1: Login
     print("1. Login as security")
-    login_as(page, "security", "pass123")
+    login_as(page, "security@test.com", "pass123")
     check("/login" not in page.url, f"security logged in (got {page.url})")
 
     # Step 2: Navigate to activity list, find and click a gov_test activity
@@ -137,7 +137,7 @@ with sync_playwright() as p:
 
     # Step 5: Login as liaison
     print("5. Login as liaison")
-    login_as(page, "liaison", "pass123")
+    login_as(page, "liaison@test.com", "pass123")
     check("/login" not in page.url, f"liaison logged in (got {page.url})")
 
     # Step 6: Navigate to same activity

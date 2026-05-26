@@ -65,11 +65,6 @@ export default function UserManagementPage() {
 
   const columns = [
     {
-      title: "用户名",
-      dataIndex: "username",
-      key: "username",
-    },
-    {
       title: "邮箱",
       dataIndex: "email",
       key: "email",
@@ -190,7 +185,7 @@ export default function UserManagementPage() {
       >
         {editingUser && (
           <Typography.Paragraph>
-            用户：<strong>{editingUser.username}</strong>
+            用户：<strong>{editingUser.display_name}</strong>
           </Typography.Paragraph>
         )}
         <Select

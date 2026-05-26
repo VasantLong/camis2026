@@ -6,9 +6,8 @@ from pydantic import BaseModel, Field
 
 class UserListItem(BaseModel):
     id: UUID
-    username: str
     email: str
-    display_name: str | None = None
+    display_name: str
     is_active: bool
     roles: list[str]
     created_at: datetime
@@ -16,9 +15,8 @@ class UserListItem(BaseModel):
 
 class UserDetail(BaseModel):
     id: UUID
-    username: str
     email: str
-    display_name: str | None = None
+    display_name: str
     is_active: bool
     roles: list[str]
     permissions: list[str]

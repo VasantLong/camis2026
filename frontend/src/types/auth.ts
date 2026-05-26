@@ -1,13 +1,12 @@
 export interface LoginRequest {
-  username: string;
+  email: string;
   password: string;
 }
 
 export interface RegisterRequest {
-  username: string;
   email: string;
   password: string;
-  display_name?: string;
+  display_name: string;
 }
 
 export interface TokenResponse {
@@ -17,9 +16,8 @@ export interface TokenResponse {
 
 export interface UserResponse {
   id: string;
-  username: string;
   email: string;
-  display_name: string | null;
+  display_name: string;
   is_active: boolean;
   permissions: string[];
   roles: string[];

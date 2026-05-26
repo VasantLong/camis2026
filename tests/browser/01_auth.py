@@ -35,12 +35,12 @@ with sync_playwright() as p:
     print("2. Wrong password login")
     page.goto(f"{BASE}/login")
     page.wait_for_load_state("networkidle")
-    page.fill('input[placeholder="用户名"]', "tester1")
+    page.fill('input[placeholder="邮箱"]', "devtest@test.com")
     page.fill('input[type="password"]', "wrongpassword")
     page.click('button[type="submit"]')
     page.wait_for_timeout(2000)
     still_login = "/login" in page.url
-    toast = page.locator('.ant-message').filter(has_text="用户名或密码错误").first
+    toast = page.locator('.ant-message').filter(has_text="邮箱或密码错误").first
     has_toast = toast.count() > 0
     check(still_login, f"stayed on /login after wrong password (got {page.url})")
     check(has_toast, "error toast visible after wrong password")
@@ -50,12 +50,12 @@ with sync_playwright() as p:
     page.context.clear_cookies()
     page.goto(f"{BASE}/login")
     page.wait_for_load_state("networkidle")
-    page.fill('input[placeholder="用户名"]', "nonexistent_user")
+    page.fill('input[placeholder="邮箱"]', "nonexistent@test.com")
     page.fill('input[type="password"]', "pass123")
     page.click('button[type="submit"]')
     page.wait_for_timeout(2000)
     still_login2 = "/login" in page.url
-    toast2 = page.locator('.ant-message').filter(has_text="用户名或密码错误").first
+    toast2 = page.locator('.ant-message').filter(has_text="邮箱或密码错误").first
     has_toast2 = toast2.count() > 0
     check(still_login2, f"stayed on /login after wrong username (got {page.url})")
     check(has_toast2, "error toast visible after wrong username")
@@ -65,7 +65,7 @@ with sync_playwright() as p:
     page.context.clear_cookies()
     page.goto(f"{BASE}/login")
     page.wait_for_load_state("networkidle")
-    page.fill('input[placeholder="用户名"]', "tester1")
+    page.fill('input[placeholder="邮箱"]', "devtest@test.com")
     page.fill('input[type="password"]', "pass123")
     page.click('button[type="submit"]')
     page.wait_for_timeout(3000)
@@ -102,25 +102,25 @@ with sync_playwright() as p:
     uname = f"test_{uuid.uuid4().hex[:8]}"
     page.goto(f"{BASE}/register")
     page.wait_for_load_state("networkidle")
-    page.fill('input[placeholder="用户名"]', uname)
     page.fill('input[placeholder="邮箱"]', f"{uname}@test.com")
     page.fill('input[type="password"]', "pass123")
+    page.fill('input[placeholder="显示名称"]', uname)
     page.click('button[type="submit"]')
     page.wait_for_timeout(3000)
     page.wait_for_load_state("networkidle")
     check("/profile" in page.url,
           f"new user (no role) lands on /profile (got {page.url})")
 
-    # 5b. Register with duplicate username → 409
-    print("5b. Register duplicate username")
+    # 5b. Register with duplicate email → 409
+    print("5b. Register duplicate email")
     page.goto(f"{BASE}/register")
     page.wait_for_load_state("networkidle")
-    page.fill('input[placeholder="用户名"]', uname)
-    page.fill('input[placeholder="邮箱"]', f"{uname}_dup@test.com")
+    page.fill('input[placeholder="邮箱"]', f"{uname}@test.com")
     page.fill('input[type="password"]', "pass123")
+    page.fill('input[placeholder="显示名称"]', uname)
     page.click('button[type="submit"]')
     page.wait_for_timeout(2000)
-    toast3 = page.locator('.ant-message').filter(has_text="用户名或邮箱已存在").first
+    toast3 = page.locator('.ant-message').filter(has_text="邮箱已注册").first
     has_toast3 = toast3.count() > 0
     still_register = "/register" in page.url
     check(still_register, f"stayed on /register after duplicate (got {page.url})")

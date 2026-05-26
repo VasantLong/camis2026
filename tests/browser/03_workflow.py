@@ -22,7 +22,7 @@ def api_post(path, body, token):
     return json.loads(urllib.request.urlopen(req).read())
 
 def login_api():
-    return api_post("/auth/login", {"username":"tester1","password":"pass123"}, None)["access_token"]
+    return api_post("/auth/login", {"email":"tester1@test.com","password":"pass123"}, None)["access_token"]
 
 def create_activity_via_api(token, name):
     return api_post("/activities", {
@@ -59,7 +59,7 @@ with sync_playwright() as p:
     # Login
     page.goto(f"{BASE}/login")
     page.wait_for_load_state("networkidle")
-    page.fill('input[placeholder="用户名"]', "tester1")
+    page.fill('input[placeholder="邮箱"]', "tester1@test.com")
     page.fill('input[type="password"]', "pass123")
     page.click('button[type="submit"]')
     page.wait_for_timeout(3000)

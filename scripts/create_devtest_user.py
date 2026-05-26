@@ -11,27 +11,26 @@ from app.models.user import User
 from app.models.rbac import Role, UserRole
 from app.auth import hash_password
 
-DEV_USERNAME = "devtest"
+DEV_EMAIL = "devtest@test.com"
 DEV_PASSWORD = "pass123"
 
 
 async def main():
     async with async_session() as db:
         # Get or create user
-        result = await db.execute(select(User).where(User.username == DEV_USERNAME))
+        result = await db.execute(select(User).where(User.email == DEV_EMAIL))
         user = result.scalar_one_or_none()
         if user is None:
             user = User(
-                username=DEV_USERNAME,
-                email="devtest@localhost",
+                email=DEV_EMAIL,
                 password_hash=hash_password(DEV_PASSWORD),
                 display_name="DevTest",
             )
             db.add(user)
             await db.flush()
-            print(f"Created user: {DEV_USERNAME}")
+            print(f"Created user: {DEV_EMAIL}")
         else:
-            print(f"User exists: {DEV_USERNAME}")
+            print(f"User exists: {DEV_EMAIL}")
 
         # Get all roles
         roles_result = await db.execute(select(Role))
@@ -56,7 +55,7 @@ async def main():
             print(f"Assigned {added} new role(s)")
         else:
             print("All roles already assigned")
-        print(f"Total: {len(all_roles)} roles, user={DEV_USERNAME} / {DEV_PASSWORD}")
+        print(f"Total: {len(all_roles)} roles, user={DEV_EMAIL} / {DEV_PASSWORD}")
 
 
 if __name__ == "__main__":

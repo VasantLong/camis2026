@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Form, Input, Button, Card, Typography, message } from "antd";
-import { UserOutlined, LockOutlined } from "@ant-design/icons";
+import { MailOutlined, LockOutlined } from "@ant-design/icons";
 import { authApi } from "@/api/auth";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -16,7 +16,7 @@ export default function LoginPage() {
     (location.state as { from?: { pathname: string } })?.from?.pathname ||
     "/activities";
 
-  const onFinish = async (values: { username: string; password: string }) => {
+  const onFinish = async (values: { email: string; password: string }) => {
     setLoading(true);
     try {
       const { data } = await authApi.login(values);
@@ -49,10 +49,13 @@ export default function LoginPage() {
         </Typography.Title>
         <Form layout="vertical" onFinish={onFinish} size="large">
           <Form.Item
-            name="username"
-            rules={[{ required: true, message: "请输入用户名" }]}
+            name="email"
+            rules={[
+              { required: true, message: "请输入邮箱" },
+              { type: "email", message: "邮箱格式不正确" },
+            ]}
           >
-            <Input prefix={<UserOutlined />} placeholder="用户名" />
+            <Input prefix={<MailOutlined />} placeholder="邮箱" />
           </Form.Item>
           <Form.Item
             name="password"

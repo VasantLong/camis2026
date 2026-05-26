@@ -23,10 +23,9 @@ def verify_password(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode(), hashed.encode())
 
 
-def create_access_token(user_id: str, username: str) -> str:
+def create_access_token(user_id: str) -> str:
     payload = {
         "sub": user_id,
-        "username": username,
         "exp": datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_expire_minutes),
     }
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
@@ -73,22 +72,21 @@ async def revoke_user_tokens(db: AsyncSession, user_id: str) -> None:
     await db.commit()
 
 
-async def check_login_blocked(db: AsyncSession, username: str) -> bool:
+async def check_login_blocked(db: AsyncSession, login_id: str) -> bool:
     since = datetime.now(timezone.utc) - timedelta(minutes=LOCKOUT_MINUTES)
     from sqlalchemy import text
     result = await db.execute(
-        text("SELECT count(*) FROM login_attempts WHERE username = :u AND success = false AND created_at > :s"),
-        {"u": username, "s": since},
+        text("SELECT count(*) FROM login_attempts WHERE login_id = :l AND success = false AND created_at > :s"),
+        {"l": login_id, "s": since},
     )
     count = result.scalar() or 0
     return count >= MAX_LOGIN_ATTEMPTS
 
 
-async def record_login_attempt(db: AsyncSession, username: str, success: bool) -> None:
+async def record_login_attempt(db: AsyncSession, login_id: str, success: bool) -> None:
     from sqlalchemy import text
     await db.execute(
-        text("INSERT INTO login_attempts (username, success) VALUES (:u, :s)"),
-        {"u": username, "s": success},
+        text("INSERT INTO login_attempts (login_id, success) VALUES (:l, :s)"),
+        {"l": login_id, "s": success},
     )
     await db.commit()
-
