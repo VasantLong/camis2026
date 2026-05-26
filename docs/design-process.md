@@ -126,3 +126,8 @@ DashboardService    → 数据聚合查询、报表导出
 | 待补齐：电子签名跟踪               | ✅   | has_signature 字段已添加                           |
 | 前端：React SPA 实施               | ✅   | docs/frontend.md (48 TS 文件, 9 页面, 8 API 模块)  |
 | 质量：浏览器端到端测试             | ✅   | docs/browser-tests.md (7 脚本, 37 断言)            |
+
+## 云迁移兼容性
+
+- 代码使用 S3 兼容 SDK 与 MinIO 交互，上云时仅需替换 Endpoint 即可切换到阿里云 OSS 或腾讯云 COS
+- PostgreSQL、Redis 可直接使用云厂商托管服务，无需代码改动
