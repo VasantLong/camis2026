@@ -9,8 +9,11 @@
 | `POST` | `/auth/register` | 公开 |
 | `POST` | `/auth/login` | 公开 |
 | `GET`  | `/auth/me` | 登录用户 |
+| `PATCH`| `/auth/me` | 登录用户 |
 | `GET`  | `/auth/roles` | 登录用户 |
 | `POST` | `/auth/me/role-request` | 登录用户 |
+| `POST` | `/auth/me/email-change` | 登录用户 |
+| `GET`  | `/auth/verify-email` | 公开（token 验证） |
 | `POST` | `/auth/refresh` | Cookie |
 | `POST` | `/auth/logout` | 登录用户 |
 | `GET`  | `/health` | 公开 |
@@ -249,6 +252,10 @@ content_type: "application/pdf"
 | `POST /auth/refresh`                    | ✅                                      |
 | `POST /auth/logout`                     | ✅                                      |
 | `GET /auth/me`                          | ✅                                      |
+| `PATCH /auth/me`                        | ✅                                      |
+| `POST /auth/me/role-request`            | ✅                                      |
+| `POST /auth/me/email-change`            | ✅                                      |
+| `GET /auth/verify-email`                | ✅                                      |
 | `POST /activities`                      | ✅                                      |
 | `GET /activities`                       | ✅                                      |
 | `GET /activities/{id}`                  | ✅                                      |

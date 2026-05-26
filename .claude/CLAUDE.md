@@ -22,6 +22,7 @@
 | PostgreSQL 17 | `postgres:17`         | 5432                      | `docapp` / `secret_pg_pwd`  | 结构化业务数据与文档元数据 |
 | MinIO         | `quay.io/minio/minio` | 9000 (API), 9001 (控制台) | `minioadmin` / `minioadmin` | 文档文件本体对象存储       |
 | Redis 7.4     | `redis:7.4-alpine`    | 6379                      | 密码: `secret_redis_pwd`    | 热点缓存、Session、队列    |
+| Mailpit       | `axllent/mailpit`     | 1025 (SMTP), 8025 (Web)  | 无                          | 开发环境邮件捕获           |
 
 ### 版本选择说明
 
@@ -71,7 +72,9 @@ Docker 服务启动后，需验证以下项目：
 - [ ] MinIO 控制台可访问: `http://localhost:9001`，Bucket `company-docs` 由 minio-init 容器自动创建
 - [ ] PostgreSQL 可连接: `localhost:5432`，数据库 `doc_metadata` 存在，3 张表已建
 - [ ] Redis 可连接: `localhost:6379`，使用 `AUTH secret_redis_pwd` 认证通过
+- [ ] Mailpit 可访问: `http://localhost:8025`，开发邮件在此查看
 - [ ] 安装 Python 依赖: `mamba activate camis2026 && pip install -r requirements.txt`
+- [ ] 初始化测试数据: `python scripts/seed_test_activities.py && python scripts/create_devtest_user.py`
 - [ ] 启动后端: `uvicorn app.main:app --reload --port 8000`
 - [ ] 验证后端: `curl http://localhost:8000/health`（三项均为 `ok`）
 
@@ -142,7 +145,7 @@ camis2026/
 - 后端：`pytest` 29 用例全绿是基线
 - 前端：写完代码后要求"告诉我如何验证"，需要具体的操作步骤和预期效果
 - DB 变更：接受 `docker compose down -v` 重建
-- 开发环境：只用 `docker compose up -d postgres minio redis minio-init`，不启动 Docker 里的 app 服务
+- 开发环境：只用 `docker compose up -d postgres minio redis mailpit minio-init`，不启动 Docker 里的 app 服务
 
 ### 文档同步
 

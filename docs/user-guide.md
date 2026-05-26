@@ -25,7 +25,7 @@ Docker 只跑基础设施，FastAPI 和前端在本地跑，支持热重载：
 
 ```bash
 # 终端 1：仅启动基础设施服务（数据库 + 存储 + 缓存）
-docker compose up -d postgres minio redis
+docker compose up -d postgres minio redis mailpit
 
 # 终端 2：后端 API（热重载，改代码自动重启）
 cd /home/vasant/projects/work/camis2026
@@ -108,21 +108,23 @@ curl http://localhost:8000/health
 
 ## 测试帐号
 
-用 `python scripts/seed_test_users.py` 一键创建（幂等，可重复执行）：
+用以下脚本创建测试帐号（幂等，可重复执行）：
 
-| 用户名 | 密码 | 角色 | 可访问页面 |
-|--------|------|------|-----------|
-| `superadmin` | `pass123` | SuperAdmin | 管理用户角色申请 |
-| `promoter` | `pass123` | Promoter | 活动管理 |
-| `security` | `pass123` | SecurityOfficer | 安保方案、审批流转 |
-| `admin` | `pass123` | AdminStaff | 仪表盘、强制变更、管理用户 |
-| `liaison` | `pass123` | GovLiaison | 批文上传、审批标注 |
-| `tester1` | `pass123` | Promoter + AdminStaff | 活动管理、仪表盘 |
-| `testuser` | `test123` | 无角色 | 仅登录（可提交角色申请） |
+```bash
+python scripts/seed_test_activities.py   # 创建 promoter / security / liaison + 种子活动
+python scripts/create_devtest_user.py    # 创建 devtest（全角色全能用户）
+```
+
+| 邮箱 | 密码 | 角色 | 可访问页面 |
+|------|------|------|-----------|
+| `devtest@test.com` | `pass123` | 全部 7 角色 | 所有页面 |
+| `promoter@test.com` | `pass123` | Promoter | 活动管理、方案上传 |
+| `security@test.com` | `pass123` | SecurityOfficer + SecurityManager | 安保方案、签署材料、审批流转 |
+| `liaison@test.com` | `pass123` | GovLiaison | 审查材料、批文上传 |
 
 ## 种子活动
 
-用 `python scripts/seed_test_activities.py` 创建 12 个测试活动（需先运行 seed_test_users.py），覆盖全状态：
+用 `python scripts/seed_test_activities.py` 创建 12 个测试活动，覆盖全状态：
 
 | 活动 | 状态 |
 |------|------|
@@ -145,10 +147,10 @@ curl http://localhost:8000/health
 
 ## 角色申请流程
 
-1. 用 `testuser` 登录 → 查看 `/auth/me`，`pending_role_request` 为 `null`
-2. `POST /auth/me/role-request {"role_id": "<Promoter-UUID>"}` → 提交申请
-3. 用 `superadmin` 登录 → `GET /admin/role-requests` → 查看待审批
-4. `POST /admin/role-requests/{id}/approve` → 批准后 testuser 立即获得 Promoter 权限
+1. 注册新用户 → 自动进入 `/profile` 页面
+2. 选择角色并点击"提交申请"
+3. 用 `devtest@test.com` 登录 → `GET /admin/role-requests` → 查看待审批
+4. `POST /admin/role-requests/{id}/approve` → 批准后用户立即获得请求的角色权限
 
 ---
 
@@ -156,7 +158,7 @@ curl http://localhost:8000/health
 
 ### 场景 A：宣策部（Promoter）— 立项 + 方案上传
 
-1. 用 `tester1 / pass123` 登录
+1. 用 `devtest@test.com / pass123` 登录（或 `promoter@test.com`）
 2. 进入「活动管理 → 创建新活动」
 3. 填写活动信息并提交 → 跳转详情页，状态为「待设计方案」
 4. 在文档 tab 上传方案文件（PDF/JPG/PNG/DOC，≤50MB）
@@ -165,7 +167,7 @@ curl http://localhost:8000/health
 
 ### 场景 B：安保部（SecurityOfficer）— 审批流转
 
-用 `security / pass123` 登录（已预设 SecurityOfficer 角色）。
+用 `security@test.com / pass123` 登录（已预设 SecurityOfficer 角色）。
 
 1. 打开某个「待设计方案」的活动详情
 2. 点击「提交到安保方案设计」→ 状态变为「待安保方案设计」
@@ -175,7 +177,7 @@ curl http://localhost:8000/health
 
 ### 场景 C：政府对接（GovLiaison）— 批文上传
 
-用 `liaison / pass123` 登录（已预设 GovLiaison 角色），活动需处于「备案材料已交接」状态。
+用 `liaison@test.com / pass123` 登录（已预设 GovLiaison 角色），活动需处于「备案材料已交接」状态。
 
 1. 打开活动详情
 2. 点击「审批通过」→ 状态变为「审批通过」
@@ -184,7 +186,7 @@ curl http://localhost:8000/health
 
 ### 场景 D：行政部（AdminStaff）— 仪表盘 + 强制操作
 
-> tester1 已有 AdminStaff 角色
+> 需用户拥有 AdminStaff 或 AdminManager 角色（当前仅 devtest 拥有全部角色，后续补充独立角色用户）
 
 1. 从侧边栏进入「活动面板」
 2. 查看统计卡片（总数/合规率/已取消/已延期）
@@ -195,8 +197,9 @@ curl http://localhost:8000/health
 
 ### 场景 E：权限边界
 
-1. 用 `testuser / test123`（无角色）登录
-2. 访问 `/activities` → 重定向到 `/login`（因为无 `view_owned_activity` 权限）
+1. 注册新用户（无角色）→ 落在 `/profile`
+2. 尝试直接访问 `/activities` → 重定向到 `/login`（无 `view_owned_activity` 权限）
+3. 在 `/profile` 页面提交角色申请，等待管理员审批
 
 ---
 
@@ -208,7 +211,7 @@ curl http://localhost:8000/health
 
 ```
 2026-05-24 23:56:29 INFO  [5d9c44477528] redis GET key=doc:ca67... hit=False
-2026-05-24 23:56:29 INFO  [5d9c44477528] SELECT users WHERE username = $1
+2026-05-24 23:56:29 INFO  [5d9c44477528] SELECT users WHERE email = $1
 2026-05-24 23:56:29 INFO  [5d9c44477528] minio put_object bucket=company-docs key=...
 2026-05-24 23:56:29 WARN  [5d9c44477528] 404 NOT_FOUND: 活动不存在
 2026-05-24 23:56:29 INFO  [5d9c44477528] POST /auth/login → 200 222ms
@@ -221,7 +224,7 @@ curl http://localhost:8000/health
 | 层级      | 内容                       | 示例                                                    |
 | --------- | -------------------------- | ------------------------------------------------------- |
 | HTTP 请求 | 方法、路径、状态码、耗时   | `POST /auth/login → 200 222ms`                          |
-| SQL 查询  | 完整 SQL + 参数 + 耗时     | `SELECT users WHERE ... $1::VARCHAR ('tester1',)`       |
+| SQL 查询  | 完整 SQL + 参数 + 耗时     | `SELECT users WHERE email = $1::VARCHAR ('devtest@test.com',)` |
 | Redis     | GET/SET/DEL + 命中状态     | `redis GET key=doc:123 hit=True`                        |
 | MinIO     | put_object / presigned_url | `minio put_object bucket=company-docs key=... size=302` |
 | 业务错误  | 状态码 + 错误码 + 详情     | `404 NOT_FOUND: 活动不存在`                             |
