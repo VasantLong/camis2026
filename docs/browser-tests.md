@@ -45,8 +45,13 @@ WSL2 镜像网络模式下，`127.0.0.1:9222` 直接连通 Windows Edge。
 | `06_dashboard.py` | 仪表盘 | 5 | 统计卡片/状态分布/异常列表/月报导出 |
 | `07_role_request.py` | 角色申请 | 9 | 注册→/profile→选角色→提交→等待审核 |
 | `08_filing_materials.py` | 材料签署审查 | 10 | SecurityOfficer 签署 + GovLiaison 审查 + 审查历史 |
+| `09_email_verification.py` | 邮件验证 | 7 | 注册 → Mailpit 捕获欢迎邮件 → 验证标题/内容 |
+| `10_email_change.py` | 邮箱更改 | 10 | 点击编辑 → 输入新邮箱 → Mailpit 验证链接 → 新邮箱登录 |
+| `11_admin_role_approval.py` | 角色审批 | 8 | 用户申请角色 → 管理员登录 → 按邮箱查找 → 批准 |
+| `12_document_upload.py` | 文档上传 | 7 | 活动详情 → 文档 tab → filechooser 上传 → 验证列表 |
+| `13_filing_pack.py` | 备案打包交接 | 8 | 签署材料 → 打包 → 勾选确认 → 纸质交接 |
 
-**合计 62 断言。**
+**合计 ~101 断言。**
 
 ## 架构
 
@@ -61,6 +66,11 @@ tests/browser/
 ├── 06_dashboard.py        # 仪表盘
 ├── 07_role_request.py     # 角色申请
 ├── 08_filing_materials.py # 材料签署审查
+├── 09_email_verification.py # 邮件验证
+├── 10_email_change.py     # 邮箱更改验证
+├── 11_admin_role_approval.py # 角色审批
+├── 12_document_upload.py  # 文档上传
+├── 13_filing_pack.py      # 备案打包交接
 └── screenshots/           # 测试截图输出
 ```
 

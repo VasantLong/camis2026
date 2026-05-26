@@ -71,6 +71,8 @@
 - **测试邮箱必须有标准 TLD**：Ant Design email 验证器拒绝 `@localhost`
 - **DOM 变更后重新查询元素**：`.all()` 返回的引用在 render 后过期，用 `while` 循环 + 重新查询
 - **`docker compose down -v` 后重跑 seed**：`seed_test_activities.py` + `create_devtest_user.py`
+- **文件上传用 filechooser 模式**：antd Upload 组件需 `page.expect_file_chooser()` + 点击上传按钮，不能用 `set_input_files()`；文件必须为允许类型（pdf/jpg/png/doc/docx）
+- **备案打包依赖 seed 材料**：打包测试需已有 key_materials 的活动（如 `社区志愿服务日`），不能从空活动开始
 
 ## 初始化检查清单
 

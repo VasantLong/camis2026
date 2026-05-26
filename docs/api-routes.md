@@ -49,6 +49,7 @@
 | `PUT`  | `/admin/users/{id}/roles` | `administer_users` |
 | `PATCH`| `/admin/users/{id}/status` | `administer_users` |
 | `DELETE`| `/admin/users/{id}` | `administer_users` |
+| `GET`  | `/admin/users/{id}/overview` | `administer_users` |
 
 > ¹ 目标状态为"审批通过-待举办"时额外要求 `confirm_approval`。
 > 活动可见性按角色自动过滤状态（见 `docs/rbac.md`）。
