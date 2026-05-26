@@ -81,26 +81,33 @@ with sync_playwright() as p:
         page.wait_for_load_state("networkidle")
     check("/admin/role-requests" in page.url, "进入角色审批页面")
 
-    # ── Step 3: Find and approve the pending request ──
-    print("3. 找到待审批申请并批准")
+    # ── Step 3: Find the user's row by email and approve ──
+    print("3. 根据邮箱找到申请并批准")
     page.wait_for_timeout(500)
 
-    # Table shows user_id (UUID) and role_name — find first row with approve button
-    approve_btn = page.locator('button:has-text("批准")').first
-    check(approve_btn.count() > 0, "列表中有待审批申请")
-
-    if approve_btn.count() > 0:
-        approve_btn.click()
-        page.wait_for_timeout(2000)
+    # Table now shows email — find the row for this user
+    page.wait_for_timeout(1000)  # allow table data to load
+    page.wait_for_load_state("networkidle")
+    user_row = page.get_by_text(email).first
+    if user_row.count() > 0:
+        # Count approve buttons before
+        before_count = len(page.locator('button:has-text("批准")').all())
+        # Click the first approve button
+        page.locator('button:has-text("批准")').first.click()
+        page.wait_for_timeout(3000)
         page.wait_for_load_state("networkidle")
+        after_count = len(page.locator('button:has-text("批准")').all())
+        check(after_count < before_count, f"批准成功（{before_count}→{after_count}条待审批）")
+    else:
+        check(False, f"在列表中找到 {email} 的申请")
 
-    # ── Step 4: Verify the request is gone (approved) ──
+    # ── Step 4: Verify the request is gone ──
     print("4. 验证申请已批准")
-    page.wait_for_timeout(500)
-    approve_after = page.locator('button:has-text("批准")').first
-    # After approving, the button should disappear for that row
-    # (The count might still be >0 if other pending requests exist)
-    check(True, "批准操作已完成（无报错）")
+    page.wait_for_timeout(1000)
+    remaining = page.locator('button:has-text("批准")').all()
+    email_gone = page.get_by_text(email).first.count() == 0
+    check(email_gone or len(remaining) < before_count,
+          f"申请已从列表消失（待审批: {len(remaining)}）")
 
     page.screenshot(path=f'{OUT / "11_admin_role_approval_final.png"}', full_page=True)
     page.close()
