@@ -165,6 +165,66 @@ async def me(current_user: User = Depends(get_current_user), db=Depends(get_db))
     )
 
 
+class UpdateProfileRequest(BaseModel):
+    display_name: str
+
+
+@router.patch("/me", response_model=UserResponse)
+async def update_profile(
+    body: UpdateProfileRequest,
+    current_user: User = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    current_user.display_name = body.display_name
+    db.add(current_user)
+    await db.commit()
+    await db.refresh(current_user)
+
+    # Reuse the same response building logic (simplified inline)
+    from app.models.rbac import Permission, Role, RolePermission, RoleRequest, UserRole
+    rp_result = await db.execute(
+        select(Role.name, Permission.name)
+        .join(UserRole, UserRole.role_id == Role.id)
+        .join(RolePermission, RolePermission.role_id == Role.id)
+        .join(Permission, Permission.id == RolePermission.permission_id)
+        .where(UserRole.user_id == current_user.id)
+        .order_by(Role.name)
+    )
+    role_perms: dict[str, list[str]] = {}
+    perm_set: set[str] = set()
+    for role_name, perm_name in rp_result.all():
+        role_perms.setdefault(role_name, []).append(perm_name)
+        perm_set.add(perm_name)
+
+    role_result = await db.execute(
+        select(Role.name).join(UserRole, UserRole.role_id == Role.id)
+        .where(UserRole.user_id == current_user.id)
+    )
+    roles = [row[0] for row in role_result.all()]
+
+    pending_rr = None
+    rr_result = await db.execute(
+        select(RoleRequest, Role.name)
+        .join(Role, Role.id == RoleRequest.role_id)
+        .where(RoleRequest.user_id == current_user.id, RoleRequest.status == "pending")
+        .order_by(RoleRequest.created_at.desc()).limit(1)
+    )
+    row = rr_result.first()
+    if row:
+        rr, role_name = row
+        pending_rr = PendingRoleRequest(
+            id=str(rr.id), role_id=str(rr.role_id), role_name=role_name,
+            status=rr.status, created_at=rr.created_at.isoformat(),
+        )
+
+    return UserResponse(
+        id=str(current_user.id), email=current_user.email,
+        display_name=current_user.display_name, is_active=current_user.is_active,
+        permissions=list(perm_set), roles=roles,
+        role_permissions=role_perms, pending_role_request=pending_rr,
+    )
+
+
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh(response: Response, refresh_token: str = Cookie(None), db=Depends(get_db)):
     if not refresh_token:

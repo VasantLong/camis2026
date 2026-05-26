@@ -9,6 +9,7 @@ import {
   Alert,
   Typography,
   Spin,
+  Input,
   message,
 } from "antd";
 import { UserOutlined, SafetyOutlined, ClockCircleOutlined } from "@ant-design/icons";
@@ -20,6 +21,8 @@ import { ROLE_LABEL_MAP, ROLE_DESC_MAP } from "@/utils/constants";
 
 export default function ProfilePage() {
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState(false);
+  const [nameValue, setNameValue] = useState("");
   const queryClient = useQueryClient();
   const setUser = useAuthStore((s) => s.setUser);
 
@@ -42,6 +45,20 @@ export default function ProfilePage() {
     },
     onError: (err: any) => {
       message.error(err?.detail || "提交失败");
+    },
+  });
+
+  const saveNameMutation = useMutation({
+    mutationFn: (display_name: string) =>
+      authApi.updateProfile({ display_name }).then((r) => r.data),
+    onSuccess: (data) => {
+      setUser(data);
+      queryClient.invalidateQueries({ queryKey: ["me"] });
+      message.success("显示名称已更新");
+      setEditingName(false);
+    },
+    onError: (err: any) => {
+      message.error(err?.detail || "更新失败");
     },
   });
 
@@ -78,7 +95,38 @@ export default function ProfilePage() {
         >
           <Descriptions.Item label="邮箱">{user.email}</Descriptions.Item>
           <Descriptions.Item label="显示名称">
-            {user.display_name || "-"}
+            {editingName ? (
+              <Input
+                size="small"
+                value={nameValue}
+                onChange={(e) => setNameValue(e.target.value)}
+                onBlur={() => {
+                  if (nameValue.trim() && nameValue !== user.display_name) {
+                    saveNameMutation.mutate(nameValue.trim());
+                  } else {
+                    setEditingName(false);
+                  }
+                }}
+                onPressEnter={() => {
+                  if (nameValue.trim() && nameValue !== user.display_name) {
+                    saveNameMutation.mutate(nameValue.trim());
+                  } else {
+                    setEditingName(false);
+                  }
+                }}
+                autoFocus
+                style={{ width: 200 }}
+              />
+            ) : (
+              <Typography.Link
+                onClick={() => {
+                  setNameValue(user.display_name || "");
+                  setEditingName(true);
+                }}
+              >
+                {user.display_name || "-"}
+              </Typography.Link>
+            )}
           </Descriptions.Item>
           <Descriptions.Item label="状态">
             <Tag color={user.is_active ? "green" : "red"}>

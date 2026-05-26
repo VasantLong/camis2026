@@ -26,4 +26,7 @@ export const authApi = {
   logout: () => client.post("/auth/logout"),
 
   getRoles: () => client.get<RoleOption[]>("/auth/roles"),
+
+  updateProfile: (data: { display_name: string }) =>
+    client.patch<UserResponse>("/auth/me", data),
 };
