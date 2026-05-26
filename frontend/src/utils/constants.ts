@@ -3,6 +3,8 @@ export const ROLE_LABEL_MAP: Record<string, string> = {
   Promoter: "宣策部",
   SecurityOfficer: "安保部",
   AdminStaff: "行政部",
+  AdminManager: "行政部负责人",
+  SecurityManager: "安保部负责人",
   GovLiaison: "政府对接",
 };
 

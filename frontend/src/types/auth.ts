@@ -23,6 +23,7 @@ export interface UserResponse {
   is_active: boolean;
   permissions: string[];
   roles: string[];
+  role_permissions: Record<string, string[]>;
   pending_role_request?: {
     id: string;
     role_id: string;

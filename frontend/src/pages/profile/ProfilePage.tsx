@@ -3,6 +3,7 @@ import {
   Card,
   Descriptions,
   Tag,
+  Table,
   Select,
   Button,
   Alert,
@@ -107,25 +108,41 @@ export default function ProfilePage() {
                 </Tag>
               ))}
             </div>
-            <Descriptions column={1} bordered size="small">
-              {user.roles.map((role) => (
-                <Descriptions.Item key={role} label={ROLE_LABEL_MAP[role] || role}>
-                  {ROLE_DESC_MAP[role] || "-"}
-                </Descriptions.Item>
-              ))}
-            </Descriptions>
-            {user.permissions.length > 0 && (
+            {Object.keys(user.role_permissions).length > 0 && (
               <div style={{ marginTop: 16 }}>
                 <Typography.Text type="secondary" style={{ display: "block", marginBottom: 8 }}>
-                  当前权限：
+                  角色权限：
                 </Typography.Text>
-                <div>
-                  {user.permissions.map((p) => (
-                    <Tag key={p} style={{ marginBottom: 4 }}>
-                      {p}
-                    </Tag>
-                  ))}
-                </div>
+                <Table
+                  size="small"
+                  pagination={false}
+                  dataSource={Object.entries(user.role_permissions).map(
+                    ([role, perms]) => ({ role, perms })
+                  )}
+                  columns={[
+                    {
+                      title: "角色",
+                      dataIndex: "role",
+                      key: "role",
+                      width: 160,
+                      render: (r: string) => ROLE_LABEL_MAP[r] || r,
+                    },
+                    {
+                      title: "权限",
+                      dataIndex: "perms",
+                      key: "perms",
+                      render: (ps: string[]) => (
+                        <>
+                          {ps.map((p) => (
+                            <Tag key={p} style={{ marginBottom: 2 }}>
+                              {p}
+                            </Tag>
+                          ))}
+                        </>
+                      ),
+                    },
+                  ]}
+                />
               </div>
             )}
           </>

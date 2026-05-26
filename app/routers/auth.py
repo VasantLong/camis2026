@@ -55,6 +55,7 @@ class UserResponse(BaseModel):
     is_active: bool
     permissions: list[str] = []
     roles: list[str] = []
+    role_permissions: dict[str, list[str]] = {}
     pending_role_request: PendingRoleRequest | None = None
 
 
@@ -109,13 +110,21 @@ async def login(body: LoginRequest, response: Response, request: Request, db=Dep
 
 @router.get("/me", response_model=UserResponse)
 async def me(current_user: User = Depends(get_current_user), db=Depends(get_db)):
-    perm_result = await db.execute(
-        select(Permission.name)
-        .join(RolePermission, RolePermission.permission_id == Permission.id)
-        .join(UserRole, UserRole.role_id == RolePermission.role_id)
+    # Query permissions with role name for grouping
+    rp_result = await db.execute(
+        select(Role.name, Permission.name)
+        .join(UserRole, UserRole.role_id == Role.id)
+        .join(RolePermission, RolePermission.role_id == Role.id)
+        .join(Permission, Permission.id == RolePermission.permission_id)
         .where(UserRole.user_id == current_user.id)
+        .order_by(Role.name)
     )
-    permissions = list({row[0] for row in perm_result.all()})
+    role_perms: dict[str, list[str]] = {}
+    perm_set: set[str] = set()
+    for role_name, perm_name in rp_result.all():
+        role_perms.setdefault(role_name, []).append(perm_name)
+        perm_set.add(perm_name)
+    permissions = list(perm_set)
 
     role_result = await db.execute(
         select(Role.name)
@@ -154,6 +163,7 @@ async def me(current_user: User = Depends(get_current_user), db=Depends(get_db))
         is_active=current_user.is_active,
         permissions=permissions,
         roles=roles,
+        role_permissions=role_perms,
         pending_role_request=pending_rr,
     )
 
@@ -204,9 +214,12 @@ async def list_roles(db=Depends(get_db)):
     )
     roles = result.scalars().all()
     label_map = {
+        "SuperAdmin": "超级管理员",
         "Promoter": "宣策部",
         "SecurityOfficer": "安保部",
         "AdminStaff": "行政部",
+        "AdminManager": "行政部负责人",
+        "SecurityManager": "安保部负责人",
         "GovLiaison": "政府对接",
     }
     return [
