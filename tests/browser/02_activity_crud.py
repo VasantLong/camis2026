@@ -83,7 +83,7 @@ with sync_playwright() as p:
     # 2. Status filter
     print("\n2. Status filter")
     # Find any select that might be the status filter
-    status_selects = page.locator('.ant-select-selector').all()
+    status_selects = page.locator('.ant-select').all()
     filtered = False
     for sel in status_selects:
         text = sel.inner_text() or ""

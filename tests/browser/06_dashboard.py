@@ -90,7 +90,7 @@ with sync_playwright() as p:
         export_btn.click()
         page.wait_for_timeout(2000)
         # Look for success toast
-        toast = page.locator('.ant-message-notice-content').first
+        toast = page.locator('.ant-message').first
         if toast.count() > 0:
             check(True, f"report export result: '{toast.inner_text()}'")
         else:
