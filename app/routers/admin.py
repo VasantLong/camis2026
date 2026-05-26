@@ -12,9 +12,14 @@ from app.models.rbac import Permission, Role, RolePermission, RoleRequest, UserR
 from app.models.user import User
 from app.rbac import require_permission
 from app.schemas.role_request import RoleRequestReview, RoleRequestResponse
+from app.models.activity import ActivityStatusLog
+from app.models.material import MaterialAudit
 from app.schemas.user_admin import (
+    ActivityActionItem,
+    LoginHistoryItem,
     UserDetail,
     UserListItem,
+    UserOverview,
     UserRoleUpdate,
     UserStatusUpdate,
 )
@@ -196,6 +201,68 @@ async def get_user(
         permissions=permissions,
         created_at=u.created_at,
         updated_at=u.updated_at,
+    )
+
+
+@router.get("/users/{user_id}/overview", response_model=UserOverview)
+async def get_user_overview(
+    user_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _perm: None = require_permission("administer_users"),
+):
+    u = await db.get(User, user_id)
+    if u is None:
+        raise NotFoundError("用户不存在")
+
+    role_result = await db.execute(
+        select(Role.name).join(UserRole, UserRole.role_id == Role.id)
+        .where(UserRole.user_id == u.id)
+    )
+    roles = [row[0] for row in role_result.all()]
+
+    # Login history (last 20)
+    from sqlalchemy import text
+    login_result = await db.execute(
+        text("SELECT login_id, success, created_at FROM login_attempts "
+             "WHERE login_id = :e ORDER BY created_at DESC LIMIT 20"),
+        {"e": u.email},
+    )
+    login_history = [
+        LoginHistoryItem(login_id=row[0], success=row[1], created_at=row[2])
+        for row in login_result.all()
+    ]
+
+    # Recent activity: material audits + status transitions (last 20 combined)
+    audit_result = await db.execute(
+        select(MaterialAudit.action, MaterialAudit.created_at)
+        .where(MaterialAudit.user_id == user_id)
+        .order_by(MaterialAudit.created_at.desc())
+        .limit(20)
+    )
+    actions = [
+        ActivityActionItem(action=f"{row[0]} 材料", created_at=row[1])
+        for row in audit_result.all()
+    ]
+
+    status_result = await db.execute(
+        select(ActivityStatusLog.to_status, ActivityStatusLog.created_at)
+        .where(ActivityStatusLog.operator_id == user_id)
+        .order_by(ActivityStatusLog.created_at.desc())
+        .limit(20)
+    )
+    for to_status, ts in status_result.all():
+        actions.append(ActivityActionItem(
+            action=f"状态变更 → {to_status}", created_at=ts
+        ))
+
+    actions.sort(key=lambda a: a.created_at, reverse=True)
+    actions = actions[:20]
+
+    return UserOverview(
+        id=u.id, email=u.email, display_name=u.display_name,
+        is_active=u.is_active, roles=roles, created_at=u.created_at,
+        login_history=login_history, recent_actions=actions,
     )
 
 
