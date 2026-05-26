@@ -50,13 +50,18 @@ export default function RoleRequestsPage() {
   const columns = [
     {
       title: "用户",
-      dataIndex: "user_id",
-      key: "user_id",
-      width: 280,
-      render: (id: string) => (
-        <Typography.Text code style={{ fontSize: 12 }}>
-          {id}
-        </Typography.Text>
+      dataIndex: "user_email",
+      key: "user_email",
+      width: 240,
+      render: (_: string, record: RoleRequestItem) => (
+        <span>
+          {record.user_email || record.user_id}
+          {record.user_display_name && (
+            <Typography.Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
+              ({record.user_display_name})
+            </Typography.Text>
+          )}
+        </span>
       ),
     },
     {

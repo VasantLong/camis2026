@@ -23,3 +23,5 @@ class RoleRequestResponse(BaseModel):
     created_at: datetime
     reviewer_id: UUID | None = None
     reviewed_at: datetime | None = None
+    user_email: str | None = None
+    user_display_name: str | None = None

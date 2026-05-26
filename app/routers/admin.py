@@ -29,8 +29,9 @@ async def list_role_requests(
     _perm: None = require_permission("manage_users"),
 ):
     result = await db.execute(
-        select(RoleRequest, Role.name)
+        select(RoleRequest, Role.name, User.email, User.display_name)
         .join(Role, Role.id == RoleRequest.role_id)
+        .join(User, User.id == RoleRequest.user_id)
         .where(RoleRequest.status == "pending")
         .order_by(RoleRequest.created_at)
     )
@@ -46,8 +47,10 @@ async def list_role_requests(
             created_at=rr.created_at,
             reviewer_id=rr.reviewer_id,
             reviewed_at=rr.reviewed_at,
+            user_email=user_email,
+            user_display_name=user_display_name,
         )
-        for rr, role_name in rows
+        for rr, role_name, user_email, user_display_name in rows
     ]
 
 

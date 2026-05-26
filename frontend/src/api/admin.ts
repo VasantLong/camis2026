@@ -10,6 +10,8 @@ export interface RoleRequestItem {
   created_at: string;
   reviewer_id: string | null;
   reviewed_at: string | null;
+  user_email?: string;
+  user_display_name?: string;
 }
 
 export interface UserListItem {
