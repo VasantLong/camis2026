@@ -1,4 +1,5 @@
-"""Page reconnaissance: screenshot each route + list interactive elements."""
+"""Page reconnaissance: screenshot each route + list interactive elements.
+Uses devtest (all-role user) for maximum page coverage."""
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
@@ -56,7 +57,7 @@ with sync_playwright() as p:
                 auth_results.append(f"{response.status} {response.url}")
     page.on("response", log_response)
 
-    # Public pages
+    # --- PUBLIC ---
     print("=== /login ===")
     page.goto(f"{BASE}/login")
     inspect(page, "01_login")
@@ -65,53 +66,92 @@ with sync_playwright() as p:
     page.goto(f"{BASE}/register")
     inspect(page, "02_register")
 
-    # Login
-    print("=== login ===")
+    # --- LOGIN as devtest (all roles, all permissions) ---
+    print("=== login as devtest ===")
     page.goto(f"{BASE}/login")
     page.wait_for_load_state("networkidle")
-    page.fill('input[placeholder="用户名"]', "tester1")
+    page.fill('input[placeholder="用户名"]', "devtest")
     page.fill('input[type="password"]', "pass123")
     page.click('button[type="submit"]')
     page.wait_for_timeout(3000)
     page.wait_for_load_state("networkidle")
     print(f"  url: {page.url}")
 
-    # After login, navigate via sidebar (client-side) not goto
-    print("=== after login: /activities (via sidebar) ===")
+    # --- PROTECTED (via client-side sidebar nav) ---
+
+    # Activities list
+    print("=== /activities (via sidebar) ===")
     inspect(page, "03_activities")
 
-    # Expand "活动管理" submenu first
+    # Expand "活动管理" submenu
     submenu = page.locator('.ant-menu-submenu-title:has-text("活动管理")')
     if submenu.count() > 0:
         submenu.first.click()
         page.wait_for_timeout(500)
 
-    # Click "创建新活动"
+    # Create activity
+    print("=== /activities/new ===")
     create_item = page.locator('.ant-menu-item:has-text("创建新活动")')
     if create_item.count() > 0:
         create_item.first.click()
         page.wait_for_timeout(2000)
         page.wait_for_load_state("networkidle")
-        print(f"  navigated to: {page.url}")
         inspect(page, "04_activities_new")
     else:
         print("  '创建新活动' menu item not found")
 
-    # Click "活动面板" (dashboard)
+    # Dashboard
+    print("=== /dashboard ===")
     dash_item = page.locator('.ant-menu-item:has-text("活动面板")')
     if dash_item.count() > 0:
         dash_item.first.click()
         page.wait_for_timeout(2000)
         page.wait_for_load_state("networkidle")
-        print(f"  navigated to: {page.url}")
         inspect(page, "05_dashboard")
     else:
         print("  '活动面板' menu item not found")
+
+    # Admin: Role Requests
+    print("=== /admin/role-requests ===")
+    admin_sub = page.locator('.ant-menu-submenu-title:has-text("用户管理")')
+    if admin_sub.count() > 0 and admin_sub.first.get_attribute("aria-expanded") != "true":
+        admin_sub.first.click()
+        page.wait_for_timeout(500)
+    role_req_item = page.locator('.ant-menu-item:has-text("角色审批")')
+    if role_req_item.count() > 0:
+        role_req_item.first.click()
+        page.wait_for_timeout(2000)
+        page.wait_for_load_state("networkidle")
+        inspect(page, "06_admin_role_requests")
+    else:
+        print("  '角色审批' menu item not found")
+
+    # Admin: User Management
+    print("=== /admin/users ===")
+    user_mgmt_item = page.locator('.ant-menu-item:has-text("用户列表")')
+    if user_mgmt_item.count() > 0:
+        user_mgmt_item.first.click()
+        page.wait_for_timeout(2000)
+        page.wait_for_load_state("networkidle")
+        inspect(page, "07_admin_users")
+    else:
+        print("  '用户列表' menu item not found")
+
+    # Profile
+    print("=== /profile ===")
+    profile_item = page.locator('.ant-menu-item:has-text("个人中心")')
+    if profile_item.count() > 0:
+        profile_item.first.click()
+        page.wait_for_timeout(2000)
+        page.wait_for_load_state("networkidle")
+        inspect(page, "08_profile")
+    else:
+        print("  '个人中心' menu item not found")
 
     page.close()
     print(f"\n=== Auth responses ===")
     for r in auth_results:
         print(f"  {r}")
     print(f"\n=== Console ({len(console_errors)}) ===")
-    for e in console_errors[-15:]:
+    for e in console_errors[-20:]:
         print(f"  {e}")
