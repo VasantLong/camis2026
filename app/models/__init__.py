@@ -1,5 +1,4 @@
 from app.models.user import Base, User
-from app.models.project import Project
 from app.models.document import Document
 from app.models.activity import (
     Activity, ActivityPlan, ActivityStatusLog, ApprovalRecord,
@@ -12,7 +11,7 @@ from app.models.notification import Notification
 from app.models.rbac import Permission, Role, RolePermission, UserRole
 
 __all__ = [
-    "Base", "User", "Project", "Document",
+    "Base", "User", "Document",
     "Activity", "ActivityPlan", "ActivityStatusLog", "ApprovalRecord",
     "ImplementationRecord", "SecurityPlan",
     "FilingDoc", "KeyMaterial", "ActivityRule",
