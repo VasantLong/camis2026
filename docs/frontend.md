@@ -24,6 +24,8 @@ frontend/src/
 │   ├── documents.ts        # upload (multipart), download (302)
 │   ├── workflows.ts        # transition, reject, forceCancel, forcePostpone
 │   ├── filings.ts          # validate, pack, handover
+│   ├── materials.ts        # list, sign, audit, auditHistory
+│   ├── roleRequest.ts      # submit role request
 │   └── dashboard.ts        # panel, activityDetail, monthlyReport
 ├── stores/
 │   └── authStore.ts        # Zustand: user, accessToken, permissions, isAuthenticated
