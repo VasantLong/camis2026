@@ -24,3 +24,7 @@ logs/
 
 # Skills
 .claude/skills/
+
+# Log check position tracking
+.claude/log-check-position.txt
+.claude/log-check-position.txt.lock

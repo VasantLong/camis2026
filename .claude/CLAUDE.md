@@ -112,4 +112,41 @@ camis2026/
 ├── frontend/                   # React SPA (Vite + Ant Design + TanStack Query + Zustand)
 │   └── src/                    # 48 TS 文件, 9 页面, 8 API 模块, 见 docs/frontend.md
 └── docs/                       # 设计文档 (UML, 状态机, API路由, 服务设计, ADR, 前端, 测试)
+
+## 用户协作习惯
+
+### 开发流程
+
+1. **先计划后动手**：任何非 trivial 改动（新增功能、调整架构、修改权限模型）必须先写计划、确认后再执行。使用 Plan Mode。
+2. **分阶段实施**：大功能拆成多个分支。例如先做 SuperAdmin + 角色申请 → 再做安保部负责人 → 再做备案流程。
+3. **后端先、前端后**：先完成 API 端点 + 测试通过，再写前端页面。
+4. **一个分支一个主题**：分支命名 `feat/xxx`、`fix/xxx`、`test/xxx`，不混入无关改动。
+
+### 提交习惯
+
+- 格式严格遵循 `type(scope): English description (中文关键词)`
+- 一个提交只做一件事，小而聚焦
+- 提交前通常要求先验证（pytest + 前端肉眼确认）
+- 不会用 `git add -A`，精确 staging 每个相关文件
+- 做完一个功能或阶段后要求 review 分支目标是否达成
+
+### 领域设计偏好
+
+- 讨论业务术语和流程多于讨论代码实现
+- 权限模型倾向角色继承（负责人 = 普通人员全部权限 + 管理权限）
+- 数据表倾向于完整审计（如 material_audits 而不是在 key_materials 加字段）
+- 状态机变更需要同步更新 `docs/state-machine.md` 和 `CONTEXT.md`
+
+### 验证方式
+
+- 后端：`pytest` 29 用例全绿是基线
+- 前端：写完代码后要求"告诉我如何验证"，需要具体的操作步骤和预期效果
+- DB 变更：接受 `docker compose down -v` 重建
+- 开发环境：只用 `docker compose up -d postgres minio redis minio-init`，不启动 Docker 里的 app 服务
+
+### 文档同步
+
+- 功能完成后必须同步文档（`docs/rbac.md`、`docs/api-routes.md`、`docs/user-guide.md` 等）
+- 定期运行 `/neat-freak` 做全局文档审查
+- CLAUDE.md 是给 AI 的规则手册，不写历史叙事和实现细节
 ```
