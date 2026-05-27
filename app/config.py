@@ -38,7 +38,7 @@ class Settings(BaseSettings):
 
     # SMTP (Mailpit for dev)
     smtp_host: str = "localhost"
-    smtp_port: int = 1025
+    smtp_port: int = 11025
     smtp_from: str = "noreply@camis.local"
 
     # JWT — 生产环境必须覆盖

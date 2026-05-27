@@ -5,7 +5,7 @@ from playwright.sync_api import sync_playwright
 
 CDP = "http://127.0.0.1:9222"
 BASE = "http://localhost:5173"
-MAILPIT_API = "http://localhost:8025/api/v1"
+MAILPIT_API = "http://localhost:18025/api/v1"
 OUT = Path(__file__).parent / "screenshots"
 failed = 0
 

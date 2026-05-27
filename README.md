@@ -22,7 +22,7 @@ cd frontend && pnpm install && pnpm dev
 # 5. 验证
 curl http://localhost:8000/health    # 后端
 open http://localhost:5173           # 前端
-open http://localhost:8025           # Mailpit
+open http://localhost:18025           # Mailpit
 ```
 
 > 详细启动说明（含生产模式 Gunicorn 部署）见 [docs/user-guide.md](docs/user-guide.md)。

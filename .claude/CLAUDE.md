@@ -18,7 +18,7 @@
 | PostgreSQL 17 | 5432 | `docapp` / `secret_pg_pwd` | 业务数据与元数据 |
 | MinIO | 9000 (API), 9001 (控制台) | `minioadmin` / `minioadmin` | 文件对象存储 |
 | Redis 7.4 | 6379 | `secret_redis_pwd` | 缓存、Session、队列 |
-| Mailpit | 1025 (SMTP), 8025 (Web) | 无 | 开发邮件捕获 |
+| Mailpit | 11025 (SMTP), 18025 (Web) | 无 | 开发邮件捕获 |
 
 ## 架构约束
 
@@ -79,7 +79,7 @@
 - [ ] MinIO: `http://localhost:9001`，Bucket `company-docs` 已创建
 - [ ] PostgreSQL: `localhost:5432`，数据库 `doc_metadata` 可连接
 - [ ] Redis: `localhost:6379`，`AUTH secret_redis_pwd` 通过
-- [ ] Mailpit: `http://localhost:8025`
+- [ ] Mailpit: `http://localhost:18025`
 - [ ] Python 依赖：`mamba activate camis2026 && pip install -r requirements.txt`
 - [ ] 测试数据：`python scripts/seed_test_activities.py && python scripts/create_devtest_user.py`
 - [ ] 后端：`uvicorn app.main:app --reload --port 8000`

@@ -60,9 +60,12 @@ services:
     image: axllent/mailpit
     container_name: doc_mailpit
     restart: unless-stopped
+    environment:
+      MP_UI_BIND_ADDR: 0.0.0.0:8025
+      MP_SMTP_BIND_ADDR: 0.0.0.0:1025
     ports:
-      - "1025:1025"
-      - "8025:8025"
+      - "11025:1025"
+      - "18025:8025"
     networks:
       - doc_network
 
