@@ -20,6 +20,31 @@
 | Redis 7.4 | 6379 | `secret_redis_pwd` | 缓存、Session、队列 |
 | Mailpit | 11025 (SMTP), 18025 (Web) | 无 | 开发邮件捕获 |
 
+### Docker 端口问题排查
+
+当 `docker compose up -d` 后容器显示 Running 但 `curl localhost:<port>` 拒绝连接时：
+
+**1. 确认端口是否真正发布**
+```bash
+# docker ps 显示 "8025/tcp"（无 0.0.0.0 前缀）→ 端口未发布
+docker ps --filter "name=<name>" --format "{{.Ports}}"
+
+# NetworkSettings.Ports 返回空数组 [] → Docker 绑定失败
+docker inspect <name> --format '{{json .NetworkSettings.Ports}}' | python3 -m json.tool
+```
+
+**2. 检查容器内部监听地址**
+```bash
+docker exec <name> netstat -tlnp | grep <port>
+```
+- `0.0.0.0:<port>` + `:::<port>` → 双栈，正常
+- 仅 `:::<port>` → 纯 IPv6，Docker Desktop WSL2 端口转发可能失效 → 添加环境变量强制 IPv4
+
+**3. 修复方式**
+- IPv6-only 监听：给容器加 `environment` 指定 `0.0.0.0:<port>` 绑定地址（参考 Mailpit 的 `MP_UI_BIND_ADDR` / `MP_SMTP_BIND_ADDR`）
+- 宿主机端口冲突：换一个宿主机端口（如 `18025:8025`），同步更新 `app/config.py`、浏览器测试脚本和文档中的端口引用
+- 重建容器：`docker compose stop <svc> && docker compose rm -f <svc> && docker compose up -d <svc>`
+
 ## 架构约束
 
 ### 数据存储三原则（红线）
