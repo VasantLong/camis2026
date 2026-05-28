@@ -21,18 +21,22 @@ def api_post(path, body, token):
     return json.loads(urllib.request.urlopen(req).read())
 
 def login_api():
-    return api_post("/auth/login", {"email":"tester1@test.com","password":"pass123"}, None)["access_token"]
+    resp = api_post("/auth/login", {"email":"tester1@test.com","password":"pass123"}, None)
+    token = resp["access_token"]
+    req = urllib.request.Request(f"{API}/auth/me", headers={"Authorization": f"Bearer {token}"})
+    user = json.loads(urllib.request.urlopen(req).read())
+    return token, user["id"]
 
-def create_activity_via_api(token, name):
+def create_activity_via_api(token, name, designer_id):
     return api_post("/activities", {
         "name": name, "type": "大型活动",
         "estimated_time": "2026-06-15T09:00:00+08:00",
         "location": "测试广场", "sponsor": "测试主办方",
         "deadline": "2026-06-01T18:00:00+08:00",
-        "designer_id": "c5e9d024-8b3f-4c05-99d9-13d74bcd6cbb"
+        "designer_id": designer_id
     }, token)["id"]
 
-token = login_api()
+token, user_id = login_api()
 
 def sidebar_nav(page, text):
     sub = page.locator('.ant-menu-submenu-title:has-text("活动管理")')
@@ -68,7 +72,7 @@ with sync_playwright() as p:
 
     # 1. Create activity for workflow testing via API
     print("\n1. Create activity (API)")
-    aid = create_activity_via_api(token, f"wf_{uuid.uuid4().hex[:6]}")
+    aid = create_activity_via_api(token, f"wf_{uuid.uuid4().hex[:6]}", user_id)
     print(f"  created: {aid[:8]}...")
 
     # Navigate to detail via list click (client-side, avoids auth loss)
@@ -127,7 +131,7 @@ with sync_playwright() as p:
 
     # 5. Force cancel on a new activity
     print("\n5. Force cancel")
-    aid2 = create_activity_via_api(token, f"wf_cancel_{uuid.uuid4().hex[:4]}")
+    aid2 = create_activity_via_api(token, f"wf_cancel_{uuid.uuid4().hex[:4]}", user_id)
     # Navigate via list
     sidebar_nav(page, "全部活动")
     page.wait_for_timeout(1000)

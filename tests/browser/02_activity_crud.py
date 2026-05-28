@@ -33,24 +33,28 @@ def sidebar_nav(page, item_text):
 def login_api():
     data = json.dumps({"email": "tester1@test.com", "password": "pass123"}).encode()
     req = urllib.request.Request(f"{API}/auth/login", data=data, headers={"Content-Type": "application/json"})
-    return json.loads(urllib.request.urlopen(req).read())["access_token"]
+    resp = json.loads(urllib.request.urlopen(req).read())
+    token = resp["access_token"]
+    me_req = urllib.request.Request(f"{API}/auth/me", headers={"Authorization": f"Bearer {token}"})
+    user = json.loads(urllib.request.urlopen(me_req).read())
+    return token, user["id"]
 
-def create_activity(token, name):
+def create_activity(token, name, designer_id):
     body = json.dumps({
         "name": name, "type": "大型活动",
         "estimated_time": "2026-06-15T09:00:00+08:00",
         "location": "测试广场", "sponsor": "测试主办方",
         "deadline": "2026-06-01T18:00:00+08:00",
-        "designer_id": "c5e9d024-8b3f-4c05-99d9-13d74bcd6cbb"
+        "designer_id": designer_id
     }).encode()
     req = urllib.request.Request(f"{API}/activities", data=body,
         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
     return json.loads(urllib.request.urlopen(req).read())
 
 # --- Create test data ---
-token = login_api()
+token, user_id = login_api()
 aname = f"测试活动_{uuid.uuid4().hex[:6]}"
-act = create_activity(token, aname)
+act = create_activity(token, aname, user_id)
 aid = act["id"]
 print(f"API created: {aname} (id={aid[:8]}...) status={act['status']}")
 
