@@ -28,7 +28,7 @@ with sync_playwright() as p:
     # 1. Visit / → redirect to /login
     print("1. Redirect / -> /login")
     page.goto(f"{BASE}/")
-    page.wait_for_load_state("networkidle")
+    page.wait_for_url("**/login", timeout=10000)
     check("/login" in page.url, f"URL contains /login (got {page.url})")
 
     # 2. Wrong password
