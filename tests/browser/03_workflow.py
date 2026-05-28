@@ -2,7 +2,7 @@
 from pathlib import Path
 import json, uuid, urllib.request
 from playwright.sync_api import sync_playwright
-from utils import CDP, BASE, create_page
+from utils import CDP, BASE, create_page, start_recording
 
 API = "http://localhost:8000"
 OUT = Path(__file__).parent / "screenshots"
@@ -48,6 +48,7 @@ def sidebar_nav(page, text):
 with sync_playwright() as p:
     browser = p.chromium.connect_over_cdp(CDP)
     page = create_page(browser)
+    recorder = start_recording(page, "03_workflow")
     page.context.clear_cookies()
 
     errors = []
@@ -154,6 +155,8 @@ with sync_playwright() as p:
         check(False, "force cancel button not found")
 
     page.screenshot(path=f"{OUT / '03_workflow_final.png'}", full_page=True)
+    if recorder:
+        recorder.stop()
     page.close()
 
     print(f"\n=== Console errors ===")

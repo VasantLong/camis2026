@@ -2,7 +2,7 @@
 Uses devtest (all-role user) for maximum page coverage."""
 from pathlib import Path
 from playwright.sync_api import sync_playwright
-from utils import CDP, BASE, create_page
+from utils import CDP, BASE, create_page, start_recording
 
 OUT = Path(__file__).parent / "screenshots"
 OUT.mkdir(parents=True, exist_ok=True)
@@ -40,6 +40,7 @@ def inspect(page, name: str):
 with sync_playwright() as p:
     browser = p.chromium.connect_over_cdp(CDP)
     page = create_page(browser)
+    recorder = start_recording(page, "00_inspect")
 
     console_errors: list[str] = []
     page.on("console", lambda msg: console_errors.append(f"[{msg.type}] {msg.text}"))
@@ -146,6 +147,8 @@ with sync_playwright() as p:
     else:
         print("  '个人中心' menu item not found")
 
+    if recorder:
+        recorder.stop()
     page.close()
     print(f"\n=== Auth responses ===")
     for r in auth_results:

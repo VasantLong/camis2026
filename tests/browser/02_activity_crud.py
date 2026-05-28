@@ -2,7 +2,7 @@
 from pathlib import Path
 import json, uuid, urllib.request
 from playwright.sync_api import sync_playwright
-from utils import CDP, BASE, create_page
+from utils import CDP, BASE, create_page, start_recording
 
 API = "http://localhost:8000"
 OUT = Path(__file__).parent / "screenshots"
@@ -58,6 +58,7 @@ print(f"API created: {aname} (id={aid[:8]}...) status={act['status']}")
 with sync_playwright() as p:
     browser = p.chromium.connect_over_cdp(CDP)
     page = create_page(browser)
+    recorder = start_recording(page, "02_activity_crud")
 
     errors = []
     page.on("console", lambda m: errors.append(f"[{m.type}] {m.text}"))
@@ -137,6 +138,8 @@ with sync_playwright() as p:
         check(aname in page.content(), "back in list, activity visible")
 
     page.screenshot(path=f"{OUT / '02_activity_crud_final.png'}", full_page=True)
+    if recorder:
+        recorder.stop()
     page.close()
 
     print(f"\n=== Console errors ===")

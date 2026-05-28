@@ -1,7 +1,7 @@
 """GovLiaison scenario: approve, supplement, reject on 备案材料已交接 activities."""
 from pathlib import Path
 from playwright.sync_api import sync_playwright
-from utils import CDP, BASE, create_page
+from utils import CDP, BASE, create_page, start_recording
 
 OUT = Path(__file__).parent / "screenshots"
 failed = 0
@@ -25,6 +25,7 @@ def sidebar_nav(page, text):
 with sync_playwright() as p:
     browser = p.chromium.connect_over_cdp(CDP)
     page = create_page(browser)
+    recorder = start_recording(page, "05_gov_liaison")
     page.context.clear_cookies()
 
     errors = []
@@ -111,6 +112,8 @@ with sync_playwright() as p:
         check(False, "reject button not found")
 
     page.screenshot(path=f"{OUT / '05_gov_liaison_final.png'}", full_page=True)
+    if recorder:
+        recorder.stop()
     page.close()
 
     print(f"\n=== Console errors ===")

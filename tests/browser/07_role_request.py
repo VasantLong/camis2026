@@ -1,7 +1,7 @@
 from pathlib import Path
 """Role request flow: register → /profile → apply for role → verify pending."""
 from playwright.sync_api import sync_playwright
-from utils import CDP, BASE, create_page
+from utils import CDP, BASE, create_page, start_recording
 import uuid
 
 OUT = Path(__file__).parent / 'screenshots'
@@ -15,6 +15,7 @@ def check(cond, msg):
 with sync_playwright() as p:
     browser = p.chromium.connect_over_cdp(CDP)
     page = create_page(browser)
+    recorder = start_recording(page, "07_role_request")
     page.context.clear_cookies()
 
     errors = []
@@ -87,6 +88,8 @@ with sync_playwright() as p:
     check(submit_after.count() == 0, "submit button hidden after applying")
 
     page.screenshot(path=f'{OUT / '07_role_request_final.png'}', full_page=True)
+    if recorder:
+        recorder.stop()
     page.close()
 
     print(f"\n=== Console errors ===")

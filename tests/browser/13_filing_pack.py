@@ -2,7 +2,7 @@ from pathlib import Path
 """Filing pack & handover: sign materials → pack → handover for 待备案申请 activity.
 Uses seed activity '社区志愿服务日' which has 4 materials pre-created."""
 from playwright.sync_api import sync_playwright
-from utils import CDP, BASE, create_page
+from utils import CDP, BASE, create_page, start_recording
 
 OUT = Path(__file__).parent / "screenshots"
 ACTIVITY_NAME = "社区志愿服务日"
@@ -17,6 +17,7 @@ def check(cond, msg):
 with sync_playwright() as p:
     browser = p.chromium.connect_over_cdp(CDP)
     page = create_page(browser)
+    recorder = start_recording(page, "13_filing_pack")
 
     errors = []
     page.on("console", lambda m: errors.append(f"[{m.type}] {m.text}"))
@@ -117,6 +118,8 @@ with sync_playwright() as p:
     check(True, "备案打包→交接流程完成")
 
     page.screenshot(path=f'{OUT / "13_filing_pack_final.png"}', full_page=True)
+    if recorder:
+        recorder.stop()
     page.close()
 
     print(f"\n=== Console errors ===")

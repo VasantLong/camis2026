@@ -1,7 +1,7 @@
 from pathlib import Path
 """Permission boundaries: no-role user, 403 page, role-based sidebar."""
 from playwright.sync_api import sync_playwright
-from utils import CDP, BASE, create_page
+from utils import CDP, BASE, create_page, start_recording
 
 OUT = Path(__file__).parent / 'screenshots'
 failed = 0
@@ -27,6 +27,7 @@ def login_as(page, email, password):
 with sync_playwright() as p:
     browser = p.chromium.connect_over_cdp(CDP)
     page = create_page(browser)
+    recorder = start_recording(page, "04_permissions")
 
     errors = []
     page.on("console", lambda m: errors.append(f"[{m.type}] {m.text}"))
@@ -64,6 +65,8 @@ with sync_playwright() as p:
     check(create_item.count() > 0, "create activity menu item visible")
 
     page.screenshot(path=f'{OUT / '04_permissions_final.png'}', full_page=True)
+    if recorder:
+        recorder.stop()
     page.close()
 
     print(f"\n=== Console errors ===")

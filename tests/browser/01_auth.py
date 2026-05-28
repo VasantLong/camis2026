@@ -1,7 +1,7 @@
 from pathlib import Path
 """Auth flow: login, logout, register, redirect."""
 from playwright.sync_api import sync_playwright
-from utils import CDP, BASE, create_page
+from utils import CDP, BASE, create_page, start_recording
 
 OUT = Path(__file__).parent / 'screenshots'
 failed = 0
@@ -17,6 +17,7 @@ def check(cond, msg):
 with sync_playwright() as p:
     browser = p.chromium.connect_over_cdp(CDP)
     page = create_page(browser)
+    recorder = start_recording(page, "01_auth")
     page.context.clear_cookies()
 
     errors = []
@@ -125,6 +126,8 @@ with sync_playwright() as p:
     check(has_toast3, "duplicate error toast visible")
 
     page.screenshot(path=f'{OUT / '01_auth_final.png'}', full_page=True)
+    if recorder:
+        recorder.stop()
     page.close()
 
     # Report
