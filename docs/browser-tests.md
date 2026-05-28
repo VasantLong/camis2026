@@ -19,6 +19,8 @@ taskkill /F /IM msedge.exe
 & "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --remote-debugging-port=9222
 ```
 
+> **无需 `--force-device-scale-factor` 参数。** 视口和 DPR 由 Playwright 自动继承已有浏览器 context，不需要手动干预。
+
 ## 执行测试
 
 所有脚本从项目根目录运行，复用同一个 CDP 连接：
@@ -57,6 +59,7 @@ WSL2 镜像网络模式下，`127.0.0.1:9222` 直接连通 Windows Edge。
 
 ```
 tests/browser/
+├── utils.py               # 共享模块 (CDP/BASE 常量, create_page)
 ├── 00_inspect.py          # 页面侦察
 ├── 01_auth.py             # 认证
 ├── 02_activity_crud.py    # 活动 CRUD
@@ -73,6 +76,54 @@ tests/browser/
 ├── 13_filing_pack.py      # 备案打包交接
 └── screenshots/           # 测试截图输出
 ```
+
+## CDP 视口与截图
+
+**核心原则：CDP 模式下不覆盖视口、不设 DPR、不创建新 context。截图 = 浏览器窗口所见即所得。**
+
+### 正确做法
+
+使用已有浏览器 context 创建页面，不加任何视口或 DPR 覆盖：
+
+```python
+from playwright.sync_api import sync_playwright
+
+with sync_playwright() as p:
+    browser = p.chromium.connect_over_cdp("http://127.0.0.1:9222")
+
+    # 使用已有 context，不创建新的
+    if len(browser.contexts) > 0:
+        context = browser.contexts[0]
+    else:
+        context = browser.new_context()
+
+    page = context.new_page()
+    page.goto("http://localhost:5173/login")
+    page.screenshot(path="screenshot.png")
+    context.close()
+```
+
+项目已封装为 `utils.create_page(browser)`，所有测试脚本通过它创建页面。
+
+### 为什么不能覆盖视口
+
+| 方法 | innerWidth 改变 | 截图尺寸改变 | 副作用 |
+|------|:---:|:---:|------|
+| `set_viewport_size()` | ✅ | ❌ | 截图仍为实际窗口尺寸 |
+| CDP `Emulation.setDeviceMetricsOverride` | ✅ | ❌ | 同上 |
+| `new_context(viewport=..., device_scale_factor=...)` | ✅ | ✅ | **创建新浏览器窗口**，尺寸=viewport×DPR |
+
+CDP 模式下 `page.screenshot()` 按**实际窗口物理像素**截取。视口模拟只改变 CSS 布局（`innerWidth`），不改变截图捕获区域。唯一能改变截图尺寸的方法是 `new_context()`，但它会创建新窗口，导致窗口尺寸不一致。
+
+### 复盘：本次调试走过的弯路
+
+1. 误设 `device_scale_factor=1.5`（将 Windows 150% 系统缩放等同于浏览器 DPR，但 CDP 浏览器 DPR 实际为 1.0）
+2. 用 `new_context(viewport=2560, dpr=1.5)` → 物理窗口 3840px 超出屏幕，内容裁切
+3. 用 CDP session 手动设 device metrics → innerWidth 变了但截图尺寸不变
+4. 用 `new_context(viewport=1280, dpr=2)` → 截图对但新窗口 2560px 与 Edge 窗口不一致
+5. **最终方案**：`browser.contexts[0]` → 不覆盖任何参数，截图=所见
+
+**教训：CDP 模式下先诊断、后动手。从最简方案（不用任何覆盖）开始，确认不满足再逐层加。**
 
 ## 关键设计决策
 
@@ -107,9 +158,8 @@ React 19 StrictMode 双重挂载组件时，第一次 API 调用消耗 refresh t
 ```python
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+from utils import CDP, BASE, create_page
 
-CDP = "http://127.0.0.1:9222"
-BASE = "http://localhost:5173"
 OUT = Path(__file__).parent / "screenshots"
 failed = 0
 
@@ -120,8 +170,7 @@ def check(cond, msg):
 
 with sync_playwright() as p:
     browser = p.chromium.connect_over_cdp(CDP)
-    page = browser.new_page()
-    page.set_viewport_size({"width": 2560, "height": 1600})
+    page = create_page(browser)
     page.context.clear_cookies()
 
     errors = []

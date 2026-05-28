@@ -65,6 +65,7 @@ docker exec <name> netstat -tlnp | grep <port>
 - **DOM 变更后重新查询元素**：`.all()` 返回的引用在 render 后过期，用 `while` 循环 + 重新查询
 - **`docker compose down -v` 后重跑 seed**：`seed_test_activities.py` + `create_devtest_user.py`
 - **文件上传用 filechooser 模式**：antd Upload 组件需 `page.expect_file_chooser()` + 点击上传按钮，不能用 `set_input_files()`；文件必须为允许类型（pdf/jpg/png/doc/docx）
+- **CDP 模式不覆盖视口/DPR**：用 `browser.contexts[0]` 已有 context，不调 `set_viewport_size` 或 `new_context(viewport=...)`。CDP 截图按实际窗口像素截取，视图模拟不改变截图尺寸。详见 `tests/browser/utils.py` 和 `docs/browser-tests.md#cdp-视口与截图`
 - **备案打包依赖 seed 材料**：打包测试需已有 key_materials 的活动（如 `社区志愿服务日`），不能从空活动开始
 
 ## 文档同步
