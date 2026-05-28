@@ -74,8 +74,40 @@ tests/browser/
 ├── 11_admin_role_approval.py # 角色审批
 ├── 12_document_upload.py  # 文档上传
 ├── 13_filing_pack.py      # 备案打包交接
+├── .gitignore              # 忽略 recordings/
+├── recordings/             # 视频录制输出 (gitignored)
 └── screenshots/           # 测试截图输出
 ```
+
+## 视频录制
+
+通过环境变量 `RECORD=1` 启用 CDP screencast 录制，帧合成为 MP4：
+
+```bash
+RECORD=1 python tests/browser/01_auth.py
+# → tests/browser/recordings/01_auth/recording.mp4
+```
+
+所有 01~13 脚本均已集成录制支持（参见 `utils.py` 的 `ScreencastRecorder` 类）。
+
+## 登录限流排查
+
+后端使用 Redis 做登录失败限流（5 次失败 / 15 分钟窗口），超限返回 429 "登录尝试过多，请15分钟后再试"。登录历史仍写入 DB `login_attempts` 表做审计。
+
+**清除限流（开发调试）：**
+
+```bash
+# 方式 1：重启 Redis（丢失所有缓存）
+docker compose restart redis
+
+# 方式 2：精确清除 devtest 限流键
+docker compose exec redis redis-cli -a secret_redis_pwd DEL login_attempts:devtest@test.com
+
+# 方式 3：清除全部限流键
+docker compose exec redis redis-cli -a secret_redis_pwd --scan --pattern "login_attempts:*" | xargs -r docker compose exec redis redis-cli -a secret_redis_pwd DEL
+```
+
+Redis key TTL 为 15 分钟，届时自动过期无需手动清除。
 
 ## CDP 视口与截图
 

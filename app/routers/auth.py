@@ -10,6 +10,7 @@ from app.auth import (
     create_refresh_token,
     hash_password,
     record_login_attempt,
+    record_login_failure,
     revoke_user_tokens,
     verify_email_change_token,
     verify_password,
@@ -90,13 +91,14 @@ async def register(body: RegisterRequest, response: Response, bg: BackgroundTask
 
 @router.post("/login", response_model=TokenResponse)
 async def login(body: LoginRequest, response: Response, request: Request, db=Depends(get_db)):
-    if await check_login_blocked(db, body.email):
+    if await check_login_blocked(body.email):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="登录尝试过多，请15分钟后再试")
 
     result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
     if user is None or not verify_password(body.password, user.password_hash):
+        await record_login_failure(body.email)
         await record_login_attempt(db, body.email, False)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="邮箱或密码错误")
 

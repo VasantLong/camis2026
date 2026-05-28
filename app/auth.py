@@ -88,15 +88,23 @@ async def revoke_user_tokens(db: AsyncSession, user_id: str) -> None:
     await db.commit()
 
 
-async def check_login_blocked(db: AsyncSession, login_id: str) -> bool:
-    since = datetime.now(timezone.utc) - timedelta(minutes=LOCKOUT_MINUTES)
-    from sqlalchemy import text
-    result = await db.execute(
-        text("SELECT count(*) FROM login_attempts WHERE login_id = :l AND success = false AND created_at > :s"),
-        {"l": login_id, "s": since},
-    )
-    count = result.scalar() or 0
-    return count >= MAX_LOGIN_ATTEMPTS
+async def check_login_blocked(login_id: str) -> bool:
+    from app.services.redis_client import get_redis
+
+    redis = await get_redis()
+    key = f"login_attempts:{login_id}"
+    count = await redis.get(key)
+    return int(count or 0) >= MAX_LOGIN_ATTEMPTS
+
+
+async def record_login_failure(login_id: str) -> None:
+    from app.services.redis_client import get_redis
+
+    redis = await get_redis()
+    key = f"login_attempts:{login_id}"
+    count = await redis.incr(key)
+    if count == 1:
+        await redis.expire(key, LOCKOUT_MINUTES * 60)
 
 
 async def record_login_attempt(db: AsyncSession, login_id: str, success: bool) -> None:
