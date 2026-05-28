@@ -62,7 +62,7 @@ export default function AppLayout() {
             }}
           >
             <Button icon={<UserOutlined />}>
-              {user?.display_name || user?.username || "用户"}
+              {user?.display_name || "用户"}
             </Button>
           </Dropdown>
         </Header>
