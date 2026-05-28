@@ -14,29 +14,29 @@ from app.models.rbac import Role, UserRole
 from app.models.user import User
 
 SEED_USERS = [
-    ("superadmin", "superadmin@test.com", "pass123", ["SuperAdmin"]),
-    ("promoter", "promoter@test.com", "pass123", ["Promoter"]),
-    ("security", "security@test.com", "pass123", ["SecurityOfficer", "SecurityManager"]),
-    ("admin", "admin@test.com", "pass123", ["AdminStaff", "AdminManager"]),
-    ("liaison", "liaison@test.com", "pass123", ["GovLiaison"]),
-    ("tester1", "tester1@test.com", "pass123", ["Promoter", "AdminStaff"]),
-    ("testuser", "testuser@test.com", "test123", []),
+    ("superadmin@test.com", "pass123", ["SuperAdmin"]),
+    ("promoter@test.com", "pass123", ["Promoter"]),
+    ("security@test.com", "pass123", ["SecurityOfficer", "SecurityManager"]),
+    ("admin@test.com", "pass123", ["AdminStaff", "AdminManager"]),
+    ("liaison@test.com", "pass123", ["GovLiaison"]),
+    ("tester1@test.com", "pass123", ["Promoter", "AdminStaff"]),
+    ("testuser@test.com", "test123", []),
 ]
 
 
 async def seed():
     async with async_session() as db:
-        for username, email, password, role_names in SEED_USERS:
-            result = await db.execute(select(User).where(User.username == username))
+        for email, password, role_names in SEED_USERS:
+            result = await db.execute(select(User).where(User.email == email))
             if result.scalar_one_or_none():
-                print(f"skip: {username} (exists)")
+                print(f"skip: {email} (exists)")
                 continue
 
+            display = email.split("@")[0]
             user = User(
-                username=username,
                 email=email,
                 password_hash=hash_password(password),
-                display_name=username,
+                display_name=display,
             )
             db.add(user)
             await db.flush()
@@ -46,7 +46,7 @@ async def seed():
                 role = role_result.scalar_one()
                 db.add(UserRole(user_id=user.id, role_id=role.id))
 
-            print(f"created: {username} roles={role_names}")
+            print(f"created: {email} roles={role_names}")
 
         await db.commit()
     print("done")
