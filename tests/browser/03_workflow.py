@@ -21,7 +21,7 @@ def api_post(path, body, token):
     return json.loads(urllib.request.urlopen(req).read())
 
 def login_api():
-    resp = api_post("/auth/login", {"email":"tester1@test.com","password":"pass123"}, None)
+    resp = api_post("/auth/login", {"email":"promoter@test.com","password":"pass123"}, None)
     token = resp["access_token"]
     req = urllib.request.Request(f"{API}/auth/me", headers={"Authorization": f"Bearer {token}"})
     user = json.loads(urllib.request.urlopen(req).read())
@@ -63,7 +63,7 @@ with sync_playwright() as p:
     # Login
     page.goto(f"{BASE}/login")
     page.wait_for_load_state("networkidle")
-    page.fill('input[placeholder="邮箱"]', "tester1@test.com")
+    page.fill('input[placeholder="邮箱"]', "promoter@test.com")
     page.fill('input[type="password"]', "pass123")
     page.click('button[type="submit"]')
     page.wait_for_timeout(3000)

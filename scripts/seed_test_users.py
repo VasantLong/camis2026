@@ -19,7 +19,6 @@ SEED_USERS = [
     ("security@test.com", "pass123", ["SecurityOfficer", "SecurityManager"]),
     ("admin@test.com", "pass123", ["AdminStaff", "AdminManager"]),
     ("liaison@test.com", "pass123", ["GovLiaison"]),
-    ("tester1@test.com", "pass123", ["Promoter", "AdminStaff"]),
     ("testuser@test.com", "test123", []),
 ]
 

@@ -47,7 +47,7 @@ with sync_playwright() as p:
     # 3. tester1 → sidebar has both sections
     print("3. tester1 login")
     page.context.clear_cookies()
-    login_as(page, "tester1@test.com", "pass123")
+    login_as(page, "promoter@test.com", "pass123")
     # After login, should be on /activities (has permissions)
     on_activities = "/activities" in page.url
     on_dashboard = "/dashboard" in page.url

@@ -36,7 +36,7 @@ with sync_playwright() as p:
     # Login
     page.goto(f"{BASE}/login")
     page.wait_for_load_state("networkidle")
-    page.fill('input[placeholder="邮箱"]', "tester1@test.com")
+    page.fill('input[placeholder="邮箱"]', "liaison@test.com")
     page.fill('input[type="password"]', "pass123")
     page.click('button[type="submit"]')
     page.wait_for_timeout(3000)

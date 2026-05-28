@@ -31,7 +31,7 @@ def sidebar_nav(page, item_text):
 
 # --- API helpers ---
 def login_api():
-    data = json.dumps({"email": "tester1@test.com", "password": "pass123"}).encode()
+    data = json.dumps({"email": "promoter@test.com", "password": "pass123"}).encode()
     req = urllib.request.Request(f"{API}/auth/login", data=data, headers={"Content-Type": "application/json"})
     resp = json.loads(urllib.request.urlopen(req).read())
     token = resp["access_token"]
@@ -73,7 +73,7 @@ with sync_playwright() as p:
     page.goto(f"{BASE}/login")
     page.wait_for_load_state("networkidle")
     page.context.clear_cookies()
-    page.fill('input[placeholder="邮箱"]', "tester1@test.com")
+    page.fill('input[placeholder="邮箱"]', "promoter@test.com")
     page.fill('input[type="password"]', "pass123")
     page.click('button[type="submit"]')
     page.wait_for_timeout(3000)
