@@ -16,7 +16,7 @@ export default function StatusTimeline({ history }: Props) {
     <Timeline
       items={[...history].reverse().map((entry) => ({
         color: STATUS_COLOR_MAP[entry.to_status] || "blue",
-        children: (
+        content: (
           <div>
             <div>
               {entry.from_status ? (

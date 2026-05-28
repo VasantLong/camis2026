@@ -64,7 +64,7 @@ export default function ForceChangeModal({
       okText="确认"
       okButtonProps={{ danger: true, disabled: !confirmed }}
     >
-      <Alert type="warning" message={warningMsg} showIcon style={{ marginBottom: 16 }} />
+      <Alert type="warning" title={warningMsg} showIcon style={{ marginBottom: 16 }} />
       <Checkbox checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)}>
         我已知晓此操作不可撤销
       </Checkbox>

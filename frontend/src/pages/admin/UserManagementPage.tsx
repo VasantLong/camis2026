@@ -234,7 +234,7 @@ export default function UserManagementPage() {
               <Timeline
                 items={overview.login_history.slice(0, 10).map((h) => ({
                   color: h.success ? "green" : "red",
-                  children: (
+                  content: (
                     <span>
                       {new Date(h.created_at).toLocaleString("zh-CN")}
                       {" "}
