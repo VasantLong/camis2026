@@ -5,6 +5,8 @@ BASE = "http://localhost:5173"
 
 
 def create_page(browser: Browser, viewport: dict | None = None) -> Page:
-    vp = viewport or {"width": 1280, "height": 800}
-    context = browser.new_context(viewport=vp, device_scale_factor=2)
+    if len(browser.contexts) > 0:
+        context = browser.contexts[0]
+    else:
+        context = browser.new_context()
     return context.new_page()
