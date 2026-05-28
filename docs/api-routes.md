@@ -51,7 +51,7 @@
 | `DELETE`| `/admin/users/{id}` | `administer_users` |
 | `GET`  | `/admin/users/{id}/overview` | `administer_users` |
 
-> ¹ 目标状态为"审批通过-待举办"时额外要求 `confirm_approval`。
+> ¹ `PUT /activities/{id}/status` 同时接受 `manage_security` 和 `audit_material` 权限。目标状态为"审批通过-待举办"时额外要求 `confirm_approval`。
 > 活动可见性按角色自动过滤状态（见 `docs/rbac.md`）。
 
 ## 端点详细说明

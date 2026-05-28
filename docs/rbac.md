@@ -26,30 +26,28 @@ roles ──< role_permissions >── permissions
 
 | 角色 | 部门 | 职责 | 权限数 |
 |------|------|------|--------|
-| **SuperAdmin** | 系统 | 用户 CRUD、角色审批、系统配置 | 2 |
-| **AdminManager** | 行政部 | 审批角色申请、管理仪表盘 | 5 |
+| **SuperAdmin** | 系统 | 全权限（用户管理、系统配置） | 全部 |
+| **AdminManager** | 行政部 | 审批角色申请、管理仪表盘 | 6 |
 | **SecurityManager** | 安保部 | 审核安保方案、状态流转、确认审批结果 | 7 |
 | **AdminStaff** | 行政部 | 监控活动面板、强制变更状态 | 4 |
-| **SecurityOfficer** | 安保部 | 上传材料、电子签署、打包备案 | 4 |
-| **Promoter** | 宣策部 | 创建立项、编制活动方案 | 3 |
+| **SecurityOfficer** | 安保部 | 上传材料、电子签署、打包备案、状态流转 | 6 |
+| **Promoter** | 宣策部 | 创建立项、编制活动方案、提交安保审核 | 4 |
 | **GovLiaison** | 政府对接 | 上传批文、审查材料合规性、标注审批结果 | 4 |
 
 ---
 
 ## 权限全量（19 项）
 
-### SuperAdmin（2 项）
+### SuperAdmin（全部权限）
 
-| 权限名 | 资源 | 操作 | 对应用例 |
-|--------|------|------|---------|
-| `manage_users` | users | manage | 查看/审批/驳回角色申请 |
-| `administer_users` | users | administer | 用户列表、修改角色、禁用/启用、删除 |
+拥有系统中所有权限（通过 `CROSS JOIN` 分配），包括所有其他角色权限的超集。
 
-### Promoter（3 项）
+### Promoter（4 项）
 
 | 权限名 | 资源 | 操作 | 对应用例 |
 |--------|------|------|---------|
 | `create_activity` | activities | create | 创建活动 |
+| `manage_security` | activities | manage_security | 提交到安保方案设计 |
 | `upload_plan` | activities | upload_plan | 上传活动方案文件 |
 | `view_owned_activity` | activities | view_owned | 查看自己创建的活动列表和详情 |
 
@@ -67,11 +65,13 @@ roles ──< role_permissions >── permissions
 | `upload_security_material` | documents | upload | 上传安保材料 |
 | `pack_filing` | filing | pack | 校验材料、打包、纸质交接 |
 
-### SecurityOfficer（4 项）
+### SecurityOfficer（6 项）
 
 | 权限名 | 资源 | 操作 | 对应用例 |
 |--------|------|------|---------|
 | `view_owned_activity` | activities | view_owned | 查看活动列表和详情 |
+| `manage_security` | activities | manage_security | 状态流转（签署完成） |
+| `reject_approval` | activities | reject_approval | 驳回（内部循环） |
 | `upload_security_material` | documents | upload | 上传安保材料 |
 | `sign_document` | documents | sign | 对上传的材料电子签署 |
 | `pack_filing` | filing | pack | 校验材料、打包、纸质交接 |
@@ -130,8 +130,8 @@ roles ──< role_permissions >── permissions
 | `GET` | `/activities/{id}/documents` | `view_owned_activity` | 所有 |
 | `GET` | `/activities/{id}/security-plan` | `view_owned_activity` | 所有 |
 | `GET` | `/activities/{id}/filing/status` | 登录即可 | 所有 |
-| `PUT` | `/activities/{id}/status` | `manage_security`¹ | SecurityManager |
-| `POST` | `/activities/{id}/reject` | `reject_approval` | SecurityManager |
+| `PUT` | `/activities/{id}/status` | `manage_security` 或 `audit_material`¹ | SecurityManager / GovLiaison |
+| `POST` | `/activities/{id}/reject` | `reject_approval` | SecurityManager / SecurityOfficer |
 | `POST` | `/activities/{id}/force-cancel` | `force_cancel` | AdminStaff |
 | `POST` | `/activities/{id}/force-postpone` | `force_postpone` | AdminStaff |
 | `GET` | `/activities/{id}/filing/validate` | `pack_filing` | SecurityOfficer/SecurityManager |
@@ -155,6 +155,7 @@ roles ──< role_permissions >── permissions
 | SecurityOfficer | 待安保方案设计 | `status = 待安保方案设计` |
 | SecurityManager | 安保相关流程 | `status IN (待安保方案设计, 待备案申请, 备案材料已交接, 审批通过, 待补充备案材料)` |
 | GovLiaison | 待处理的审批活动 | `status = 备案材料已交接` |
+| SuperAdmin | 全部活动 | 无过滤 |
 | AdminStaff/AdminManager | 全部活动（只读） | 无过滤 |
 
 多角色用户取最大可见范围（如 Promoter + AdminStaff → 全部）。
@@ -214,9 +215,9 @@ SuperAdmin / AdminStaff:
 
 ## 已知 Gap
 
-### 定义了但未使用的权限（7 项）
+### 定义了但未使用的权限（5 项）
 
-以下权限存在于 `init-scripts/03-rbac-tables.sql` 种子数据中，但没有任何路由通过 `require_permission` 校验它们。可能原因：对应功能尚未实现，或实现在路由层用了其他权限名。
+以下权限存在于种子数据中，但尚未在任何路由中通过 `require_permission` 校验它们。
 
 | 权限 | 角色 |
 |------|------|
@@ -226,4 +227,4 @@ SuperAdmin / AdminStaff:
 | `upload_approval` | GovLiaison |
 | `update_approval_status` | GovLiaison |
 
-> `audit_material` 已激活并移至 GovLiaison（`feat/filing-workflow`）。`sign_document`、`upload_security_material`、`upload_approval`、`update_approval_status` 将在同一分支激活。
+> `manage_security`、`audit_material`、`reject_approval` 已在 `fix/browser-test-viewport` 中激活。
