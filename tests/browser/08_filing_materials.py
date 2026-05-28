@@ -2,7 +2,7 @@ from pathlib import Path
 """Filing materials sign/audit: SecurityOfficer signs materials, GovLiaison audits.
 User-perspective flow: login → sidebar nav → table click → tab → action buttons."""
 from playwright.sync_api import sync_playwright
-from utils import CDP, BASE, create_page, start_recording
+from utils import CDP, BASE, create_page, setup_logging, start_recording
 
 OUT = Path(__file__).parent / "screenshots"
 failed = 0
@@ -54,6 +54,7 @@ def navigate_to_activity(page, activity_name):
 with sync_playwright() as p:
     browser = p.chromium.connect_over_cdp(CDP)
     page = create_page(browser)
+    setup_logging("08_filing_materials")
     recorder = start_recording(page, "08_filing_materials")
 
     errors = []

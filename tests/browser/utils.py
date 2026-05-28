@@ -1,6 +1,7 @@
 import base64
 import os
 import subprocess
+import sys
 import threading
 from pathlib import Path
 
@@ -9,6 +10,26 @@ from playwright.sync_api import Browser, Page
 CDP = "http://127.0.0.1:9222"
 BASE = "http://localhost:5173"
 RECORDINGS = Path(__file__).parent / "recordings"
+LOGS = Path(__file__).parent / "logs"
+
+
+class _TeeWriter:
+    def __init__(self, *files):
+        self._files = files
+
+    def write(self, text):
+        for f in self._files:
+            f.write(text)
+
+    def flush(self):
+        for f in self._files:
+            f.flush()
+
+
+def setup_logging(name: str) -> None:
+    LOGS.mkdir(exist_ok=True)
+    log_file = open(LOGS / f"{name}.log", "w")
+    sys.stdout = _TeeWriter(sys.__stdout__, log_file)
 
 
 def create_page(browser: Browser, viewport: dict | None = None) -> Page:

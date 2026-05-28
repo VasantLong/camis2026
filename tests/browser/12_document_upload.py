@@ -2,7 +2,7 @@ from pathlib import Path
 """Document upload: navigate to activity → documents tab → upload file → verify in list."""
 import uuid, json, urllib.request
 from playwright.sync_api import sync_playwright
-from utils import CDP, BASE, create_page, start_recording
+from utils import CDP, BASE, create_page, setup_logging, start_recording
 
 API = "http://localhost:8000"
 OUT = Path(__file__).parent / "screenshots"
@@ -49,6 +49,7 @@ print(f"Created activity: {aname} (id={aid[:8]}...)")
 with sync_playwright() as p:
     browser = p.chromium.connect_over_cdp(CDP)
     page = create_page(browser)
+    setup_logging("12_document_upload")
     recorder = start_recording(page, "12_document_upload")
 
     errors = []

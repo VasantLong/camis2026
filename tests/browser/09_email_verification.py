@@ -2,7 +2,7 @@ from pathlib import Path
 """Email verification: register → check Mailpit captured welcome email."""
 import uuid, json, urllib.request
 from playwright.sync_api import sync_playwright
-from utils import CDP, BASE, create_page, start_recording
+from utils import CDP, BASE, create_page, setup_logging, start_recording
 
 MAILPIT_API = "http://localhost:18025/api/v1"
 OUT = Path(__file__).parent / "screenshots"
@@ -17,6 +17,7 @@ def check(cond, msg):
 with sync_playwright() as p:
     browser = p.chromium.connect_over_cdp(CDP)
     page = create_page(browser)
+    setup_logging("09_email_verification")
     recorder = start_recording(page, "09_email_verification")
     page.context.clear_cookies()
 

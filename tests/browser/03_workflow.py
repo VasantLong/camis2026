@@ -2,7 +2,7 @@
 from pathlib import Path
 import json, uuid, urllib.request
 from playwright.sync_api import sync_playwright
-from utils import CDP, BASE, create_page, start_recording
+from utils import CDP, BASE, create_page, setup_logging, start_recording
 
 API = "http://localhost:8000"
 OUT = Path(__file__).parent / "screenshots"
@@ -48,6 +48,7 @@ def sidebar_nav(page, text):
 with sync_playwright() as p:
     browser = p.chromium.connect_over_cdp(CDP)
     page = create_page(browser)
+    setup_logging("03_workflow")
     recorder = start_recording(page, "03_workflow")
     page.context.clear_cookies()
 
