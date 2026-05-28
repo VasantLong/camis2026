@@ -1,4 +1,4 @@
-"""Workflow + Filing: state transitions via browser UI, data via API."""
+"""Workflow: state transitions with single-role users."""
 from pathlib import Path
 import json, uuid, urllib.request
 from playwright.sync_api import sync_playwright
@@ -20,23 +20,23 @@ def api_post(path, body, token):
         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
     return json.loads(urllib.request.urlopen(req).read())
 
-def login_api():
-    resp = api_post("/auth/login", {"email":"promoter@test.com","password":"pass123"}, None)
+def login_api(email, password):
+    resp = api_post("/auth/login", {"email": email, "password": password}, None)
     token = resp["access_token"]
     req = urllib.request.Request(f"{API}/auth/me", headers={"Authorization": f"Bearer {token}"})
     user = json.loads(urllib.request.urlopen(req).read())
     return token, user["id"]
 
-def create_activity_via_api(token, name, designer_id):
-    return api_post("/activities", {
-        "name": name, "type": "大型活动",
-        "estimated_time": "2026-06-15T09:00:00+08:00",
-        "location": "测试广场", "sponsor": "测试主办方",
-        "deadline": "2026-06-01T18:00:00+08:00",
-        "designer_id": designer_id
-    }, token)["id"]
-
-token, user_id = login_api()
+# --- Browser helpers ---
+def login_as(page, email, password):
+    page.context.clear_cookies()
+    page.goto(f"{BASE}/login")
+    page.wait_for_load_state("networkidle")
+    page.fill('input[placeholder="邮箱"]', email)
+    page.fill('input[type="password"]', password)
+    page.click('button[type="submit"]')
+    page.wait_for_timeout(3000)
+    page.wait_for_load_state("networkidle")
 
 def sidebar_nav(page, text):
     sub = page.locator('.ant-menu-submenu-title:has-text("活动管理")')
@@ -49,6 +49,38 @@ def sidebar_nav(page, text):
         page.wait_for_timeout(1500)
         page.wait_for_load_state("networkidle")
 
+def navigate_to_activity(page):
+    """After login, navigate to first activity in list (client-side)."""
+    sidebar_nav(page, "全部活动")
+    page.wait_for_timeout(1000)
+    link = page.locator('td a').first
+    if link.count() > 0:
+        link.click()
+        page.wait_for_timeout(2000)
+        page.wait_for_load_state("networkidle")
+        return True
+    return False
+
+# --- Create test data as promoter ---
+p_token, p_user_id = login_api("promoter@test.com", "pass123")
+wf_name = f"wf_{uuid.uuid4().hex[:6]}"
+aid = api_post("/activities", {
+    "name": wf_name, "type": "大型活动",
+    "estimated_time": "2026-06-15T09:00:00+08:00",
+    "location": "测试广场", "sponsor": "测试主办方",
+    "deadline": "2026-06-01T18:00:00+08:00",
+    "designer_id": p_user_id,
+}, p_token)["id"]
+cancel_name = f"wf_cancel_{uuid.uuid4().hex[:4]}"
+aid2 = api_post("/activities", {
+    "name": cancel_name, "type": "大型活动",
+    "estimated_time": "2026-06-15T09:00:00+08:00",
+    "location": "测试广场", "sponsor": "测试主办方",
+    "deadline": "2026-06-01T18:00:00+08:00",
+    "designer_id": p_user_id,
+}, p_token)["id"]
+print(f"API created: {wf_name} + {cancel_name}")
+
 with sync_playwright() as p:
     browser = p.chromium.connect_over_cdp(CDP)
     page = create_page(browser)
@@ -60,36 +92,16 @@ with sync_playwright() as p:
     page.on("console", lambda m: errors.append(f"[{m.type}] {m.text}"))
     page.on("pageerror", lambda e: errors.append(f"PAGE_ERROR: {e}"))
 
-    # Login
-    page.goto(f"{BASE}/login")
-    page.wait_for_load_state("networkidle")
-    page.fill('input[placeholder="邮箱"]', "promoter@test.com")
-    page.fill('input[type="password"]', "pass123")
-    page.click('button[type="submit"]')
-    page.wait_for_timeout(3000)
-    page.wait_for_load_state("networkidle")
-    check("/activities" in page.url, "logged in")
-
-    # 1. Create activity for workflow testing via API
-    print("\n1. Create activity (API)")
-    aid = create_activity_via_api(token, f"wf_{uuid.uuid4().hex[:6]}", user_id)
-    print(f"  created: {aid[:8]}...")
-
-    # Navigate to detail via list click (client-side, avoids auth loss)
-    sidebar_nav(page, "全部活动")
-    page.wait_for_timeout(1000)
-    # Click the activity name link in the table
-    link = page.locator('td a').first  # first link in the table
-    if link.count() > 0:
-        link.click()
-        page.wait_for_timeout(2000)
-        page.wait_for_load_state("networkidle")
+    # === Step 1: Promoter submits ===
+    print("\n1. Promoter: submit to 待安保方案设计")
+    login_as(page, "promoter@test.com", "pass123")
+    check("/activities" in page.url, "promoter logged in")
+    navigate_to_activity(page)
     check("/activities/" in page.url, f"on detail page (got {page.url})")
     check("待设计方案" in page.content(), "activity in 待设计方案 status")
 
-    # 2. Transition: 待设计方案 → 待安保方案设计
-    print("\n2. Transition to 待安保方案设计")
     btn = page.locator('button:has-text("提交到安保方案设计")').first
+    check(btn.count() > 0, "submit button visible")
     if btn.count() > 0:
         btn.click()
         page.wait_for_timeout(800)
@@ -101,9 +113,16 @@ with sync_playwright() as p:
         page.wait_for_load_state("networkidle")
     check("待安保方案设计" in page.content(), "status → 待安保方案设计")
 
-    # 3. Reject (loop)
-    print("\n3. Reject (loop)")
+    # === Step 2: SecurityOfficer rejects ===
+    print("\n2. SecurityOfficer: reject")
+    login_as(page, "security@test.com", "pass123")
+    check("/activities" in page.url, "security logged in")
+    navigate_to_activity(page)
+    check("/activities/" in page.url, f"on detail page (got {page.url})")
+    check("待安保方案设计" in page.content(), "activity in 待安保方案设计 status")
+
     rej = page.locator('button:has-text("驳回")').first
+    check(rej.count() > 0, "reject button visible")
     if rej.count() > 0:
         rej.click()
         page.wait_for_timeout(800)
@@ -113,11 +132,33 @@ with sync_playwright() as p:
         if ok.count() > 0: ok.click()
         page.wait_for_timeout(3000)
         page.wait_for_load_state("networkidle")
-    check("待安保方案设计" in page.content(), "status unchanged after loop reject")
+    check("待设计方案" in page.content(), "status → 待设计方案 after reject")
 
-    # 4. Sign complete → 待备案申请
-    print("\n4. Sign complete")
+    # === Step 3: Promoter re-submits ===
+    print("\n3. Promoter: re-submit after reject")
+    login_as(page, "promoter@test.com", "pass123")
+    navigate_to_activity(page)
+    btn2 = page.locator('button:has-text("提交到安保方案设计")').first
+    check(btn2.count() > 0, "submit button visible after reject")
+    if btn2.count() > 0:
+        btn2.click()
+        page.wait_for_timeout(800)
+        txt = page.locator('.ant-modal:visible textarea').first
+        if txt.count() > 0: txt.fill("修改后重新提交")
+        ok = page.locator('.ant-modal:visible .ant-btn-primary').first
+        if ok.count() > 0: ok.click()
+        page.wait_for_timeout(3000)
+        page.wait_for_load_state("networkidle")
+    check("待安保方案设计" in page.content(), "status → 待安保方案设计")
+
+    # === Step 4: SecurityOfficer signs ===
+    print("\n4. SecurityOfficer: sign complete")
+    login_as(page, "security@test.com", "pass123")
+    navigate_to_activity(page)
+    check("待安保方案设计" in page.content(), "activity in 待安保方案设计 status")
+
     sign = page.locator('button:has-text("签署完成")').first
+    check(sign.count() > 0, "sign button visible")
     if sign.count() > 0:
         sign.click()
         page.wait_for_timeout(800)
@@ -129,19 +170,20 @@ with sync_playwright() as p:
         page.wait_for_load_state("networkidle")
     check("待备案申请" in page.content(), "status → 待备案申请")
 
-    # 5. Force cancel on a new activity
-    print("\n5. Force cancel")
-    aid2 = create_activity_via_api(token, f"wf_cancel_{uuid.uuid4().hex[:4]}", user_id)
-    # Navigate via list
+    # === Step 5: SuperAdmin force cancels ===
+    print("\n5. SuperAdmin: force cancel")
+    login_as(page, "superadmin@test.com", "pass123")
     sidebar_nav(page, "全部活动")
     page.wait_for_timeout(1000)
-    # Click first activity in the table
-    link2 = page.locator('td a').first
-    if link2.count() > 0:
-        link2.click()
+    cancel_link = page.locator(f'a:has-text("{cancel_name}")').first
+    if cancel_link.count() > 0:
+        cancel_link.click()
         page.wait_for_timeout(2000)
         page.wait_for_load_state("networkidle")
+    check("/activities/" in page.url, f"on cancel activity detail (got {page.url})")
+
     cancel = page.locator('button:has-text("强制取消")').first
+    check(cancel.count() > 0, "force cancel button visible")
     if cancel.count() > 0:
         cancel.click()
         page.wait_for_timeout(800)
@@ -156,8 +198,6 @@ with sync_playwright() as p:
         check("已取消" in page.content(), "status → 已取消")
         btns = page.locator('button:has-text("提交")').count()
         check(btns == 0, "no action buttons on terminal state")
-    else:
-        check(False, "force cancel button not found")
 
     page.screenshot(path=f"{OUT / '03_workflow_final.png'}", full_page=True)
     if recorder:
