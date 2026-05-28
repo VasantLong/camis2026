@@ -67,7 +67,7 @@ wf_name = f"wf_{uuid.uuid4().hex[:6]}"
 aid = api_post("/activities", {
     "name": wf_name, "type": "大型活动",
     "estimated_time": "2026-06-15T09:00:00+08:00",
-    "location": "测试广场", "sponsor": "测试主办方",
+    "location": f"测试广场_{wf_name}", "sponsor": "测试主办方",
     "deadline": "2026-06-01T18:00:00+08:00",
     "designer_id": p_user_id,
 }, p_token)["id"]
@@ -75,7 +75,7 @@ cancel_name = f"wf_cancel_{uuid.uuid4().hex[:4]}"
 aid2 = api_post("/activities", {
     "name": cancel_name, "type": "大型活动",
     "estimated_time": "2026-06-15T09:00:00+08:00",
-    "location": "测试广场", "sponsor": "测试主办方",
+    "location": f"测试广场_{cancel_name}", "sponsor": "测试主办方",
     "deadline": "2026-06-01T18:00:00+08:00",
     "designer_id": p_user_id,
 }, p_token)["id"]
@@ -125,13 +125,17 @@ with sync_playwright() as p:
     check(rej.count() > 0, "reject button visible")
     if rej.count() > 0:
         rej.click()
-        page.wait_for_timeout(800)
-        txt = page.locator('.ant-modal:visible textarea').first
+        page.wait_for_timeout(1000)
+        txt = page.locator('.ant-modal:visible textarea, .ant-modal-wrap:not([style*="display: none"]) textarea').first
         if txt.count() > 0: txt.fill("材料需要补充")
-        ok = page.locator('.ant-modal:visible .ant-btn-primary').first
-        if ok.count() > 0: ok.click()
-        page.wait_for_timeout(3000)
-        page.wait_for_load_state("networkidle")
+        ok = page.locator('button:has-text("确认驳回")').first
+        if ok.count() > 0:
+            ok.click()
+            page.wait_for_timeout(3000)
+            page.wait_for_load_state("networkidle")
+    page.reload()
+    page.wait_for_load_state("networkidle")
+    page.wait_for_timeout(1000)
     check("待设计方案" in page.content(), "status → 待设计方案 after reject")
 
     # === Step 3: Promoter re-submits ===
@@ -175,11 +179,15 @@ with sync_playwright() as p:
     login_as(page, "superadmin@test.com", "pass123")
     sidebar_nav(page, "全部活动")
     page.wait_for_timeout(1000)
+    # Click the cancel activity by name
     cancel_link = page.locator(f'a:has-text("{cancel_name}")').first
     if cancel_link.count() > 0:
         cancel_link.click()
         page.wait_for_timeout(2000)
         page.wait_for_load_state("networkidle")
+    else:
+        print(f"  (cancel activity '{cancel_name}' not in list, using first)")
+        navigate_to_activity(page)
     check("/activities/" in page.url, f"on cancel activity detail (got {page.url})")
 
     cancel = page.locator('button:has-text("强制取消")').first

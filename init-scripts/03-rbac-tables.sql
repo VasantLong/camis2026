@@ -78,15 +78,37 @@ ON CONFLICT (name) DO NOTHING;
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r, permissions p
 WHERE r.name = 'Promoter' AND p.name IN (
-    'create_activity', 'upload_plan', 'view_owned_activity'
+    'create_activity', 'upload_plan', 'view_owned_activity', 'manage_security'
 )
 ON CONFLICT DO NOTHING;
 
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r, permissions p
 WHERE r.name = 'SecurityOfficer' AND p.name IN (
-    'view_owned_activity', 'upload_security_material', 'sign_document', 'pack_filing'
+    'view_owned_activity', 'upload_security_material', 'sign_document', 'pack_filing',
+    'manage_security', 'reject_approval'
 )
+ON CONFLICT DO NOTHING;
+
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id FROM roles r, permissions p
+WHERE r.name = 'SecurityManager' AND p.name IN (
+    'view_owned_activity', 'manage_security', 'reject_approval',
+    'force_cancel', 'force_postpone', 'view_dashboard', 'export_report'
+)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id FROM roles r, permissions p
+WHERE r.name = 'AdminManager' AND p.name IN (
+    'view_owned_activity', 'view_dashboard', 'export_report',
+    'force_cancel', 'force_postpone', 'manage_security'
+)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id FROM roles r CROSS JOIN permissions p
+WHERE r.name = 'SuperAdmin'
 ON CONFLICT DO NOTHING;
 
 INSERT INTO role_permissions (role_id, permission_id)

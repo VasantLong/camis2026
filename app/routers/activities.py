@@ -45,8 +45,8 @@ async def _visibility(current_user: User, db) -> tuple[UUID | None, set[str] | N
     )
     roles = {row[0] for row in role_result.all()}
 
-    # Admin/Manager 看全部
-    if roles & {"AdminStaff", "AdminManager"}:
+    # SuperAdmin/Admin/Manager 看全部
+    if roles & {"SuperAdmin", "AdminStaff", "AdminManager"}:
         return None, None
 
     # SecurityManager 看安保流程所有状态
