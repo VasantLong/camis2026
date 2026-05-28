@@ -2,9 +2,8 @@ from pathlib import Path
 """Filing materials sign/audit: SecurityOfficer signs materials, GovLiaison audits.
 User-perspective flow: login → sidebar nav → table click → tab → action buttons."""
 from playwright.sync_api import sync_playwright
+from utils import CDP, BASE, create_page
 
-CDP = "http://127.0.0.1:9222"
-BASE = "http://localhost:5173"
 OUT = Path(__file__).parent / "screenshots"
 failed = 0
 
@@ -54,8 +53,7 @@ def navigate_to_activity(page, activity_name):
 
 with sync_playwright() as p:
     browser = p.chromium.connect_over_cdp(CDP)
-    page = browser.new_page()
-    page.set_viewport_size({"width": 2560, "height": 1600})
+    page = create_page(browser)
 
     errors = []
     page.on("console", lambda m: errors.append(f"[{m.type}] {m.text}"))

@@ -2,12 +2,11 @@
 Uses devtest (all-role user) for maximum page coverage."""
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+from utils import CDP, BASE, create_page
 
 OUT = Path(__file__).parent / "screenshots"
 OUT.mkdir(parents=True, exist_ok=True)
 
-CDP = "http://127.0.0.1:9222"
-BASE = "http://localhost:5173"
 
 
 def inspect(page, name: str):
@@ -40,8 +39,7 @@ def inspect(page, name: str):
 
 with sync_playwright() as p:
     browser = p.chromium.connect_over_cdp(CDP)
-    page = browser.new_page()
-    page.set_viewport_size({"width": 2560, "height": 1600})
+    page = create_page(browser)
 
     console_errors: list[str] = []
     page.on("console", lambda msg: console_errors.append(f"[{msg.type}] {msg.text}"))

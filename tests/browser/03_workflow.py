@@ -2,9 +2,8 @@
 from pathlib import Path
 import json, uuid, urllib.request
 from playwright.sync_api import sync_playwright
+from utils import CDP, BASE, create_page
 
-CDP = "http://127.0.0.1:9222"
-BASE = "http://localhost:5173"
 API = "http://localhost:8000"
 OUT = Path(__file__).parent / "screenshots"
 failed = 0
@@ -48,8 +47,7 @@ def sidebar_nav(page, text):
 
 with sync_playwright() as p:
     browser = p.chromium.connect_over_cdp(CDP)
-    page = browser.new_page()
-    page.set_viewport_size({"width": 2560, "height": 1600})
+    page = create_page(browser)
     page.context.clear_cookies()
 
     errors = []

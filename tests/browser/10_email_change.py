@@ -2,9 +2,8 @@ from pathlib import Path
 """Email change verification: user clicks email → types new → checks inbox → clicks link."""
 import uuid, json, re, urllib.request
 from playwright.sync_api import sync_playwright
+from utils import CDP, BASE, create_page
 
-CDP = "http://127.0.0.1:9222"
-BASE = "http://localhost:5173"
 MAILPIT = "http://localhost:18025/api/v1"
 OUT = Path(__file__).parent / "screenshots"
 failed = 0
@@ -29,8 +28,7 @@ def mailpit_find(subject_contains):
 
 with sync_playwright() as p:
     browser = p.chromium.connect_over_cdp(CDP)
-    page = browser.new_page()
-    page.set_viewport_size({"width": 2560, "height": 1600})
+    page = create_page(browser)
 
     errors = []
     page.on("console", lambda m: errors.append(f"[{m.type}] {m.text}"))
