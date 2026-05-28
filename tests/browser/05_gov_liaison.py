@@ -19,6 +19,13 @@ def api_post(path, body, token):
         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
     return json.loads(urllib.request.urlopen(req).read())
 
+def api_put(path, body, token):
+    data = json.dumps(body).encode()
+    req = urllib.request.Request(f"{API}{path}", data=data,
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+        method="PUT")
+    return json.loads(urllib.request.urlopen(req).read())
+
 def login_api(email, password):
     resp = api_post("/auth/login", {"email": email, "password": password}, None)
     token = resp["access_token"]
@@ -46,14 +53,14 @@ for prefix in ["gov_approve", "gov_supplement", "gov_reject"]:
     act = api_post("/activities", {
         "name": name, "type": "大型活动",
         "estimated_time": "2026-06-15T09:00:00+08:00",
-        "location": "测试广场", "sponsor": "测试主办方",
+        "location": f"测试广场_{prefix}_{uuid.uuid4().hex[:4]}", "sponsor": "测试主办方",
         "deadline": "2026-06-01T18:00:00+08:00",
         "designer_id": user_id,
     }, token)
     aid = act["id"]
     # Transition: 待设计方案 → 待安保方案设计 → 待备案申请 → 备案材料已交接
     for to_status in ["待安保方案设计", "待备案申请", "备案材料已交接"]:
-        api_post(f"/activities/{aid}/status",
+        api_put(f"/activities/{aid}/status",
             {"to_status": to_status, "comment": f"auto transition to {to_status}"}, token)
     gov_names.append(name)
     print(f"  prepared: {name}")

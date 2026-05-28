@@ -84,12 +84,12 @@ export function getAvailableTransitions(
     // Filing phase — actions come from Filing components
   }
   if (status === "备案材料已交接") {
-    if (has("manage_security"))
-      actions.push({ label: "审批通过", mode: "transition", toStatus: "审批通过", permission: "manage_security" });
-    if (has("manage_security"))
-      actions.push({ label: "需补充材料", mode: "transition", toStatus: "待补充备案材料", permission: "manage_security" });
-    if (has("manage_security"))
-      actions.push({ label: "驳回—不通过", mode: "transition", toStatus: "不通过/已终止", permission: "manage_security" });
+    if (has("audit_material"))
+      actions.push({ label: "审批通过", mode: "transition", toStatus: "审批通过", permission: "audit_material" });
+    if (has("audit_material"))
+      actions.push({ label: "需补充材料", mode: "transition", toStatus: "待补充备案材料", permission: "audit_material" });
+    if (has("audit_material"))
+      actions.push({ label: "驳回—不通过", mode: "transition", toStatus: "不通过/已终止", permission: "audit_material" });
   }
   if (status === "待补充备案材料") {
     if (has("manage_security"))

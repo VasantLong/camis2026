@@ -26,14 +26,16 @@ async def update_status(
     current_user: User = Depends(get_current_user),
     db=Depends(get_db),
     svc: WorkflowService = Depends(_service),
-    _perm: None = require_permission("manage_security"),
 ):
-    if body.to_status == "审批通过-待举办":
-        perms = await get_user_permissions(user=current_user, db=db)
-        if "confirm_approval" not in perms:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="缺少权限: confirm_approval"
-            )
+    perms = await get_user_permissions(user=current_user, db=db)
+    if "manage_security" not in perms and "audit_material" not in perms:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="缺少工作流操作权限"
+        )
+    if body.to_status == "审批通过-待举办" and "confirm_approval" not in perms:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="缺少权限: confirm_approval"
+        )
     try:
         return await svc.transition(activity_id, body.to_status, current_user, body.comment)
     except LookupError as e:
