@@ -41,10 +41,8 @@ export default function HeaderNotifications() {
 
   const handleClick = (item: NotificationItem) => {
     setOpen(false);
-    // Extract activity name from message (e.g. "活动 XXX 需进行安保方案设计")
-    // Navigate to activity list pending tab; user finds the activity there
-    if ((notifications?.length ?? 0) <= 3) {
-      navigate("/activities?tab=pending");
+    if (item.reference_type === "activity" && item.reference_id) {
+      navigate(`/activities/${item.reference_id}`);
     } else {
       navigate("/activities?tab=pending");
     }
@@ -53,8 +51,16 @@ export default function HeaderNotifications() {
   const items = notifications.map((n) => ({
     key: n.id,
     label: (
-      <div style={{ maxWidth: 300, whiteSpace: "normal", padding: "4px 0" }}>
-        <Typography.Text>{n.message}</Typography.Text>
+      <div
+        style={{ maxWidth: 300, whiteSpace: "normal", padding: "4px 0", cursor: "pointer" }}
+        onClick={() => handleClick(n)}
+      >
+        {n.reference_name && (
+          <Typography.Text strong style={{ display: "block" }}>{n.reference_name}</Typography.Text>
+        )}
+        <Typography.Text type={n.reference_name ? "secondary" : undefined}>
+          {n.message}
+        </Typography.Text>
         <br />
         <Typography.Text type="secondary" style={{ fontSize: 12 }}>
           {new Date(n.created_at).toLocaleString("zh-CN")}

@@ -5,6 +5,9 @@ export interface NotificationItem {
   message: string;
   is_read: boolean;
   created_at: string;
+  reference_id: string | null;
+  reference_type: string | null;
+  reference_name: string | null;
 }
 
 export const notificationsApi = {

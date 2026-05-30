@@ -17,6 +17,9 @@ class NotificationItem(BaseModel):
     message: str
     is_read: bool
     created_at: str
+    reference_id: UUID | None = None
+    reference_type: str | None = None
+    reference_name: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -34,10 +37,13 @@ async def list_notifications(
     rows = await svc.list_for_user(current_user.id, limit)
     return [
         NotificationItem(
-            id=r.id,
-            message=r.message,
-            is_read=r.is_read,
-            created_at=r.created_at.isoformat(),
+            id=r["id"],
+            message=r["message"],
+            is_read=r["is_read"],
+            created_at=r["created_at"].isoformat(),
+            reference_id=str(r["reference_id"]) if r.get("reference_id") else None,
+            reference_type=r.get("reference_type"),
+            reference_name=r.get("reference_name"),
         )
         for r in rows
     ]

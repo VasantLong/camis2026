@@ -83,7 +83,8 @@ class WorkflowService:
         if rule:
             roles, msg = rule
             for role_name in roles:
-                await self.notification.notify_role(role_name, msg)
+                await self.notification.notify_role(role_name, msg,
+                    reference_id=activity_id, reference_type="activity")
 
         return log
 
@@ -99,7 +100,8 @@ class WorkflowService:
         elif activity.status == "审批通过":
             result = await self.transition(activity_id, "待安保方案设计", operator, reason)
             for role_name in REJECT_NOTIFY_ROLES:
-                await self.notification.notify_role(role_name, f"活动被驳回需重做: {reason}")
+                await self.notification.notify_role(role_name, f"活动被驳回需重做: {reason}",
+                    reference_id=activity_id, reference_type="activity")
         else:
             raise ValueError(f"当前状态 {activity.status} 不支持驳回操作")
         return result
