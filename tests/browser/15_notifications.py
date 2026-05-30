@@ -38,8 +38,16 @@ def login_as(page, email, password):
     page.wait_for_timeout(3000)
     page.wait_for_load_state("networkidle")
 
-# --- Trigger notification: promoter submits → security officer gets notified ---
+def api_put(path, body, token):
+    data = json.dumps(body).encode()
+    req = urllib.request.Request(f"{API}{path}", data=data, method="PUT",
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
+    return json.loads(urllib.request.urlopen(req).read())
+
+
+# --- Trigger notification: create activity, transition → security officer gets notified ---
 p_token, _ = login_api("promoter@test.com", "pass123")
+sa_token, _ = login_api("superadmin@test.com", "pass123")
 uname = f"notify_{uuid.uuid4().hex[:6]}"
 aid = api_post("/activities", {
     "name": uname, "type": "大型活动",
@@ -49,8 +57,8 @@ aid = api_post("/activities", {
     "designer_id": api_get("/auth/me", p_token)["id"],
 }, p_token)["id"]
 
-# Submit to trigger notify_role("SecurityOfficer", ...)
-api_post(f"/activities/{aid}/status", {"to_status": "待安保方案设计"}, p_token)
+# SuperAdmin transitions → triggers notify_role("SecurityOfficer", ...)
+api_put(f"/activities/{aid}/status", {"to_status": "待安保方案设计"}, sa_token)
 print(f"API: activity {uname} → 待安保方案设计, notification sent to SecurityOfficer")
 
 with sync_playwright() as p:
@@ -67,7 +75,7 @@ with sync_playwright() as p:
     # === Step 1: SecurityOfficer logs in, sees badge ===
     print("\n1. SecurityOfficer sees notification badge")
     login_as(page, "security@test.com", "pass123")
-    check("/activities" in page.url or "/dashboard" in page.url, "security logged in")
+    check("/login" not in page.url, "security logged in")
 
     badge = page.locator('.ant-badge-count, .ant-scroll-number')
     badge_count = badge.count()

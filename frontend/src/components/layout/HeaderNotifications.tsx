@@ -81,7 +81,7 @@ export default function HeaderNotifications() {
       onOpenChange={handleOpenChange}
       trigger={["click"]}
       placement="bottomRight"
-      dropdownRender={(menu) => (
+      popupRender={(menu) => (
         <div style={{ maxHeight: 360, overflow: "auto", minWidth: 280 }}>
           {notifications.length === 0 ? (
             <Empty description="暂无通知" style={{ padding: 24 }} />
