@@ -23,6 +23,8 @@ export interface ActivityResponse {
   status: string;
   owner_id: string;
   designer_id?: string | null;
+  designer_name?: string | null;
+  designer_phone?: string | null;
   created_at: string;
   updated_at: string;
 }

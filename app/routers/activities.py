@@ -128,7 +128,7 @@ async def get_activity(
 ):
     try:
         owner_id, allowed = await _visibility(current_user, db)
-        return await svc.get(activity_id, owner_id, allowed)
+        activity = await svc.get(activity_id, owner_id, allowed)
     except LookupError:
         # Fallback: user may have operated on this activity (status_log)
         from app.models.activity import ActivityStatusLog
@@ -140,7 +140,13 @@ async def get_activity(
         )
         if op_check.scalar_one_or_none() is None:
             raise NotFoundError("活动不存在")
-        return await svc.get(activity_id, None, None)
+        activity = await svc.get(activity_id, None, None)
+    if activity.designer_id:
+        designer = await db.get(User, activity.designer_id)
+        if designer:
+            activity.designer_name = designer.display_name
+            activity.designer_phone = designer.contact_phone
+    return activity
 
 
 @router.get("/{activity_id}/history", response_model=list[StatusLogEntry])

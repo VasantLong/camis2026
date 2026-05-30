@@ -29,6 +29,8 @@ class ActivityResponse(BaseModel):
     status: str
     owner_id: UUID
     designer_id: UUID | None = None
+    designer_name: str | None = None
+    designer_phone: str | None = None
     created_at: datetime
     updated_at: datetime
 
