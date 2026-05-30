@@ -71,8 +71,8 @@ export function getAvailableTransitions(
   const actions: TransitionDef[] = [];
 
   if (status === "待设计方案") {
-    if (has("manage_security"))
-      actions.push({ label: "提交到安保方案设计", mode: "transition", toStatus: "待安保方案设计", permission: "manage_security" });
+    if (has("submit_plan"))
+      actions.push({ label: "提交到安保方案设计", mode: "transition", toStatus: "待安保方案设计", permission: "submit_plan" });
   }
   if (status === "待安保方案设计") {
     if (has("reject_approval"))

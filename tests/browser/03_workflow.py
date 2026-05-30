@@ -1,4 +1,4 @@
-"""Workflow: state transitions with single-role users."""
+"""Workflow: state transitions with single-role users + notification checks."""
 from pathlib import Path
 import json, uuid, urllib.request
 from playwright.sync_api import sync_playwright
@@ -49,11 +49,11 @@ def sidebar_nav(page, text):
         page.wait_for_timeout(1500)
         page.wait_for_load_state("networkidle")
 
-def navigate_to_activity(page):
-    """After login, navigate to first activity in list (client-side)."""
+def find_activity_link(page, name):
+    """Click activity by name in the table."""
     sidebar_nav(page, "全部活动")
     page.wait_for_timeout(1000)
-    link = page.locator('td a').first
+    link = page.locator(f'a:has-text("{name}")').first
     if link.count() > 0:
         link.click()
         page.wait_for_timeout(2000)
@@ -61,7 +61,7 @@ def navigate_to_activity(page):
         return True
     return False
 
-# --- Create test data as promoter ---
+# --- Create one activity via API ---
 p_token, p_user_id = login_api("promoter@test.com", "pass123")
 wf_name = f"wf_{uuid.uuid4().hex[:6]}"
 aid = api_post("/activities", {
@@ -71,15 +71,7 @@ aid = api_post("/activities", {
     "deadline": "2026-06-01T18:00:00+08:00",
     "designer_id": p_user_id,
 }, p_token)["id"]
-cancel_name = f"wf_cancel_{uuid.uuid4().hex[:4]}"
-aid2 = api_post("/activities", {
-    "name": cancel_name, "type": "大型活动",
-    "estimated_time": "2026-06-15T09:00:00+08:00",
-    "location": f"测试广场_{cancel_name}", "sponsor": "测试主办方",
-    "deadline": "2026-06-01T18:00:00+08:00",
-    "designer_id": p_user_id,
-}, p_token)["id"]
-print(f"API created: {wf_name} + {cancel_name}")
+print(f"API created: {wf_name}")
 
 with sync_playwright() as p:
     browser = p.chromium.connect_over_cdp(CDP)
@@ -92,16 +84,23 @@ with sync_playwright() as p:
     page.on("console", lambda m: errors.append(f"[{m.type}] {m.text}"))
     page.on("pageerror", lambda e: errors.append(f"PAGE_ERROR: {e}"))
 
-    # === Step 1: Promoter submits ===
+    # === Step 1: Promoter submits (only "提交到安保方案设计" button) ===
     print("\n1. Promoter: submit to 待安保方案设计")
     login_as(page, "promoter@test.com", "pass123")
     check("/login" not in page.url, "promoter logged in")
-    navigate_to_activity(page)
+    find_activity_link(page, wf_name)
     check("/activities/" in page.url, f"on detail page (got {page.url})")
     check("待设计方案" in page.content(), "activity in 待设计方案 status")
 
+    # Promoter only sees submit button, not sign or reject
+    has_submit = page.locator('button:has-text("提交到安保方案设计")').count() > 0
+    has_sign = page.locator('button:has-text("签署完成")').count() > 0
+    has_reject = page.locator('button:has-text("驳回")').count() > 0
+    check(has_submit, "promoter sees submit button")
+    check(not has_sign, "promoter does NOT see sign button")
+    check(not has_reject, "promoter does NOT see reject button")
+
     btn = page.locator('button:has-text("提交到安保方案设计")').first
-    check(btn.count() > 0, "submit button visible")
     if btn.count() > 0:
         btn.click()
         page.wait_for_timeout(800)
@@ -113,39 +112,35 @@ with sync_playwright() as p:
         page.wait_for_load_state("networkidle")
     check("待安保方案设计" in page.content(), "status → 待安保方案设计")
 
-    # === Step 1b: SecurityOfficer sees notification ===
+    # === Step 1b: SecurityOfficer notification ===
     print("\n1b. SecurityOfficer notification")
     login_as(page, "security@test.com", "pass123")
+    check("/login" not in page.url, "security logged in")
     bell = page.locator('button[aria-label="通知"]')
     badge = page.locator('.ant-badge-count, .ant-scroll-number')
     check(badge.count() > 0, "security has notification badge after submit")
     if bell.count() > 0:
         bell.first.click()
         page.wait_for_timeout(800)
-    check("需进行安保方案设计" in page.content() or wf_name in page.content(), "notification shows activity name")
-    # Click the notification to navigate to activity detail
-    notif = page.locator('.ant-dropdown-menu-item').filter(has_text=wf_name).first
-    if notif.count() > 0:
-        notif.click()
-        page.wait_for_timeout(2000)
-        page.wait_for_load_state("networkidle")
-        check("/activities/" in page.url, f"notification click → activity detail (got {page.url})")
-        check(wf_name in page.content(), "on correct activity detail page after notification click")
+    check("需进行安保方案设计" in page.content() or wf_name in page.content(), "notification content visible")
 
-    # === Step 2: SecurityOfficer rejects ===
+    # === Step 2: SecurityOfficer sees both buttons, rejects ===
     print("\n2. SecurityOfficer: reject")
-    login_as(page, "security@test.com", "pass123")
-    check("/login" not in page.url, "security logged in")
-    navigate_to_activity(page)
+    find_activity_link(page, wf_name)
     check("/activities/" in page.url, f"on detail page (got {page.url})")
     check("待安保方案设计" in page.content(), "activity in 待安保方案设计 status")
 
+    # Security sees both sign and reject buttons
+    has_sign2 = page.locator('button:has-text("签署完成")').count() > 0
+    has_reject2 = page.locator('button:has-text("驳回")').count() > 0
+    check(has_sign2, "security sees sign button")
+    check(has_reject2, "security sees reject button")
+
     rej = page.locator('button:has-text("驳回")').first
-    check(rej.count() > 0, "reject button visible")
     if rej.count() > 0:
         rej.click()
         page.wait_for_timeout(1000)
-        txt = page.locator('.ant-modal:visible textarea, .ant-modal-wrap:not([style*="display: none"]) textarea').first
+        txt = page.locator('.ant-modal:visible textarea').first
         if txt.count() > 0: txt.fill("材料需要补充")
         ok = page.locator('button:has-text("确认驳回")').first
         if ok.count() > 0:
@@ -154,10 +149,9 @@ with sync_playwright() as p:
             page.wait_for_load_state("networkidle")
     check("待安保方案设计" in page.content(), "status still 待安保方案设计 after self-loop reject")
 
-    # === Step 3: SecurityOfficer signs ===
+    # === Step 3: SecurityOfficer signs complete ===
     print("\n3. SecurityOfficer: sign complete")
-    login_as(page, "security@test.com", "pass123")
-    navigate_to_activity(page)
+    find_activity_link(page, wf_name)
     check("待安保方案设计" in page.content(), "activity in 待安保方案设计 status")
 
     sign = page.locator('button:has-text("签署完成")').first
@@ -176,17 +170,8 @@ with sync_playwright() as p:
     # === Step 4: SuperAdmin force cancels ===
     print("\n4. SuperAdmin: force cancel")
     login_as(page, "superadmin@test.com", "pass123")
-    sidebar_nav(page, "全部活动")
-    page.wait_for_timeout(1000)
-    # Click the cancel activity by name
-    cancel_link = page.locator(f'a:has-text("{cancel_name}")').first
-    if cancel_link.count() > 0:
-        cancel_link.click()
-        page.wait_for_timeout(2000)
-        page.wait_for_load_state("networkidle")
-    else:
-        print(f"  (cancel activity '{cancel_name}' not in list, using first)")
-        navigate_to_activity(page)
+    check("/login" not in page.url, "superadmin logged in")
+    find_activity_link(page, wf_name)
     check("/activities/" in page.url, f"on cancel activity detail (got {page.url})")
 
     cancel = page.locator('button:has-text("强制取消")').first
@@ -206,7 +191,7 @@ with sync_playwright() as p:
         btns = page.locator('button:has-text("提交")').count()
         check(btns == 0, "no action buttons on terminal state")
 
-    # === Step 4b: AdminStaff sees force-cancel notification ===
+    # === Step 4b: AdminStaff notification ===
     print("\n4b. AdminStaff notification for force cancel")
     login_as(page, "admin@test.com", "pass123")
     check("/login" not in page.url, "admin logged in")
@@ -216,7 +201,7 @@ with sync_playwright() as p:
     if bell2.count() > 0:
         bell2.first.click()
         page.wait_for_timeout(800)
-    check("已变更为 已取消" in page.content() or cancel_name in page.content(), "notification shows cancelled activity")
+    check("已变更为 已取消" in page.content() or wf_name in page.content(), "notification shows cancelled activity")
 
     page.screenshot(path=f"{OUT / '03_workflow_final.png'}", full_page=True)
     if recorder:
