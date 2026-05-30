@@ -15,7 +15,7 @@ import {
   Popconfirm,
   message,
 } from "antd";
-import { StopOutlined, CheckOutlined, DeleteOutlined, EditOutlined } from "@ant-design/icons";
+import { StopOutlined, CheckOutlined, EditOutlined, LockOutlined, UndoOutlined } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminApi, type UserListItem, type UserOverview } from "@/api/admin";
 import { authApi } from "@/api/auth";
@@ -55,10 +55,19 @@ export default function UserManagementPage() {
     onError: (err: any) => message.error(err?.detail || "操作失败"),
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => adminApi.deleteUser(id),
+  const archiveMutation = useMutation({
+    mutationFn: (id: string) => adminApi.archiveUser(id),
     onSuccess: () => {
-      message.success("已删除");
+      message.success("已归档");
+      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+    },
+    onError: (err: any) => message.error(err?.detail || "操作失败"),
+  });
+
+  const unarchiveMutation = useMutation({
+    mutationFn: (id: string) => adminApi.unarchiveUser(id),
+    onSuccess: () => {
+      message.success("已取消归档");
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
     },
     onError: (err: any) => message.error(err?.detail || "操作失败"),
@@ -106,10 +115,13 @@ export default function UserManagementPage() {
     },
     {
       title: "状态",
-      dataIndex: "is_active",
-      key: "is_active",
-      render: (active: boolean) =>
-        active ? <Tag color="green">正常</Tag> : <Tag color="red">已禁用</Tag>,
+      key: "status",
+      render: (_: unknown, record: UserListItem) => (
+        <Space size={4}>
+          {record.is_active ? <Tag color="green">正常</Tag> : <Tag color="red">已禁用</Tag>}
+          {record.is_archived && <Tag color="default">已归档</Tag>}
+        </Space>
+      ),
     },
     {
       title: "注册时间",
@@ -159,14 +171,25 @@ export default function UserManagementPage() {
               </Button>
             </Popconfirm>
           )}
-          <Popconfirm
-            title="确认删除该用户？此操作不可撤销"
-            onConfirm={() => deleteMutation.mutate(record.id)}
-          >
-            <Button size="small" icon={<DeleteOutlined />} danger>
-              删除
-            </Button>
-          </Popconfirm>
+          {record.is_archived ? (
+            <Popconfirm
+              title="确认取消归档该用户？"
+              onConfirm={() => unarchiveMutation.mutate(record.id)}
+            >
+              <Button size="small" icon={<UndoOutlined />}>
+                取消归档
+              </Button>
+            </Popconfirm>
+          ) : (
+            <Popconfirm
+              title="确认归档该用户？归档后该用户将无法登录"
+              onConfirm={() => archiveMutation.mutate(record.id)}
+            >
+              <Button size="small" icon={<LockOutlined />} danger>
+                归档
+              </Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -215,9 +238,12 @@ export default function UserManagementPage() {
               <Descriptions.Item label="邮箱">{overview.email}</Descriptions.Item>
               <Descriptions.Item label="显示名称">{overview.display_name}</Descriptions.Item>
               <Descriptions.Item label="状态">
-                <Tag color={overview.is_active ? "green" : "red"}>
-                  {overview.is_active ? "正常" : "已禁用"}
-                </Tag>
+                <Space size={4}>
+                  <Tag color={overview.is_active ? "green" : "red"}>
+                    {overview.is_active ? "正常" : "已禁用"}
+                  </Tag>
+                  {overview.is_archived && <Tag color="default">已归档</Tag>}
+                </Space>
               </Descriptions.Item>
               <Descriptions.Item label="角色">
                 {overview.roles.map((r) => (

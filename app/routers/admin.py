@@ -160,6 +160,7 @@ async def list_users(
             email=u.email,
             display_name=u.display_name,
             is_active=u.is_active,
+            is_archived=u.is_archived,
             roles=roles,
             created_at=u.created_at,
         ))
@@ -197,6 +198,7 @@ async def get_user(
         email=u.email,
         display_name=u.display_name,
         is_active=u.is_active,
+        is_archived=u.is_archived,
         roles=roles,
         permissions=permissions,
         created_at=u.created_at,
@@ -261,7 +263,8 @@ async def get_user_overview(
 
     return UserOverview(
         id=u.id, email=u.email, display_name=u.display_name,
-        is_active=u.is_active, roles=roles, created_at=u.created_at,
+        is_active=u.is_active, is_archived=u.is_archived,
+        roles=roles, created_at=u.created_at,
         login_history=login_history, recent_actions=actions,
     )
 
@@ -309,6 +312,7 @@ async def update_user_roles(
         email=u.email,
         display_name=u.display_name,
         is_active=u.is_active,
+        is_archived=u.is_archived,
         roles=roles,
         permissions=permissions,
         created_at=u.created_at,
@@ -352,6 +356,7 @@ async def update_user_status(
         email=u.email,
         display_name=u.display_name,
         is_active=u.is_active,
+        is_archived=u.is_archived,
         roles=roles,
         permissions=permissions,
         created_at=u.created_at,
@@ -359,8 +364,8 @@ async def update_user_status(
     )
 
 
-@router.delete("/users/{user_id}")
-async def delete_user(
+@router.post("/users/{user_id}/archive")
+async def archive_user(
     user_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -370,8 +375,22 @@ async def delete_user(
     if u is None:
         raise NotFoundError("用户不存在")
     if u.id == current_user.id:
-        raise ConflictError("不能删除自己")
-
-    await db.delete(u)
+        raise ConflictError("不能归档自己")
+    u.is_archived = True
     await db.commit()
-    return {"message": "已删除"}
+    return {"message": "已归档"}
+
+
+@router.post("/users/{user_id}/unarchive")
+async def unarchive_user(
+    user_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _perm: None = require_permission("administer_users"),
+):
+    u = await db.get(User, user_id)
+    if u is None:
+        raise NotFoundError("用户不存在")
+    u.is_archived = False
+    await db.commit()
+    return {"message": "已取消归档"}
