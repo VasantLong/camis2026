@@ -8,10 +8,12 @@ class ActivityCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     type: str = Field(min_length=1, max_length=128)
     estimated_time: datetime
-    location: str = Field(min_length=1, max_length=512)
+    location: str = Field(min_length=1, max_length=256)
     sponsor: str = Field(min_length=1, max_length=255)
+    sponsor_contact: str = Field(min_length=1, max_length=128)
+    sponsor_phone: str = Field(min_length=1, max_length=64)
     deadline: datetime
-    designer_id: UUID
+    designer_id: UUID | None = None
 
 
 class ActivityResponse(BaseModel):
@@ -21,9 +23,12 @@ class ActivityResponse(BaseModel):
     estimated_time: datetime
     location: str
     sponsor: str
+    sponsor_contact: str | None = None
+    sponsor_phone: str | None = None
     deadline: datetime
     status: str
     owner_id: UUID
+    designer_id: UUID | None = None
     created_at: datetime
     updated_at: datetime
 

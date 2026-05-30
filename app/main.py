@@ -51,3 +51,20 @@ app.include_router(admin.router)
 app.include_router(notifications.router)
 
 app.add_exception_handler(AppError, app_error_handler)
+
+
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc: RequestValidationError):
+    field_names = {"name": "活动名称", "type": "活动类型", "estimated_time": "预计举办时间",
+                   "location": "举办地点", "sponsor": "主办方", "sponsor_contact": "主办方联系人",
+                   "sponsor_phone": "主办方联系方式", "deadline": "截止日期", "designer_id": "方案编制人"}
+    msgs = []
+    for err in exc.errors():
+        loc = err["loc"][-1] if err["loc"] else "?"
+        field = field_names.get(str(loc), str(loc))
+        msg = err.get("msg", "").replace("field required", "必填").replace("ensure this value has at least", "至少需要")
+        msgs.append(f"{field}: {msg}")
+    return JSONResponse(status_code=422, content={"detail": "; ".join(msgs)})

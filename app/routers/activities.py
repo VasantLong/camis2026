@@ -77,6 +77,8 @@ async def create_activity(
     _perm: None = require_permission("create_activity"),
 ):
     try:
+        if body.designer_id is None:
+            body.designer_id = current_user.id
         return await svc.create(current_user.id, body)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT if "冲突" in str(e) else status.HTTP_400_BAD_REQUEST, detail=str(e))

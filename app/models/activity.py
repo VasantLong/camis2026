@@ -17,6 +17,8 @@ class Activity(Base):
     estimated_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     location: Mapped[str] = mapped_column(String(512), nullable=False)
     sponsor: Mapped[str] = mapped_column(String(255), nullable=False)
+    sponsor_contact: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    sponsor_phone: Mapped[str | None] = mapped_column(String(64), nullable=True)
     deadline: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     status: Mapped[str] = mapped_column(String(64), default="待设计方案", nullable=False)
     owner_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)

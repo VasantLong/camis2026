@@ -43,6 +43,8 @@ class ActivityService:
     async def create(self, owner_id: UUID, data: ActivityCreate) -> ActivityResponse:
         if data.deadline <= datetime.now(timezone.utc):
             raise ValueError("截止时间不能早于当前时间")
+        if data.deadline >= data.estimated_time:
+            raise ValueError("截止时间必须早于预计举办时间")
 
         conflict = await self.db.execute(
             select(Activity).where(
