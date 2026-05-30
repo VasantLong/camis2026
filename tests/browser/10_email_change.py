@@ -99,11 +99,11 @@ with sync_playwright() as p:
     page.goto(verify_url)
     page.wait_for_timeout(5000)
     page.wait_for_load_state("networkidle")
-    # After redirect flows through AuthInitializer, should land on /profile or protected page
-    on_profile = "/profile" in page.url
-    not_error = "/403" not in page.url
-    check(on_profile or not_error,
-          f"验证后进入受保护页面 (got {page.url})")
+    # After new flow: redirect to /login?verified=1, show success alert
+    on_login = "/login" in page.url
+    has_verified = "verified=1" in page.url
+    check(on_login and has_verified,
+          f"验证后跳转到登录页并显示成功提示 (got {page.url})")
 
     # ── User: 登出后用新邮箱登录 → 成功 ──
     print("7. 登出后用新邮箱登录")

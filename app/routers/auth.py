@@ -78,7 +78,7 @@ async def register(body: RegisterRequest, response: Response, bg: BackgroundTask
     db.add(user)
     await db.commit()
     await db.refresh(user)
-    token = create_access_token(str(user.id))
+    token = create_access_token(str(user.id), user.email)
     refresh = await create_refresh_token(db, str(user.id))
     response.set_cookie(
         key="refresh_token", value=refresh,
@@ -115,7 +115,7 @@ async def login(body: LoginRequest, response: Response, request: Request, db=Dep
         )
 
     await record_login_attempt(db, body.email, True)
-    token = create_access_token(str(user.id))
+    token = create_access_token(str(user.id), user.email)
     refresh = await create_refresh_token(db, str(user.id))
     response.set_cookie(
         key="refresh_token", value=refresh,
@@ -290,8 +290,9 @@ async def verify_email(token: str = Query(...), db=Depends(get_db)):
     user.email = new_email
     db.add(user)
     await db.commit()
+    await revoke_user_tokens(db, user_id)
 
-    return RedirectResponse(url="http://localhost:5173/profile")
+    return RedirectResponse(url="http://localhost:5173/login?verified=1")
 
 
 @router.post("/refresh", response_model=TokenResponse)
@@ -310,7 +311,7 @@ async def refresh(response: Response, refresh_token: str = Cookie(None), db=Depe
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
-    access = create_access_token(str(user.id))
+    access = create_access_token(str(user.id), user.email)
     new_refresh = await create_refresh_token(db, str(user.id))
     response.set_cookie(
         key="refresh_token", value=new_refresh,

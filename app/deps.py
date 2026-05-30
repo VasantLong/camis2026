@@ -27,4 +27,7 @@ async def get_current_user(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="该账号已被归档")
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="该账号已被禁用")
+    token_email = payload.get("email")
+    if token_email and token_email != user.email:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="邮箱已更改，请用新邮箱重新登录")
     return user

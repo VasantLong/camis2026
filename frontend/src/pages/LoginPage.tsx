@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Form, Input, Button, Card, Typography, message } from "antd";
+import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
+import { Form, Input, Button, Card, Typography, Alert, message } from "antd";
 import { MailOutlined, LockOutlined } from "@ant-design/icons";
 import { authApi } from "@/api/auth";
 import { useAuthStore } from "@/stores/authStore";
@@ -9,6 +9,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const setAccessToken = useAuthStore((s) => s.setAccessToken);
   const setUser = useAuthStore((s) => s.setUser);
 
@@ -47,6 +48,13 @@ export default function LoginPage() {
         <Typography.Title level={3} style={{ textAlign: "center" }}>
           欢迎使用 CAMIS
         </Typography.Title>
+        {searchParams.get("verified") === "1" && (
+          <Alert
+            type="success"
+            message="邮箱验证成功，请用新邮箱重新登录"
+            style={{ marginBottom: 16 }}
+          />
+        )}
         <Form layout="vertical" onFinish={onFinish} size="large">
           <Form.Item
             name="email"
