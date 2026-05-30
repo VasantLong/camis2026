@@ -23,7 +23,7 @@ export default function AppLayout() {
   };
 
   return (
-    <Layout style={{ minHeight: "100vh" }}>
+    <Layout style={{ height: "100vh" }}>
       <Sider breakpoint="lg" collapsedWidth="0">
         <div
           style={{
@@ -39,7 +39,7 @@ export default function AppLayout() {
         </div>
         <Sidebar />
       </Sider>
-      <Layout>
+      <Layout style={{ overflow: "hidden" }}>
         <Header
           style={{
             background: "#fff",
@@ -66,7 +66,7 @@ export default function AppLayout() {
             </Button>
           </Dropdown>
         </Header>
-        <Content>
+        <Content style={{ overflow: "auto" }}>
           <Outlet />
         </Content>
       </Layout>
