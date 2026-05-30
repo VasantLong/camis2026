@@ -28,6 +28,7 @@ def _service(db=Depends(get_db)) -> ActivityService:
     return ActivityService(db)
 
 
+PROMOTER_STATUSES = {"待设计方案"}
 SECURITY_OFFICER_STATUSES = {"待安保方案设计"}
 SECURITY_MANAGER_STATUSES = {
     "待安保方案设计", "待备案申请", "备案材料已交接",
@@ -61,9 +62,9 @@ async def _visibility(current_user: User, db) -> tuple[UUID | None, set[str] | N
     if "GovLiaison" in roles:
         return None, GOV_LIAISON_STATUSES
 
-    # Promoter 看自己创建的所有状态
+    # Promoter 只看待设计方案（待操作），已完成=操作过的活动
     if "Promoter" in roles:
-        return current_user.id, None
+        return current_user.id, PROMOTER_STATUSES
 
     return current_user.id, None
 
