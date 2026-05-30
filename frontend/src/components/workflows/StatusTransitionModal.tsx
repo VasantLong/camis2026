@@ -18,6 +18,7 @@ export default function StatusTransitionModal({
   onClose,
   onSuccess,
 }: Props) {
+  const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (values: { comment?: string }) => {
@@ -47,25 +48,18 @@ export default function StatusTransitionModal({
       title="状态变更"
       open={open}
       onCancel={onClose}
-      onOk={() => {
-        const form = document.querySelector<HTMLFormElement>(
-          "#transition-form form"
-        );
-        form?.requestSubmit();
-      }}
+      onOk={() => form.submit()}
       confirmLoading={loading}
     >
       <p>
         目标状态:{" "}
         <Tag color={STATUS_COLOR_MAP[toStatus] || "blue"}>{toStatus}</Tag>
       </p>
-      <div id="transition-form">
-        <Form layout="vertical" onFinish={handleSubmit}>
-          <Form.Item name="comment" label="备注（可选）">
-            <Input.TextArea maxLength={2000} rows={3} />
-          </Form.Item>
-        </Form>
-      </div>
+      <Form form={form} layout="vertical" onFinish={handleSubmit}>
+        <Form.Item name="comment" label="备注（可选）">
+          <Input.TextArea maxLength={2000} rows={3} />
+        </Form.Item>
+      </Form>
     </Modal>
   );
 }
