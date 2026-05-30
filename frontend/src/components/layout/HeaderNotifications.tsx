@@ -41,7 +41,9 @@ export default function HeaderNotifications() {
 
   const handleClick = (item: NotificationItem) => {
     setOpen(false);
-    if (item.reference_type === "activity" && item.reference_id) {
+    if (item.reference_type === "report" && item.reference_id) {
+      window.open(`/api/dashboard/reports/${item.reference_id}`, "_blank");
+    } else if (item.reference_type === "activity" && item.reference_id) {
       navigate(`/activities/${item.reference_id}`);
     } else {
       navigate("/activities?tab=pending");
