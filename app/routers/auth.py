@@ -108,6 +108,12 @@ async def login(body: LoginRequest, response: Response, request: Request, db=Dep
             detail="该账号已被归档，请联系管理员",
         )
 
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="该账号已被禁用",
+        )
+
     await record_login_attempt(db, body.email, True)
     token = create_access_token(str(user.id))
     refresh = await create_refresh_token(db, str(user.id))

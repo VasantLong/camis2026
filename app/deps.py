@@ -25,4 +25,6 @@ async def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     if user.is_archived:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="该账号已被归档")
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="该账号已被禁用")
     return user
