@@ -71,16 +71,20 @@ with sync_playwright() as p:
     page.fill('input[placeholder="邮箱"]', "testuser@test.com")
     page.fill('input[type="password"]', "pass123")
     page.click('button[type="submit"]')
-    page.wait_for_timeout(3000)
+    page.wait_for_timeout(1000)
     still_login = "/login" in page.url
     check(still_login, f"stayed on /login after archive login attempt (got {page.url})")
     check("该账号已被归档" in page.content(), "archive error toast visible")
 
     # === Step 2: Unarchive + ensure active ===
-    print("\n2. Unarchive testuser")
+    print("\n2. Unarchive + ensure active")
     result2 = api_post(f"/admin/users/{uid}/unarchive", {}, sa_token)
     check(result2.get("message") == "已取消归档", f"unarchive success: {result2}")
-    api_patch(f"/admin/users/{uid}/status", {"is_active": True}, sa_token)
+    patch_result = api_patch(f"/admin/users/{uid}/status", {"is_active": True}, sa_token)
+    check(patch_result.get("is_active") == True, f"ensure active: is_active={patch_result.get('is_active')}")
+    # Verify final state
+    u = api_get(f"/admin/users/{uid}", sa_token)
+    check(u.get("is_active") == True and not u.get("is_archived"), "testuser is active and not archived")
 
     # === Step 3: Unarchived user can login ===
     print("\n3. Unarchived user login succeeds")
