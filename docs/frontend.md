@@ -26,6 +26,7 @@ frontend/src/
 │   ├── filings.ts          # validate, pack, handover
 │   ├── materials.ts        # list, sign, audit, auditHistory
 │   ├── roleRequest.ts      # submit role request
+│   ├── notifications.ts    # list, unreadCount, markRead, markAllRead
 │   └── dashboard.ts        # panel, activityDetail, monthlyReport
 ├── stores/
 │   └── authStore.ts        # Zustand: user, accessToken, permissions, isAuthenticated
@@ -92,23 +93,17 @@ frontend/src/
 
 ## 通知系统
 
-- 后端 `notifications` 表含 `message`、`is_read`、`created_at`，无 `reference_id` 字段
-- 前端 `HeaderNotifications` 显示最近通知列表，点击统一跳 `/activities?tab=pending`
-- 通知由工作流状态变更时 `NotificationService.notify_role()` 自动生成
-
-**待实现:**
-- 通知关联活动 ID，点击单条通知直接跳活动详情
-- 月报后台生成完成后推送通知到消息中心
+- 后端 `notifications` 表含 `reference_id`、`reference_type`，LEFT JOIN activities 取活动名
+- 前端 `HeaderNotifications`：铃铛 badge → 下拉面板（活动名加粗 + 消息灰色）→ 点击跳活动详情或下载报告
+- 通知由工作流状态变更时 `NotificationService.notify_role()` 自动生成，带 `reference_id` 和 `reference_type`
+- 打开下拉自动标记全部已读，已读 30 天自动过滤
 
 ## Dashboard 月报
 
 - `ReportExport.tsx`：月份选择器 → POST `/dashboard/reports/monthly`
-- 后端同步生成 PDF 上传 MinIO，前端收到 `report_url` 但不使用，仅展示 toast
-
-**待实现:**
-- 后端改为 BackgroundTasks 异步生成，完成后推送通知
-- 前端移除 `report_url` 处理，用户通过消息中心获取报表
-- 通知关联 `reference_type="report"` 提供下载链接
+- 后端 `BackgroundTasks` 异步生成 PDF 上传 MinIO，完成后推送通知（`reference_type="report"`）
+- 前端收到 toast "报表生成中…"，用户通过铃铛通知点击下载 PDF
+- `GET /dashboard/reports/{month}` 下载端点
 
 ## 路由
 
@@ -132,7 +127,7 @@ frontend/src/
 ```
 登录 POST /api/auth/login
   → access_token 存 Zustand authStore
-  → refresh_token 由浏览器自动管理 (httpOnly cookie, path=/auth, 7 天)
+  → refresh_token 由浏览器自动管理 (httpOnly cookie, path=/, 7 天)
 
 后续请求
   → axios 请求拦截器: Authorization: Bearer <token>
@@ -179,7 +174,7 @@ App 启动
 | 待设计方案     | 提交→待安保方案设计                   | `submit_plan`                         |
 | 待安保方案设计 | 驳回（内部循环）、签署完成→待备案申请 | `reject_approval`, `manage_security`  |
 | 待备案申请     | （备案 tab 中操作）                   | `pack_filing`                         |
-| 备案材料已交接 | 通过/补件/驳回                        | `manage_security`                     |
+| 备案材料已交接 | 通过/补件/驳回                        | `audit_material`                      |
 | 待补充备案材料 | 重新递交                              | `manage_security`                     |
 | 审批通过       | 确认通过、驳回（逆向流转）            | `confirm_approval`, `reject_approval` |
 | 任意非终态     | 强制取消、强制延期                    | `force_cancel`, `force_postpone`      |
@@ -204,9 +199,8 @@ App 启动
 - [ ] Docker 服务运行（PostgreSQL + MinIO + Redis）
 - [ ] FastAPI 监听 8000 端口
 
-## 待补充
+## 已知问题
 
-- [ ] E2E 测试（Playwright/Cypress）
-- [ ] 消息中心页面（Notification 列表，后端需新增 `GET /notifications` 端点）
-- [ ] 用户选择器组件（创活动时选 designer，目前 designer_id 未在表单中暴露）
+- [ ] 浏览器测试覆盖不完整（部分角色操作路径未验证）
 - [ ] `@ant-design/charts` 图表库（当前用 Progress 条替代饼图）
+- [ ] F5 刷新 StrictMode 兼容（详见 `docs/issues/auth-initializer-strictmode.md`）
