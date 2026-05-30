@@ -31,7 +31,7 @@ roles ──< role_permissions >── permissions
 | **SecurityManager** | 安保部 | 审核安保方案、状态流转、确认审批结果 | 7 |
 | **AdminStaff** | 行政部 | 监控活动面板、强制变更状态 | 4 |
 | **SecurityOfficer** | 安保部 | 上传材料、电子签署、打包备案、状态流转 | 6 |
-| **Promoter** | 宣策部 | 创建立项、编制活动方案、提交安保审核 | 4 |
+| **Promoter** | 宣策部 | 创建立项、编制活动方案、提交安保审核 (submit_plan) | 4 |
 | **GovLiaison** | 政府对接 | 上传批文、审查材料合规性、标注审批结果 | 4 |
 
 ---
@@ -47,7 +47,7 @@ roles ──< role_permissions >── permissions
 | 权限名 | 资源 | 操作 | 对应用例 |
 |--------|------|------|---------|
 | `create_activity` | activities | create | 创建活动 |
-| `manage_security` | activities | manage_security | 提交到安保方案设计 |
+| `submit_plan` | activities | submit_plan | 提交到安保方案设计 |
 | `upload_plan` | activities | upload_plan | 上传活动方案文件 |
 | `view_owned_activity` | activities | view_owned | 查看自己创建的活动列表和详情 |
 
@@ -65,13 +65,12 @@ roles ──< role_permissions >── permissions
 | `upload_security_material` | documents | upload | 上传安保材料 |
 | `pack_filing` | filing | pack | 校验材料、打包、纸质交接 |
 
-### SecurityOfficer（6 项）
+### SecurityOfficer（5 项）
 
 | 权限名 | 资源 | 操作 | 对应用例 |
 |--------|------|------|---------|
 | `view_owned_activity` | activities | view_owned | 查看活动列表和详情 |
 | `manage_security` | activities | manage_security | 状态流转（签署完成） |
-| `reject_approval` | activities | reject_approval | 驳回（内部循环） |
 | `upload_security_material` | documents | upload | 上传安保材料 |
 | `sign_document` | documents | sign | 对上传的材料电子签署 |
 | `pack_filing` | filing | pack | 校验材料、打包、纸质交接 |
