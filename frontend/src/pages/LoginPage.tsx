@@ -14,7 +14,7 @@ export default function LoginPage() {
 
   const from =
     (location.state as { from?: { pathname: string } })?.from?.pathname ||
-    "/activities";
+    "/profile";
 
   const onFinish = async (values: { email: string; password: string }) => {
     setLoading(true);

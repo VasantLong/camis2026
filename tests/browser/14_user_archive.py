@@ -96,8 +96,7 @@ with sync_playwright() as p:
     page.click('button[type="submit"]')
     page.wait_for_timeout(3000)
     page.wait_for_load_state("networkidle")
-    not_login = "/login" not in page.url
-    check(not_login, f"取消归档后离开 /login (got {page.url})")
+    check("/profile" in page.url, f"取消归档后登录到 /profile (got {page.url})")
 
     page.screenshot(path=f"{OUT / '14_user_archive_final.png'}", full_page=True)
     if recorder:
