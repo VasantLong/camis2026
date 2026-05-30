@@ -641,6 +641,7 @@ classDiagram
         +String display_name
         +String password_hash
         +Boolean is_active
+        +Boolean is_archived
         +DateTime created_at
         +DateTime updated_at
     }

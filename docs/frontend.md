@@ -54,7 +54,7 @@ frontend/src/
 │   │   └── ProfilePage.tsx         # 用户信息、角色状态、角色申请
 │   └── admin/
 │       ├── RoleRequestsPage.tsx    # 待审批角色申请表格
-│       └── UserManagementPage.tsx  # 用户列表、角色编辑、禁用/删除
+│       └── UserManagementPage.tsx  # 用户列表、角色编辑、禁用/归档
 ├── components/
 │   ├── auth/
 │   │   ├── AuthInitializer.tsx     # App 启动时静默 refresh

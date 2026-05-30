@@ -55,7 +55,8 @@ camis2026/
 │   ├── 05-notifications.sql
 │   ├── 06-refresh-tokens.sql       # refresh token + login_attempts
 │   ├── 07-superadmin.sql           # SuperAdmin + 角色申请表
-│   └── 08-filing-workflow.sql      # 备案材料 seed
+│   ├── 08-filing-workflow.sql      # 备案材料 seed
+│   └── 09-user-archive.sql          # 用户归档 (is_archived)
 ├── scripts/
 │   ├── seed_test_activities.py     # 创建测试用户 + 12 种子活动
 │   └── create_devtest_user.py      # 全能测试用户 (devtest)
