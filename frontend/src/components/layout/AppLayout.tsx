@@ -4,6 +4,7 @@ import { Outlet, useNavigate } from "react-router-dom";
 import { authApi } from "@/api/auth";
 import { useAuthStore } from "@/stores/authStore";
 import Sidebar from "./Sidebar";
+import HeaderNotifications from "./HeaderNotifications";
 
 const { Header, Sider, Content } = Layout;
 
@@ -49,7 +50,8 @@ export default function AppLayout() {
             alignItems: "center",
           }}
         >
-          <Dropdown
+          <HeaderNotifications />
+        <Dropdown
             menu={{
               items: [
                 {

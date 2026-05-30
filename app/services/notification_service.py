@@ -6,10 +6,14 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sqlalchemy import update
+
 from app.models.notification import Notification
 from app.models.rbac import UserRole
 
 logger = logging.getLogger(__name__)
+
+READ_EXPIRE_DAYS = 30
 
 
 class NotificationService:
@@ -56,3 +60,46 @@ class NotificationService:
             notif = Notification(user_id=activity.owner_id, message=msg, channel="system")
             self.db.add(notif)
             await self.db.commit()
+
+    async def list_for_user(self, user_id: UUID, limit: int = 10) -> list[Notification]:
+        from datetime import datetime, timedelta, timezone
+        cutoff = datetime.now(timezone.utc) - timedelta(days=READ_EXPIRE_DAYS)
+        result = await self.db.execute(
+            select(Notification)
+            .where(
+                Notification.user_id == user_id,
+                Notification.created_at >= cutoff,
+            )
+            .order_by(Notification.created_at.desc())
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def count_unread(self, user_id: UUID) -> int:
+        from datetime import datetime, timedelta, timezone
+        cutoff = datetime.now(timezone.utc) - timedelta(days=READ_EXPIRE_DAYS)
+        result = await self.db.execute(
+            select(Notification)
+            .where(
+                Notification.user_id == user_id,
+                Notification.is_read == False,
+                Notification.created_at >= cutoff,
+            )
+        )
+        return len(list(result.scalars().all()))
+
+    async def mark_read(self, notification_id: UUID, user_id: UUID) -> None:
+        await self.db.execute(
+            update(Notification)
+            .where(Notification.id == notification_id, Notification.user_id == user_id)
+            .values(is_read=True)
+        )
+        await self.db.commit()
+
+    async def mark_all_read(self, user_id: UUID) -> None:
+        await self.db.execute(
+            update(Notification)
+            .where(Notification.user_id == user_id, Notification.is_read == False)
+            .values(is_read=True)
+        )
+        await self.db.commit()
