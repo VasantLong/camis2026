@@ -223,7 +223,7 @@ export default function UserManagementPage() {
         title="用户详情"
         open={!!detailUser}
         onClose={() => setDetailUser(null)}
-        width={480}
+        size="large"
       >
         {overviewLoading ? (
           <Spin />
