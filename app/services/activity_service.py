@@ -136,6 +136,56 @@ class ActivityService:
 
         return [ActivityResponse.model_validate(r) for r in rows], total
 
+    async def list_completed(
+        self, user_id: UUID, owner_filter: UUID | None,
+        allowed_statuses: set[str] | None, page: int, size: int,
+        status_filter: str | None = None, keyword: str | None = None,
+        date_from: str | None = None, date_to: str | None = None,
+    ) -> tuple[list[ActivityResponse], int]:
+        """已完成：当前用户操作过 且 当前状态不在待操作集中"""
+        from datetime import datetime
+
+        operated_ids = select(ActivityStatusLog.activity_id.distinct()).where(
+            ActivityStatusLog.operator_id == user_id
+        ).subquery()
+
+        query = select(Activity).where(Activity.id.in_(operated_ids))
+        count_query = select(func.count(Activity.id)).where(Activity.id.in_(operated_ids))
+
+        if allowed_statuses:
+            query = query.where(Activity.status.not_in(allowed_statuses))
+            count_query = count_query.where(Activity.status.not_in(allowed_statuses))
+        if owner_filter:
+            query = query.where(Activity.owner_id == owner_filter)
+            count_query = count_query.where(Activity.owner_id == owner_filter)
+        if status_filter:
+            query = query.where(Activity.status == status_filter)
+            count_query = count_query.where(Activity.status == status_filter)
+        if keyword:
+            kw = f"%{keyword}%"
+            query = query.where(or_(Activity.name.ilike(kw), Activity.sponsor.ilike(kw)))
+            count_query = count_query.where(or_(Activity.name.ilike(kw), Activity.sponsor.ilike(kw)))
+        if date_from:
+            d = datetime.fromisoformat(date_from) if isinstance(date_from, str) else date_from
+            query = query.where(Activity.estimated_time >= d)
+            count_query = count_query.where(Activity.estimated_time >= d)
+        if date_to:
+            d = datetime.fromisoformat(date_to) if isinstance(date_to, str) else date_to
+            query = query.where(Activity.estimated_time <= d)
+            count_query = count_query.where(Activity.estimated_time <= d)
+
+        total = (await self.db.execute(count_query)).scalar() or 0
+
+        offset = (page - 1) * size
+        rows = (await self.db.execute(
+            query.order_by(Activity.created_at.desc()).offset(offset).limit(size)
+        )).scalars().all()
+
+        for r in rows:
+            await self._auto_start_if_due(r)
+
+        return [ActivityResponse.model_validate(r) for r in rows], total
+
     async def get_status_history(self, activity_id: UUID) -> list[StatusLogEntry]:
         rows = (await self.db.execute(
             select(ActivityStatusLog)

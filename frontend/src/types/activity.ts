@@ -34,6 +34,7 @@ export interface ActivityListParams {
   date_to?: string;
   page?: number;
   size?: number;
+  tab?: string;
 }
 
 export interface StatusLogEntry {

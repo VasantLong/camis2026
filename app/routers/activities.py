@@ -89,6 +89,7 @@ async def list_activities(
     date_to: str | None = None,
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
+    tab: str | None = Query(None, pattern="^(pending|completed)$"),
     current_user: User = Depends(get_current_user),
     svc: ActivityService = Depends(_service),
     _perm: None = require_permission("view_owned_activity"),
@@ -97,15 +98,20 @@ async def list_activities(
     from datetime import datetime
 
     owner_id, allowed = await _visibility(current_user, db)
-    params = ActivityListParams(
-        status=status_filter,
-        keyword=keyword,
-        date_from=datetime.fromisoformat(date_from) if date_from else None,
-        date_to=datetime.fromisoformat(date_to) if date_to else None,
-        page=page,
-        size=size,
-    )
-    items, total = await svc.list(params, owner_id, allowed)
+
+    if tab == "completed":
+        items, total = await svc.list_completed(current_user.id, owner_id, allowed, page, size,
+            status_filter, keyword, date_from, date_to)
+    else:
+        params = ActivityListParams(
+            status=status_filter,
+            keyword=keyword,
+            date_from=datetime.fromisoformat(date_from) if date_from else None,
+            date_to=datetime.fromisoformat(date_to) if date_to else None,
+            page=page,
+            size=size,
+        )
+        items, total = await svc.list(params, owner_id, allowed)
     return ActivityPaginatedResponse(items=items, total=total)
 
 

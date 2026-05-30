@@ -1,5 +1,5 @@
 import { useSearchParams } from "react-router-dom";
-import { Button, Typography } from "antd";
+import { Button, Tabs, Typography } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import { useActivities } from "@/hooks/useActivityQueries";
 import ActivityFilters from "@/components/activities/ActivityFilters";
@@ -9,10 +9,11 @@ import { useAuthStore } from "@/stores/authStore";
 
 export default function ActivityListPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const userPermissions = useAuthStore((s) => s.user?.permissions);
   const permissions = userPermissions ?? [];
 
+  const tab = searchParams.get("tab") || "pending";
   const params = {
     status: searchParams.get("status") || undefined,
     keyword: searchParams.get("keyword") || undefined,
@@ -20,11 +21,19 @@ export default function ActivityListPage() {
     date_to: searchParams.get("date_to") || undefined,
     page: Number(searchParams.get("page") || "1"),
     size: Number(searchParams.get("size") || "20"),
+    tab,
   };
 
   const { data: paginated, isLoading } = useActivities(params);
   const data = paginated?.items ?? [];
   const total = paginated?.total ?? 0;
+
+  const setTab = (key: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.set("tab", key);
+    next.delete("page");
+    setSearchParams(next);
+  };
 
   return (
     <div style={{ padding: 24 }}>
@@ -49,6 +58,14 @@ export default function ActivityListPage() {
           </Button>
         )}
       </div>
+      <Tabs
+        activeKey={tab}
+        onChange={setTab}
+        items={[
+          { key: "pending", label: "待操作" },
+          { key: "completed", label: "已完成" },
+        ]}
+      />
       <ActivityFilters />
       <ActivityTable data={data} total={total} loading={isLoading} />
     </div>
