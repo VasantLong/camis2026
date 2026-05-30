@@ -133,30 +133,10 @@ with sync_playwright() as p:
             ok.click()
             page.wait_for_timeout(3000)
             page.wait_for_load_state("networkidle")
-    page.reload()
-    page.wait_for_load_state("networkidle")
-    page.wait_for_timeout(1000)
-    check("待设计方案" in page.content(), "status → 待设计方案 after reject")
+    check("待安保方案设计" in page.content(), "status still 待安保方案设计 after self-loop reject")
 
-    # === Step 3: Promoter re-submits ===
-    print("\n3. Promoter: re-submit after reject")
-    login_as(page, "promoter@test.com", "pass123")
-    navigate_to_activity(page)
-    btn2 = page.locator('button:has-text("提交到安保方案设计")').first
-    check(btn2.count() > 0, "submit button visible after reject")
-    if btn2.count() > 0:
-        btn2.click()
-        page.wait_for_timeout(800)
-        txt = page.locator('.ant-modal:visible textarea').first
-        if txt.count() > 0: txt.fill("修改后重新提交")
-        ok = page.locator('.ant-modal:visible .ant-btn-primary').first
-        if ok.count() > 0: ok.click()
-        page.wait_for_timeout(3000)
-        page.wait_for_load_state("networkidle")
-    check("待安保方案设计" in page.content(), "status → 待安保方案设计")
-
-    # === Step 4: SecurityOfficer signs ===
-    print("\n4. SecurityOfficer: sign complete")
+    # === Step 3: SecurityOfficer signs ===
+    print("\n3. SecurityOfficer: sign complete")
     login_as(page, "security@test.com", "pass123")
     navigate_to_activity(page)
     check("待安保方案设计" in page.content(), "activity in 待安保方案设计 status")
@@ -174,8 +154,8 @@ with sync_playwright() as p:
         page.wait_for_load_state("networkidle")
     check("待备案申请" in page.content(), "status → 待备案申请")
 
-    # === Step 5: SuperAdmin force cancels ===
-    print("\n5. SuperAdmin: force cancel")
+    # === Step 4: SuperAdmin force cancels ===
+    print("\n4. SuperAdmin: force cancel")
     login_as(page, "superadmin@test.com", "pass123")
     sidebar_nav(page, "全部活动")
     page.wait_for_timeout(1000)

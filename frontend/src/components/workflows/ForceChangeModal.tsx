@@ -17,6 +17,7 @@ export default function ForceChangeModal({
   onClose,
   onSuccess,
 }: Props) {
+  const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
 
@@ -54,12 +55,7 @@ export default function ForceChangeModal({
         setConfirmed(false);
         onClose();
       }}
-      onOk={() => {
-        const form = document.querySelector<HTMLFormElement>(
-          "#force-form form"
-        );
-        form?.requestSubmit();
-      }}
+      onOk={() => form.submit()}
       confirmLoading={loading}
       okText="确认"
       okButtonProps={{ danger: true, disabled: !confirmed }}
@@ -68,17 +64,15 @@ export default function ForceChangeModal({
       <Checkbox checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)}>
         我已知晓此操作不可撤销
       </Checkbox>
-      <div id="force-form" style={{ marginTop: 16 }}>
-        <Form layout="vertical" onFinish={handleSubmit}>
-          <Form.Item
-            name="reason"
-            label="原因"
-            rules={[{ required: true, message: "请输入原因" }]}
-          >
-            <Input.TextArea maxLength={2000} rows={3} />
-          </Form.Item>
-        </Form>
-      </div>
+      <Form form={form} layout="vertical" onFinish={handleSubmit} style={{ marginTop: 16 }}>
+        <Form.Item
+          name="reason"
+          label="原因"
+          rules={[{ required: true, message: "请输入原因" }]}
+        >
+          <Input.TextArea maxLength={2000} rows={3} />
+        </Form.Item>
+      </Form>
     </Modal>
   );
 }

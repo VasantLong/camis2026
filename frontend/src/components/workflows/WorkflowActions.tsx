@@ -32,7 +32,6 @@ export default function WorkflowActions({ activityId, currentStatus }: Props) {
 
   const onSuccess = () => {
     qc.invalidateQueries({ queryKey: ["activities", activityId] });
-    qc.invalidateQueries({ queryKey: ["activities", activityId, "history"] });
   };
 
   const iconFor = (mode: TransitionDef["mode"]) => {
