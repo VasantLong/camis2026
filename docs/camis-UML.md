@@ -636,12 +636,12 @@ classDiagram
     %% === RBAC ===
     class User {
         +UUID id
-        +String username
         +String email
         +String display_name
         +String password_hash
         +Boolean is_active
         +Boolean is_archived
+        +String contact_phone
         +DateTime created_at
         +DateTime updated_at
     }

@@ -163,7 +163,7 @@ App 启动
 - **WorkflowActions**: 按钮按 `status + permissions` 矩阵显隐
 - **页面内按钮**: 新建活动、备案操作等按权限显隐
 
-4 个角色 16 个权限的完整映射见 [API 路由设计](./api-routes.md)。
+7 个角色 21+ 个权限的完整映射见 [API 路由设计](./api-routes.md)。
 
 ## 状态转换矩阵
 
@@ -203,4 +203,4 @@ App 启动
 
 - [ ] 浏览器测试覆盖不完整（部分角色操作路径未验证）
 - [ ] `@ant-design/charts` 图表库（当前用 Progress 条替代饼图）
-- [ ] F5 刷新 StrictMode 兼容（详见 `docs/issues/auth-initializer-strictmode.md`）
+- [x] F5 刷新 StrictMode 兼容（已修复，详见 `docs/issues/auth-initializer-strictmode.md`）

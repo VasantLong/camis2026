@@ -42,7 +42,7 @@
 
 ### User（用户）
 
-系统的操作主体。以 UUID 为不可变唯一标识。`email` 为登录凭据（唯一），`display_name` 为 UI 展示名称（必填）。JWT 携带 `sub`（用户 UUID）和 `email`（用于邮箱变更后即时拦截）。支持 `is_active` 禁用和 `is_archived` 归档（替代硬删除，保留关联数据）。登录尝试以 `login_id` 为标识记录，支持后续二维码等非邮箱登录方式。
+系统的操作主体。以 UUID 为不可变唯一标识。`email` 为登录凭据（唯一），`display_name` 为 UI 展示名称（必填），`contact_phone` 为联系方式（可选，用于活动表单快速导入）。JWT 携带 `sub`（用户 UUID）和 `email`（用于邮箱变更后即时拦截）。支持 `is_active` 禁用和 `is_archived` 归档（替代硬删除，保留关联数据）。登录尝试以 `login_id` 为标识记录，支持后续二维码等非邮箱登录方式。
 
 ## 角色（Role）
 
@@ -51,9 +51,9 @@
 | 角色 | 所属部门 | 核心职责 |
 |------|----------|----------|
 | SuperAdmin | 系统 | 管理用户、审批角色申请 |
-| Promoter | 宣策部 | 创建立项、编制活动方案 |
+| Promoter | 宣策部 | 创建立项、编制活动方案、提交安保审核 (submit_plan) |
 | SecurityOfficer | 安保部 | 编制安保方案、上传安保材料、审核备案材料 |
-| SecurityManager | 安保部 | 继承 SecurityOfficer 全部 + 审核安保方案（通过/打回）、状态流转、确认审批 |
+| SecurityManager | 安保部 | 继承 SecurityOfficer 全部 + 驳回（内部循环/逆向流转）、确认政府审批结果 |
 | AdminStaff | 行政部 | 监控活动面板、强制变更状态、归档 |
 | AdminManager | 行政部 | 继承 AdminStaff 全部 + 审批角色申请 |
 | GovLiaison | 政府对接 | 上传批文、审查关键材料合规性、标注审批结果 |

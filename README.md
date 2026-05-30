@@ -89,7 +89,7 @@ camis2026/
 | `docs/api-routes.md`     | REST 端点契约                         |
 | `docs/state-machine.md`  | 活动 12 状态生命周期                  |
 | `docs/frontend.md`       | 前端实现文档                          |
-| `docs/browser-tests.md`  | Playwright 测试手册 (10 脚本 62 断言) |
+| `docs/browser-tests.md`  | Playwright 测试手册 (17 脚本 ~115 断言) |
 | `docs/user-guide.md`     | 用户操作手册                          |
 | `docs/rbac.md`           | 权限配置                              |
 | `docs/design-process.md` | 设计流程 + 云迁移兼容性               |

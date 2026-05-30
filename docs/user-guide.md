@@ -165,15 +165,12 @@ python scripts/create_devtest_user.py    # 创建 devtest（全角色全能用�
 5. 返回活动列表验证新建的活动出现在列表中
 6. 按状态筛选、关键词搜索验证筛选功能
 
-### 场景 B：安保部（SecurityOfficer）— 审批流转
+### 场景 B：安保部（SecurityOfficer + SecurityManager）— 审批流转
 
-用 `security@test.com / pass123` 登录（已预设 SecurityOfficer 角色）。
-
-1. 打开某个「待设计方案」的活动详情
-2. 点击「提交到安保方案设计」→ 状态变为「待安保方案设计」
-3. 点击「驳回（内部循环）」→ 输入驳回原因 → 状态不变，日志增加驳回记录
-4. 重新提交 → 点击「签署完成—提交备案」→ 状态变为「待备案申请」
-5. 在「备案」tab 中依次操作：校验材料 → 打包 → 纸质交接
+1. 用 `promoter@test.com` 登录，打开「待设计方案」活动，点击「提交到安保方案设计」
+2. 用 `security@test.com` (SecurityOfficer) 登录，打开该活动 → 点击「签署完成—提交备案」
+3. 如需驳回，用 `security_mgr@test.com` (SecurityManager) 登录 → 点击「驳回（内部循环）」
+4. 在「备案」tab 中依次操作：校验材料 → 打包 → 纸质交接
 
 ### 场景 C：政府对接（GovLiaison）— 批文上传
 

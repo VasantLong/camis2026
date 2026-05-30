@@ -25,8 +25,10 @@ class ActivityCreate(BaseModel):
     estimated_time: datetime
     location: str = Field(min_length=1, max_length=512)
     sponsor: str = Field(min_length=1, max_length=255)
+    sponsor_contact: str = Field(min_length=1, max_length=128)
+    sponsor_phone: str = Field(min_length=1, max_length=64)
     deadline: datetime
-    designer_id: UUID
+    designer_id: UUID | None = None
 
 class ActivityResponse(BaseModel):
     id: UUID
@@ -35,9 +37,14 @@ class ActivityResponse(BaseModel):
     estimated_time: datetime
     location: str
     sponsor: str
+    sponsor_contact: str | None
+    sponsor_phone: str | None
     deadline: datetime
     status: str
     owner_id: UUID
+    designer_id: UUID | None
+    designer_name: str | None
+    designer_phone: str | None
     created_at: datetime
     updated_at: datetime
 
@@ -86,7 +93,7 @@ class ActivityService:
 
 | 规则     | 条件                                                                                        | 错误 |
 | -------- | ------------------------------------------------------------------------------------------- | ---- |
-| 必填字段 | name/type/location/sponsor/deadline/designer_id 为空                                        | 400  |
+| 必填字段 | name/type/location/sponsor/sponsor_contact/sponsor_phone/deadline 为空、deadline ≥ estimated_time | 400/422 |
 | 截止时间 | deadline 不能早于当前时间                                                                   | 400  |
 | 场地冲突 | 同 location + 同 estimated_time + status IN ('审批通过-待举办','备案材料已交接','审批通过') | 409  |
 
@@ -402,5 +409,5 @@ flowchart TD
 | WorkflowService     |      ✅       |    ✅    |    ✅    |                ✅                |
 | DocumentService     |      ✅       |    ✅    |    ✅    | ⚠ 已有基础（待适配 activity_id） |
 | FilingService       |      ✅       |    ✅    |    ✅    |                ✅                |
-| NotificationService |      ✅       |    ✅    |    ✅    |         ⚠ 存根（仅日志）         |
+| NotificationService |      ✅       |    ✅    |    ✅    |               ✅                |
 | DashboardService    |      ✅       |    ✅    |    ✅    |                ✅                |

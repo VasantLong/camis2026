@@ -27,16 +27,16 @@ roles ──< role_permissions >── permissions
 | 角色 | 部门 | 职责 | 权限数 |
 |------|------|------|--------|
 | **SuperAdmin** | 系统 | 全权限（用户管理、系统配置） | 全部 |
-| **AdminManager** | 行政部 | 审批角色申请、管理仪表盘 | 6 |
-| **SecurityManager** | 安保部 | 审核安保方案、状态流转、确认审批结果 | 7 |
-| **AdminStaff** | 行政部 | 监控活动面板、强制变更状态 | 4 |
+| **AdminManager** | 行政部 | 审批角色申请、强制变更、Dashboard | 7 |
+| **SecurityManager** | 安保部 | 审核安保方案、状态流转、确认审批、驳回 | 8 |
+| **AdminStaff** | 行政部 | 监控活动面板、强制变更状态、Dashboard | 5 |
 | **SecurityOfficer** | 安保部 | 上传材料、电子签署、打包备案、状态流转 | 5 |
 | **Promoter** | 宣策部 | 创建立项、编制活动方案、提交安保审核 (submit_plan) | 4 |
 | **GovLiaison** | 政府对接 | 上传批文、审查材料合规性、标注审批结果 | 4 |
 
 ---
 
-## 权限全量（19 项）
+## 权限全量（21 项）
 
 ### SuperAdmin（全部权限）
 
@@ -98,7 +98,7 @@ roles ──< role_permissions >── permissions
 | `force_postpone` | activities | force_postpone | 强制延期活动 |
 | `export_report` | dashboard | export_report | 导出月报 |
 
-### GovLiaison（3 项）
+### GovLiaison（4 项）
 
 | 权限名 | 资源 | 操作 | 对应用例 |
 |--------|------|------|---------|
@@ -132,8 +132,8 @@ roles ──< role_permissions >── permissions
 | `GET` | `/activities/{id}/filing/status` | 登录即可 | 所有 |
 | `PUT` | `/activities/{id}/status` | `manage_security` 或 `audit_material`¹ | SecurityManager / GovLiaison |
 | `POST` | `/activities/{id}/reject` | `reject_approval` | SecurityManager |
-| `POST` | `/activities/{id}/force-cancel` | `force_cancel` | AdminStaff |
-| `POST` | `/activities/{id}/force-postpone` | `force_postpone` | AdminStaff |
+| `POST` | `/activities/{id}/force-cancel` | `force_cancel` | AdminStaff/AdminManager |
+| `POST` | `/activities/{id}/force-postpone` | `force_postpone` | AdminStaff/AdminManager |
 | `GET` | `/activities/{id}/filing/validate` | `pack_filing` | SecurityOfficer/SecurityManager |
 | `POST` | `/activities/{id}/filing/pack` | `pack_filing` | SecurityOfficer/SecurityManager |
 | `POST` | `/activities/{id}/filing/handover` | `pack_filing` | SecurityOfficer/SecurityManager |
@@ -215,16 +215,13 @@ SuperAdmin / AdminStaff:
 
 ## 已知 Gap
 
-### 定义了但未使用的权限（5 项）
-
-以下权限存在于种子数据中，但尚未在任何路由中通过 `require_permission` 校验它们。
+### 定义了但未使用的权限（4 项）
 
 | 权限 | 角色 |
 |------|------|
 | `upload_plan` | Promoter |
 | `upload_security_material` | SecurityOfficer |
-| `sign_document` | SecurityOfficer |
 | `upload_approval` | GovLiaison |
 | `update_approval_status` | GovLiaison |
 
-> `manage_security`、`audit_material`、`reject_approval` 已在 `fix/browser-test-viewport` 中激活。
+> `sign_document` 已在 filings router 中激活。

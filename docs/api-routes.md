@@ -55,8 +55,9 @@
 | `GET`  | `/notifications/unread-count` | 登录用户 |
 | `PATCH`| `/notifications/{id}/read` | 登录用户 |
 | `PATCH`| `/notifications/read-all` | 登录用户 |
+| `GET`  | `/dashboard/reports/{month}` | `export_report` |
 
-> ¹ `PUT /activities/{id}/status` 同时接受 `manage_security` 和 `audit_material` 权限。目标状态为"审批通过-待举办"时额外要求 `confirm_approval`。
+> ¹ `PUT /activities/{id}/status` 同时接受 `manage_security`、`audit_material`、`submit_plan` 权限。目标状态为"审批通过-待举办"时额外要求 `confirm_approval`。
 > 活动可见性按角色自动过滤状态（见 `docs/rbac.md`）。
 
 ## 端点详细说明
@@ -73,6 +74,8 @@
   "estimated_time": "2026-02-10T09:00:00+08:00",
   "location": "市民广场",
   "sponsor": "市文旅局",
+  "sponsor_contact": "张三",
+  "sponsor_phone": "13800138000",
   "deadline": "2026-01-20T18:00:00+08:00",
   "designer_id": "uuid-of-designer"
 }
@@ -86,7 +89,7 @@
 }
 ```
 
-**校验规则**：必填字段缺失 → 400；场地/时间冲突 → 409（提示"该场地涉及时段已被占用"）
+**校验规则**：必填字段缺失 → 422；截止时间早于当前时间或晚于举办时间 → 400；场地/时间冲突 → 409
 
 #### `GET /activities` — 活动列表
 
