@@ -4,6 +4,8 @@ export interface ActivityCreate {
   estimated_time: string;
   location: string;
   sponsor: string;
+  sponsor_contact: string;
+  sponsor_phone: string;
   deadline: string;
   designer_id?: string;
 }
@@ -15,9 +17,12 @@ export interface ActivityResponse {
   estimated_time: string;
   location: string;
   sponsor: string;
+  sponsor_contact?: string | null;
+  sponsor_phone?: string | null;
   deadline: string;
   status: string;
   owner_id: string;
+  designer_id?: string | null;
   created_at: string;
   updated_at: string;
 }

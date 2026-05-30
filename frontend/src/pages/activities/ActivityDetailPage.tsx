@@ -167,6 +167,12 @@ export default function ActivityDetailPage() {
                 <Descriptions.Item label="主办方">
                   {activity.sponsor}
                 </Descriptions.Item>
+                <Descriptions.Item label="联系人">
+                  {activity.sponsor_contact || "—"}
+                </Descriptions.Item>
+                <Descriptions.Item label="联系方式">
+                  {activity.sponsor_phone || "—"}
+                </Descriptions.Item>
                 <Descriptions.Item label="预计时间">
                   {dayjs(activity.estimated_time).format("YYYY-MM-DD HH:mm")}
                 </Descriptions.Item>
