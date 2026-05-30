@@ -131,13 +131,18 @@ with sync_playwright() as p:
         json.dumps({"new_email": another_email}).encode(),
         headers={"Authorization": f"Bearer {brow_token}", "Content-Type": "application/json"},
     ))
+    # Extract full verification link from Mailpit email body (not snippet)
     vtoken = None
     for _ in range(3):
         msgs = json.loads(urllib.request.urlopen(
             urllib.request.Request(f"{MAILPIT}/messages?limit=1")
         ).read()).get("messages", [])
         for m in msgs:
-            m2 = re.search(r'verify-email\?token=([^"]+)', m.get("Snippet", ""))
+            detail = json.loads(urllib.request.urlopen(
+                urllib.request.Request(f"{MAILPIT}/message/{m['ID']}")
+            ).read())
+            body = detail.get("HTML") or detail.get("Text") or ""
+            m2 = re.search(r'verify-email\?token=([^"\s<>]+)', body)
             if m2: vtoken = m2.group(1)
         if vtoken: break
         import time; time.sleep(1)
