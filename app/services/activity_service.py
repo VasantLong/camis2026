@@ -201,9 +201,18 @@ class ActivityService:
         return [ActivityResponse.model_validate(r) for r in rows], total
 
     async def get_status_history(self, activity_id: UUID) -> list[StatusLogEntry]:
+        from app.models.user import User
         rows = (await self.db.execute(
-            select(ActivityStatusLog)
+            select(ActivityStatusLog, User.display_name.label("operator_name"))
+            .outerjoin(User, ActivityStatusLog.operator_id == User.id)
             .where(ActivityStatusLog.activity_id == activity_id)
             .order_by(ActivityStatusLog.created_at)
-        )).scalars().all()
-        return [StatusLogEntry.model_validate(r) for r in rows]
+        )).all()
+        return [
+            StatusLogEntry(
+                id=r.id, from_status=r.from_status, to_status=r.to_status,
+                operator_id=r.operator_id, operator_name=operator_name,
+                comment=r.comment, created_at=r.created_at,
+            )
+            for r, operator_name in rows
+        ]

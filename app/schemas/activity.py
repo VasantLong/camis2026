@@ -56,6 +56,7 @@ class StatusLogEntry(BaseModel):
     from_status: str | None
     to_status: str
     operator_id: UUID
+    operator_name: str | None = None
     comment: str | None
     created_at: datetime
 

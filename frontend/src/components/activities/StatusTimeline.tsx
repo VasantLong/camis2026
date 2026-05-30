@@ -38,6 +38,7 @@ export default function StatusTimeline({ history }: Props) {
             <div>
               <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                 {dayjs(entry.created_at).format("YYYY-MM-DD HH:mm:ss")}
+                {entry.operator_name && ` · ${entry.operator_name}`}
               </Typography.Text>
             </div>
           </div>

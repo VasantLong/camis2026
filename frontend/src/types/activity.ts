@@ -49,6 +49,7 @@ export interface StatusLogEntry {
   from_status: string | null;
   to_status: string;
   operator_id: string;
+  operator_name?: string | null;
   comment: string | null;
   created_at: string;
 }
