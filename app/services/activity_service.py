@@ -109,6 +109,11 @@ class ActivityService:
         if allowed_statuses:
             query = query.where(Activity.status.in_(allowed_statuses))
             count_query = count_query.where(Activity.status.in_(allowed_statuses))
+        else:
+            # Roles that see all statuses: exclude terminal from pending tab
+            from app.services.workflow_service import TERMINAL_STATUSES
+            query = query.where(Activity.status.not_in(TERMINAL_STATUSES))
+            count_query = count_query.where(Activity.status.not_in(TERMINAL_STATUSES))
 
         if params.status:
             query = query.where(Activity.status == params.status)
@@ -155,6 +160,11 @@ class ActivityService:
         if allowed_statuses:
             query = query.where(Activity.status.not_in(allowed_statuses))
             count_query = count_query.where(Activity.status.not_in(allowed_statuses))
+        else:
+            # Roles that see all statuses: "completed" = terminal statuses
+            from app.services.workflow_service import TERMINAL_STATUSES
+            query = query.where(Activity.status.in_(TERMINAL_STATUSES))
+            count_query = count_query.where(Activity.status.in_(TERMINAL_STATUSES))
         if owner_filter:
             query = query.where(Activity.owner_id == owner_filter)
             count_query = count_query.where(Activity.owner_id == owner_filter)

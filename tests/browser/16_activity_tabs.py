@@ -95,16 +95,17 @@ with sync_playwright() as p:
     sa_token = login_api("superadmin@test.com", "pass123")
     api_post(f"/activities/{aid}/force-cancel", {"reason": "测试完成"}, sa_token)
 
-    # Refresh → switch to completed → should appear
+    # Navigate back to activities via sidebar, then switch to completed tab
     sidebar_nav(page, "全部活动")
+    page.wait_for_timeout(1000)
     comp_tab2 = page.locator('.ant-tabs-tab:has-text("已完成")')
     if comp_tab2.count() > 0:
         comp_tab2.first.click()
-        page.wait_for_timeout(1500)
+        page.wait_for_timeout(2000)
         page.wait_for_load_state("networkidle")
-    check(uname in page.content(), "activity visible in completed tab after force cancel")
+    check(uname in page.content(), "已完成 tab 可见活动")
 
-    # Switch back → pending should NOT show it
+    # Switch to pending → should NOT show it (terminal, now in completed)
     pend_tab = page.locator('.ant-tabs-tab:has-text("待操作")')
     if pend_tab.count() > 0:
         pend_tab.first.click()

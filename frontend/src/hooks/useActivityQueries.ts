@@ -6,6 +6,7 @@ export function useActivities(params: ActivityListParams) {
   return useQuery({
     queryKey: ["activities", params],
     queryFn: () => activitiesApi.list(params).then((r) => r.data),
+    staleTime: 0,
   });
 }
 
