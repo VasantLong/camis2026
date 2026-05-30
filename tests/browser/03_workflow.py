@@ -95,7 +95,7 @@ with sync_playwright() as p:
     # === Step 1: Promoter submits ===
     print("\n1. Promoter: submit to 待安保方案设计")
     login_as(page, "promoter@test.com", "pass123")
-    check("/activities" in page.url, "promoter logged in")
+    check("/login" not in page.url, "promoter logged in")
     navigate_to_activity(page)
     check("/activities/" in page.url, f"on detail page (got {page.url})")
     check("待设计方案" in page.content(), "activity in 待设计方案 status")
@@ -113,10 +113,29 @@ with sync_playwright() as p:
         page.wait_for_load_state("networkidle")
     check("待安保方案设计" in page.content(), "status → 待安保方案设计")
 
+    # === Step 1b: SecurityOfficer sees notification ===
+    print("\n1b. SecurityOfficer notification")
+    login_as(page, "security@test.com", "pass123")
+    bell = page.locator('button[aria-label="通知"]')
+    badge = page.locator('.ant-badge-count, .ant-scroll-number')
+    check(badge.count() > 0, "security has notification badge after submit")
+    if bell.count() > 0:
+        bell.first.click()
+        page.wait_for_timeout(800)
+    check("需进行安保方案设计" in page.content() or wf_name in page.content(), "notification shows activity name")
+    # Click the notification to navigate to activity detail
+    notif = page.locator('.ant-dropdown-menu-item').filter(has_text=wf_name).first
+    if notif.count() > 0:
+        notif.click()
+        page.wait_for_timeout(2000)
+        page.wait_for_load_state("networkidle")
+        check("/activities/" in page.url, f"notification click → activity detail (got {page.url})")
+        check(wf_name in page.content(), "on correct activity detail page after notification click")
+
     # === Step 2: SecurityOfficer rejects ===
     print("\n2. SecurityOfficer: reject")
     login_as(page, "security@test.com", "pass123")
-    check("/activities" in page.url, "security logged in")
+    check("/login" not in page.url, "security logged in")
     navigate_to_activity(page)
     check("/activities/" in page.url, f"on detail page (got {page.url})")
     check("待安保方案设计" in page.content(), "activity in 待安保方案设计 status")
@@ -186,6 +205,18 @@ with sync_playwright() as p:
         check("已取消" in page.content(), "status → 已取消")
         btns = page.locator('button:has-text("提交")').count()
         check(btns == 0, "no action buttons on terminal state")
+
+    # === Step 4b: AdminStaff sees force-cancel notification ===
+    print("\n4b. AdminStaff notification for force cancel")
+    login_as(page, "admin@test.com", "pass123")
+    check("/login" not in page.url, "admin logged in")
+    bell2 = page.locator('button[aria-label="通知"]')
+    badge2 = page.locator('.ant-badge-count, .ant-scroll-number')
+    check(badge2.count() > 0, "notification badge after force cancel")
+    if bell2.count() > 0:
+        bell2.first.click()
+        page.wait_for_timeout(800)
+    check("已变更为 已取消" in page.content() or cancel_name in page.content(), "notification shows cancelled activity")
 
     page.screenshot(path=f"{OUT / '03_workflow_final.png'}", full_page=True)
     if recorder:

@@ -152,5 +152,6 @@ class WorkflowService:
         await self.db.commit()
         await self.db.refresh(log)
 
-        await self.notification.notify_role("AdminStaff", f"活动 {activity_id} 已变更为 {target}: {reason}")
+        await self.notification.notify_role("AdminStaff", f"活动 {activity.name} 已变更为 {target}: {reason}",
+            reference_id=activity_id, reference_type="activity")
         return log

@@ -56,22 +56,20 @@ async def export_monthly_report(
     month = body.month
 
     async def _generate_and_notify():
-        db = async_session()
-        try:
-            report_svc = DashboardService(db)
-            url = await report_svc.export_monthly_report(month)
-            notif_svc = NotificationService(db)
-            await notif_svc.send_reminder(
-                user_id,
-                f"月度报告 {month} 已生成，点击下载",
-                reference_id=month,
-                reference_type="report",
-            )
-            logger.info("report generated month=%s user=%s url=%s", month, user_id, url)
-        except Exception:
-            logger.exception("report generation failed month=%s user=%s", month, user_id)
-        finally:
-            await db.close()
+        async with async_session() as db:
+            try:
+                report_svc = DashboardService(db)
+                url = await report_svc.export_monthly_report(month)
+                notif_svc = NotificationService(db)
+                await notif_svc.send_reminder(
+                    user_id,
+                    f"月度报告 {month} 已生成，点击下载",
+                    reference_id=month,
+                    reference_type="report",
+                )
+                logger.info("report generated month=%s user=%s url=%s", month, user_id, url)
+            except Exception:
+                logger.exception("report generation failed month=%s user=%s", month, user_id)
 
     background_tasks.add_task(_generate_and_notify)
     return {"message": "报表生成中，生成完毕后将推送至消息中心"}
