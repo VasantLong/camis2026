@@ -52,9 +52,11 @@ def sidebar_nav(page, text):
 def find_activity_link(page, name):
     """Click activity by name in the table."""
     sidebar_nav(page, "全部活动")
-    page.wait_for_timeout(1500)
-    page.wait_for_load_state("networkidle")
-    link = page.locator(f'td a:has-text("{name}")').first
+    page.wait_for_timeout(1000)
+    # Wait for table rows to appear
+    page.wait_for_selector('.ant-table-tbody tr', timeout=5000)
+    page.wait_for_timeout(500)
+    link = page.locator(f'a:has-text("{name}")').first
     if link.count() > 0:
         link.click()
         page.wait_for_timeout(2000)
@@ -170,10 +172,10 @@ with sync_playwright() as p:
         page.wait_for_load_state("networkidle")
     check("待备案申请" in page.content(), "status → 待备案申请")
 
-    # === Step 4: SuperAdmin force cancels ===
-    print("\n4. SuperAdmin: force cancel")
-    login_as(page, "superadmin@test.com", "pass123")
-    check("/login" not in page.url, "superadmin logged in")
+    # === Step 4: AdminManager force cancels ===
+    print("\n4. AdminManager: force cancel")
+    login_as(page, "admin_mgr@test.com", "pass123")
+    check("/login" not in page.url, "admin mgr logged in")
     find_activity_link(page, wf_name)
     check("/activities/" in page.url, f"on cancel activity detail (got {page.url})")
 
