@@ -1,6 +1,6 @@
 """User archive: archived user cannot login, unarchive restores access."""
 from pathlib import Path
-import json, urllib.request
+import json, uuid, urllib.request
 from playwright.sync_api import sync_playwright
 from utils import CDP, BASE, create_page, setup_logging, start_recording
 
@@ -16,8 +16,9 @@ def check(cond, msg):
 # --- API helpers ---
 def api_post(path, body, token):
     data = json.dumps(body).encode()
-    req = urllib.request.Request(f"{API}{path}", data=data,
-        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
+    hdrs = {"Content-Type": "application/json"}
+    if token: hdrs["Authorization"] = f"Bearer {token}"
+    req = urllib.request.Request(f"{API}{path}", data=data, headers=hdrs)
     return json.loads(urllib.request.urlopen(req).read())
 
 def api_patch(path, body, token):
@@ -35,21 +36,21 @@ def login_api(email, password):
     resp = api_post("/auth/login", {"email": email, "password": password}, None)
     return resp["access_token"]
 
-# --- Ensure testuser is clean (active, not archived) ---
+# --- Register dynamic user to avoid rate-limit ---
+uname = f"archive_test_{uuid.uuid4().hex[:8]}"
+email = f"{uname}@test.com"
+password = "pass123"
+api_post("/auth/register", {"email": email, "password": password, "display_name": uname}, None)
+print(f"Registered: {email}")
+
 sa_token = login_api("superadmin@test.com", "pass123")
 users = api_get("/admin/users", sa_token)
-test_user = next((u for u in users if u["email"] == "testuser@test.com"), None)
-check(test_user is not None, "testuser found in user list")
+test_user = next((u for u in users if u["email"] == email), None)
+check(test_user is not None, f"new user found: {email}")
 uid = test_user["id"]
+check(test_user["is_active"] == True, "new user is active")
 
-if not test_user["is_active"]:
-    api_patch(f"/admin/users/{uid}/status", {"is_active": True}, sa_token)
-    print(f"  (prep: enabled testuser)")
-if test_user.get("is_archived"):
-    api_post(f"/admin/users/{uid}/unarchive", {}, sa_token)
-    print(f"  (prep: unarchived testuser)")
-
-# --- Archive testuser ---
+# --- Archive user ---
 result = api_post(f"/admin/users/{uid}/archive", {}, sa_token)
 check(result.get("message") == "已归档", f"archive success: {result}")
 
@@ -68,8 +69,8 @@ with sync_playwright() as p:
     print("\n1. Archived user login blocked")
     page.goto(f"{BASE}/login")
     page.wait_for_load_state("networkidle")
-    page.fill('input[placeholder="邮箱"]', "testuser@test.com")
-    page.fill('input[type="password"]', "pass123")
+    page.fill('input[placeholder="邮箱"]', email)
+    page.fill('input[type="password"]', password)
     page.click('button[type="submit"]')
     page.wait_for_timeout(1000)
     still_login = "/login" in page.url
@@ -82,17 +83,16 @@ with sync_playwright() as p:
     check(result2.get("message") == "已取消归档", f"unarchive success: {result2}")
     patch_result = api_patch(f"/admin/users/{uid}/status", {"is_active": True}, sa_token)
     check(patch_result.get("is_active") == True, f"ensure active: is_active={patch_result.get('is_active')}")
-    # Verify final state
     u = api_get(f"/admin/users/{uid}", sa_token)
-    check(u.get("is_active") == True and not u.get("is_archived"), "testuser is active and not archived")
+    check(u.get("is_active") == True and not u.get("is_archived"), "user is active and not archived")
 
     # === Step 3: Unarchived user can login ===
     print("\n3. Unarchived user login succeeds")
     page.context.clear_cookies()
     page.goto(f"{BASE}/login")
     page.wait_for_load_state("networkidle")
-    page.fill('input[placeholder="邮箱"]', "testuser@test.com")
-    page.fill('input[type="password"]', "pass123")
+    page.fill('input[placeholder="邮箱"]', email)
+    page.fill('input[type="password"]', password)
     page.click('button[type="submit"]')
     page.wait_for_timeout(3000)
     page.wait_for_load_state("networkidle")
