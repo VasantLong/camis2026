@@ -90,6 +90,26 @@ frontend/src/
     └── global.css
 ```
 
+## 通知系统
+
+- 后端 `notifications` 表含 `message`、`is_read`、`created_at`，无 `reference_id` 字段
+- 前端 `HeaderNotifications` 显示最近通知列表，点击统一跳 `/activities?tab=pending`
+- 通知由工作流状态变更时 `NotificationService.notify_role()` 自动生成
+
+**待实现:**
+- 通知关联活动 ID，点击单条通知直接跳活动详情
+- 月报后台生成完成后推送通知到消息中心
+
+## Dashboard 月报
+
+- `ReportExport.tsx`：月份选择器 → POST `/dashboard/reports/monthly`
+- 后端同步生成 PDF 上传 MinIO，前端收到 `report_url` 但不使用，仅展示 toast
+
+**待实现:**
+- 后端改为 BackgroundTasks 异步生成，完成后推送通知
+- 前端移除 `report_url` 处理，用户通过消息中心获取报表
+- 通知关联 `reference_type="report"` 提供下载链接
+
 ## 路由
 
 | 路径 | 页面 | 权限 | 布局 |
