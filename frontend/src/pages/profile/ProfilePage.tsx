@@ -25,6 +25,8 @@ export default function ProfilePage() {
   const [nameValue, setNameValue] = useState("");
   const [editingEmail, setEditingEmail] = useState(false);
   const [emailValue, setEmailValue] = useState("");
+  const [editingPhone, setEditingPhone] = useState(false);
+  const [phoneValue, setPhoneValue] = useState("");
   const queryClient = useQueryClient();
   const setUser = useAuthStore((s) => s.setUser);
 
@@ -58,6 +60,20 @@ export default function ProfilePage() {
       queryClient.invalidateQueries({ queryKey: ["me"] });
       message.success("显示名称已更新");
       setEditingName(false);
+    },
+    onError: (err: any) => {
+      message.error(err?.detail || "更新失败");
+    },
+  });
+
+  const savePhoneMutation = useMutation({
+    mutationFn: (contact_phone: string) =>
+      authApi.updateProfile({ display_name: user?.display_name || "", contact_phone }).then((r) => r.data),
+    onSuccess: (data) => {
+      setUser(data);
+      queryClient.invalidateQueries({ queryKey: ["me"] });
+      message.success("联系方式已更新");
+      setEditingPhone(false);
     },
     onError: (err: any) => {
       message.error(err?.detail || "更新失败");
@@ -171,6 +187,41 @@ export default function ProfilePage() {
                 }}
               >
                 {user.display_name || "-"}
+              </Typography.Link>
+            )}
+          </Descriptions.Item>
+          <Descriptions.Item label="联系方式">
+            {editingPhone ? (
+              <Input
+                size="small"
+                value={phoneValue}
+                onChange={(e) => setPhoneValue(e.target.value)}
+                onBlur={() => {
+                  if (phoneValue.trim() !== (user.contact_phone || "")) {
+                    savePhoneMutation.mutate(phoneValue.trim());
+                  } else {
+                    setEditingPhone(false);
+                  }
+                }}
+                onPressEnter={() => {
+                  if (phoneValue.trim() !== (user.contact_phone || "")) {
+                    savePhoneMutation.mutate(phoneValue.trim());
+                  } else {
+                    setEditingPhone(false);
+                  }
+                }}
+                autoFocus
+                placeholder="如：13800138000"
+                style={{ width: 200 }}
+              />
+            ) : (
+              <Typography.Link
+                onClick={() => {
+                  setPhoneValue(user.contact_phone || "");
+                  setEditingPhone(true);
+                }}
+              >
+                {user.contact_phone || "点击添加"}
               </Typography.Link>
             )}
           </Descriptions.Item>

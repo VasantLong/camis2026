@@ -27,7 +27,7 @@ export const authApi = {
 
   getRoles: () => client.get<RoleOption[]>("/auth/roles"),
 
-  updateProfile: (data: { display_name: string }) =>
+  updateProfile: (data: { display_name: string; contact_phone?: string }) =>
     client.patch<UserResponse>("/auth/me", data),
 
   requestEmailChange: (new_email: string) =>

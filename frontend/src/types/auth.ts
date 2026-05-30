@@ -19,6 +19,7 @@ export interface UserResponse {
   email: string;
   display_name: string;
   is_active: boolean;
+  contact_phone?: string | null;
   permissions: string[];
   roles: string[];
   role_permissions: Record<string, string[]>;
