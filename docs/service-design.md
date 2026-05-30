@@ -126,8 +126,8 @@ class ForceChangeRequest(BaseModel):
 | `备案材料已交接` | `待补充备案材料`  | GovLiaison      | UC5 需补充材料         |
 | `备案材料已交接` | `不通过/已终止`   | GovLiaison      | UC5 政府驳回           |
 | `待补充备案材料` | `备案材料已交接`  | SecurityOfficer | 补充后重新递交         |
-| `审批通过`       | `审批通过-待举办` | SecurityOfficer | UC6 确认通过           |
-| `审批通过`       | `待安保方案设计`  | SecurityOfficer | UC6 驳回/需整改        |
+| `审批通过`       | `审批通过-待举办` | SecurityManager | UC6 确认通过           |
+| `审批通过`       | `待安保方案设计`  | SecurityManager | UC6 驳回/需整改        |
 | 任意活跃状态     | `已取消`          | AdminStaff      | UC7 强制取消           |
 | 任意活跃状态     | `已延期`          | AdminStaff      | UC7 强制延期           |
 
@@ -176,7 +176,7 @@ class WorkflowService:
 | → `待安保方案设计`        | SecurityOfficer 角色    | "需进行安保方案设计"   |
 | → `待备案申请`            | SecurityOfficer 角色    | "材料齐备，可开始备案" |
 | → `待补充备案材料`        | SecurityOfficer 角色    | "需补充备案材料"       |
-| → `审批通过`              | SecurityOfficer 角色    | "批文已上传，待确认"   |
+| → `审批通过`              | SecurityManager 角色   | "批文已上传，待确认"   |
 | → `审批通过-待举办`       | AdminStaff 角色         | "活动可合法举办"       |
 | → `待安保方案设计` (驳回) | AdminStaff + 安保负责人 | "方案被驳回，需重做"   |
 | → `已取消` / `已延期`     | 活动相关人              | 变更原因               |

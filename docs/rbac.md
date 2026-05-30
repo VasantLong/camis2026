@@ -30,7 +30,7 @@ roles ──< role_permissions >── permissions
 | **AdminManager** | 行政部 | 审批角色申请、管理仪表盘 | 6 |
 | **SecurityManager** | 安保部 | 审核安保方案、状态流转、确认审批结果 | 7 |
 | **AdminStaff** | 行政部 | 监控活动面板、强制变更状态 | 4 |
-| **SecurityOfficer** | 安保部 | 上传材料、电子签署、打包备案、状态流转 | 6 |
+| **SecurityOfficer** | 安保部 | 上传材料、电子签署、打包备案、状态流转 | 5 |
 | **Promoter** | 宣策部 | 创建立项、编制活动方案、提交安保审核 (submit_plan) | 4 |
 | **GovLiaison** | 政府对接 | 上传批文、审查材料合规性、标注审批结果 | 4 |
 
@@ -131,7 +131,7 @@ roles ──< role_permissions >── permissions
 | `GET` | `/activities/{id}/security-plan` | `view_owned_activity` | 所有 |
 | `GET` | `/activities/{id}/filing/status` | 登录即可 | 所有 |
 | `PUT` | `/activities/{id}/status` | `manage_security` 或 `audit_material`¹ | SecurityManager / GovLiaison |
-| `POST` | `/activities/{id}/reject` | `reject_approval` | SecurityManager / SecurityOfficer |
+| `POST` | `/activities/{id}/reject` | `reject_approval` | SecurityManager |
 | `POST` | `/activities/{id}/force-cancel` | `force_cancel` | AdminStaff |
 | `POST` | `/activities/{id}/force-postpone` | `force_postpone` | AdminStaff |
 | `GET` | `/activities/{id}/filing/validate` | `pack_filing` | SecurityOfficer/SecurityManager |
@@ -151,7 +151,7 @@ roles ──< role_permissions >── permissions
 
 | 角色 | 可见活动 | 过滤方式 |
 |------|---------|---------|
-| Promoter | 自己创建的（全状态） | `owner_id = 自己` |
+| Promoter | 自己创建的待设计方案 | `owner_id = 自己 AND status = 待设计方案` |
 | SecurityOfficer | 待安保方案设计 | `status = 待安保方案设计` |
 | SecurityManager | 安保相关流程 | `status IN (待安保方案设计, 待备案申请, 备案材料已交接, 审批通过, 待补充备案材料)` |
 | GovLiaison | 待处理的审批活动 | `status = 备案材料已交接` |
