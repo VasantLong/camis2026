@@ -125,29 +125,41 @@ with sync_playwright() as p:
         f"{API}/auth/login", json.dumps({"email": new_email, "password": "pass123"}).encode(),
         headers={"Content-Type": "application/json"})).read())
     brow_token = brow_resp["access_token"]
-    another_email = f"{uuid.uuid4().hex[:6]}@test.com"
-    urllib.request.urlopen(urllib.request.Request(
+    another_email = f"{uuid.uuid4().hex}@test.com"
+    change_req = urllib.request.Request(
         f"{API}/auth/me/email-change",
         json.dumps({"new_email": another_email}).encode(),
         headers={"Authorization": f"Bearer {brow_token}", "Content-Type": "application/json"},
-    ))
-    # Extract full verification link from Mailpit email body (not snippet)
+    )
+    change_resp = urllib.request.urlopen(change_req)
+    check(change_resp.status == 202, f"二次邮箱变更请求成功 (status={change_resp.status})")
+    # Find verification email sent TO another_email (disambiguate from first email)
     vtoken = None
-    for _ in range(3):
-        msgs = json.loads(urllib.request.urlopen(
-            urllib.request.Request(f"{MAILPIT}/messages?limit=1")
-        ).read()).get("messages", [])
+    for _ in range(5):
+        mail_resp = json.loads(urllib.request.urlopen(
+            urllib.request.Request(f"{MAILPIT}/messages")
+        ).read())
+        msgs = sorted(mail_resp.get("messages", []), key=lambda m: m.get("Created", ""), reverse=True)
         for m in msgs:
             detail = json.loads(urllib.request.urlopen(
                 urllib.request.Request(f"{MAILPIT}/message/{m['ID']}")
             ).read())
+            if "验证您的" not in (detail.get("Subject") or ""):
+                continue
+            # Match the TO address to find the correct verification email
+            to_list = [a.get("Address", "") for a in detail.get("To", [])]
+            if another_email not in to_list:
+                continue
             body = detail.get("HTML") or detail.get("Text") or ""
             m2 = re.search(r'verify-email\?token=([^"\s<>]+)', body)
-            if m2: vtoken = m2.group(1)
+            if m2:
+                vtoken = m2.group(1)
+                break
         if vtoken: break
         import time; time.sleep(1)
     check(vtoken is not None, "二次验证 token 找到")
     urllib.request.urlopen(urllib.request.Request(f"{API}/auth/verify-email?token={vtoken}"))
+    check(True, "二次验证成功")  # urlopen follows 302 redirect, throws on 4xx
     # Browser now navigates → AuthInitializer refresh fails → /login
     page.goto(f"{BASE}/activities")
     page.wait_for_timeout(3000)
