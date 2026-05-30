@@ -51,6 +51,10 @@
 | `POST` | `/admin/users/{id}/archive` | `administer_users` |
 | `POST` | `/admin/users/{id}/unarchive` | `administer_users` |
 | `GET`  | `/admin/users/{id}/overview` | `administer_users` |
+| `GET`  | `/notifications` | 登录用户 |
+| `GET`  | `/notifications/unread-count` | 登录用户 |
+| `PATCH`| `/notifications/{id}/read` | 登录用户 |
+| `PATCH`| `/notifications/read-all` | 登录用户 |
 
 > ¹ `PUT /activities/{id}/status` 同时接受 `manage_security` 和 `audit_material` 权限。目标状态为"审批通过-待举办"时额外要求 `confirm_approval`。
 > 活动可见性按角色自动过滤状态（见 `docs/rbac.md`）。
@@ -90,7 +94,7 @@
 GET /activities?status=审批通过-待举办&page=1&size=20
 ```
 
-支持按 status、date_from、date_to、keyword 筛选。分页，返回 `{ items: ActivityResponse[], total: int }`。
+支持按 status、date_from、date_to、keyword、tab（`pending`\|`completed`）筛选。分页，返回 `{ items: ActivityResponse[], total: int }`。
 
 #### `GET /activities/{id}` — 活动详情
 

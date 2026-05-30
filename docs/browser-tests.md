@@ -53,8 +53,10 @@ WSL2 镜像网络模式下，`127.0.0.1:9222` 直接连通 Windows Edge。
 | `12_document_upload.py` | 文档上传 | 7 | 活动详情 → 文档 tab → filechooser 上传 → 验证列表 |
 | `13_filing_pack.py` | 备案打包交接 | 8 | 签署材料 → 打包 → 勾选确认 → 纸质交接 |
 | `14_user_archive.py` | 用户归档 | 8 | 确保状态干净 → API 归档 → 登录被拦截 → 取消归档+确保活跃 → 恢复登录 |
+| `15_notifications.py` | 通知中心 | 3 | 状态流转触发通知 → 铃铛badge → 下拉面板 → 自动标记已读 |
+| `16_activity_tabs.py` | 活动分类 | 5 | 待操作/已完成 Tab 切换 → 终态活动正确归类 |
 
-**合计 ~107 断言。**
+**合计 ~115 断言。**
 
 ## 架构
 
@@ -76,6 +78,8 @@ tests/browser/
 ├── 12_document_upload.py  # 文档上传
 ├── 13_filing_pack.py      # 备案打包交接
 ├── 14_user_archive.py     # 用户归档登录拦截
+├── 15_notifications.py    # 通知中心
+├── 16_activity_tabs.py    # 活动列表分类
 ├── .gitignore              # 忽略 recordings/
 ├── recordings/             # 视频录制输出 (gitignored)
 └── screenshots/           # 测试截图输出
@@ -90,7 +94,7 @@ RECORD=1 python tests/browser/01_auth.py
 # → tests/browser/recordings/01_auth/recording.mp4
 ```
 
-所有 01~14 脚本均已集成录制支持（参见 `utils.py` 的 `ScreencastRecorder` 类）。
+所有 01~16 脚本均已集成录制支持（参见 `utils.py` 的 `ScreencastRecorder` 类）。
 
 ## 登录限流排查
 

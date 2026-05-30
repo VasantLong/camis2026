@@ -45,7 +45,7 @@ frontend/src/
 │   ├── NotFoundPage.tsx
 │   ├── ForbiddenPage.tsx
 │   ├── activities/
-│   │   ├── ActivityListPage.tsx    # 筛选 + 分页列表
+│   │   ├── ActivityListPage.tsx    # 待操作/已完成 Tab + 筛选 + 分页列表
 │   │   ├── ActivityCreatePage.tsx  # 新建表单
 │   │   └── ActivityDetailPage.tsx  # 详情/历史/文档/备案
 │   └── dashboard/
@@ -60,8 +60,9 @@ frontend/src/
 │   │   ├── AuthInitializer.tsx     # App 启动时静默 refresh
 │   │   └── ProtectedRoute.tsx      # 路由守卫（认证 + 权限）
 │   ├── layout/
-│   │   ├── AppLayout.tsx           # Sider + Header + Content
-│   │   └── Sidebar.tsx             # 权限感知菜单
+│   │   ├── AppLayout.tsx           # Sider + Header(铃铛+用户) + Content
+│   │   ├── Sidebar.tsx             # 权限感知菜单
+│   │   └── HeaderNotifications.tsx # 通知铃铛(未读badge+下拉)
 │   ├── activities/
 │   │   ├── ActivityFilters.tsx     # 状态/关键词/日期筛选 → URL searchParams
 │   │   ├── ActivityTable.tsx       # 分页表格

@@ -42,7 +42,7 @@
 
 ### User（用户）
 
-系统的操作主体。以 UUID 为不可变唯一标识。`email` 为登录凭据（唯一），`display_name` 为 UI 展示名称（必填）。JWT 仅携带 `sub`（用户 UUID），不冗余存储用户信息。登录尝试以 `login_id` 为标识记录，支持后续二维码等非邮箱登录方式。
+系统的操作主体。以 UUID 为不可变唯一标识。`email` 为登录凭据（唯一），`display_name` 为 UI 展示名称（必填）。JWT 携带 `sub`（用户 UUID）和 `email`（用于邮箱变更后即时拦截）。支持 `is_active` 禁用和 `is_archived` 归档（替代硬删除，保留关联数据）。登录尝试以 `login_id` 为标识记录，支持后续二维码等非邮箱登录方式。
 
 ## 角色（Role）
 
