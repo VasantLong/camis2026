@@ -5,6 +5,7 @@ from playwright.sync_api import sync_playwright
 from utils import CDP, BASE, create_page, setup_logging, start_recording
 
 MAILPIT = "http://localhost:18025/api/v1"
+API = "http://localhost:8000"
 OUT = Path(__file__).parent / "screenshots"
 failed = 0
 
@@ -116,6 +117,37 @@ with sync_playwright() as p:
     page.wait_for_timeout(3000)
     page.wait_for_load_state("networkidle")
     check("/login" not in page.url, f"新邮箱登录成功 (进入 {page.url})")
+
+    # ── Old session kick: email changed → refresh revoked → redirected ──
+    print("7b. 邮箱变更后旧会话被踢")
+    # API: login as user, change email again, verify → revokes refresh tokens
+    brow_resp = json.loads(urllib.request.urlopen(urllib.request.Request(
+        f"{API}/auth/login", json.dumps({"email": new_email, "password": "pass123"}).encode(),
+        headers={"Content-Type": "application/json"})).read())
+    brow_token = brow_resp["access_token"]
+    another_email = f"{uuid.uuid4().hex[:6]}@test.com"
+    urllib.request.urlopen(urllib.request.Request(
+        f"{API}/auth/me/email-change",
+        json.dumps({"new_email": another_email}).encode(),
+        headers={"Authorization": f"Bearer {brow_token}", "Content-Type": "application/json"},
+    ))
+    vtoken = None
+    for _ in range(3):
+        msgs = json.loads(urllib.request.urlopen(
+            urllib.request.Request(f"{MAILPIT}/messages?limit=1")
+        ).read()).get("messages", [])
+        for m in msgs:
+            m2 = re.search(r'verify-email\?token=([^"]+)', m.get("Snippet", ""))
+            if m2: vtoken = m2.group(1)
+        if vtoken: break
+        import time; time.sleep(1)
+    check(vtoken is not None, "二次验证 token 找到")
+    urllib.request.urlopen(urllib.request.Request(f"{API}/auth/verify-email?token={vtoken}"))
+    # Browser now navigates → AuthInitializer refresh fails → /login
+    page.goto(f"{BASE}/activities")
+    page.wait_for_timeout(3000)
+    page.wait_for_load_state("networkidle")
+    check("/login" in page.url, f"邮箱变更后旧会话被踢到 /login (got {page.url})")
 
     # ── User: 登出后用旧邮箱登录 → 失败 ──
     print("8. 登出后用旧邮箱登录（应该失败）")
