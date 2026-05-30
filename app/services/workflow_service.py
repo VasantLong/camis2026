@@ -27,7 +27,7 @@ NOTIFICATION_RULES: dict[str, tuple[list[str], str]] = {
     "待安保方案设计":  (["SecurityOfficer"], "需进行安保方案设计"),
     "待备案申请":      (["SecurityOfficer"], "材料齐备，可开始备案申请"),
     "备案材料已交接":  (["GovLiaison"], "备案材料已流转至政府对接"),
-    "审批通过":        (["SecurityOfficer"], "批文已上传，待安保部确认审批结果"),
+    "审批通过":        (["SecurityManager"], "批文已上传，待安保部确认审批结果"),
     "审批通过-待举办": (["AdminStaff"], "活动批文已下发，可合法举办"),
     "待补充备案材料":  (["SecurityOfficer"], "需补充备案材料"),
     "不通过/已终止":   (["AdminStaff", "SecurityOfficer"], "活动审批未通过"),

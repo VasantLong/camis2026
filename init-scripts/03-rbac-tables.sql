@@ -95,7 +95,8 @@ INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r, permissions p
 WHERE r.name = 'SecurityManager' AND p.name IN (
     'view_owned_activity', 'manage_security', 'reject_approval',
-    'force_cancel', 'force_postpone', 'view_dashboard', 'export_report'
+    'confirm_approval', 'force_cancel', 'force_postpone',
+    'view_dashboard', 'export_report'
 )
 ON CONFLICT DO NOTHING;
 
