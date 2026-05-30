@@ -48,7 +48,10 @@ async def test_list_activities(client, promoter_token):
         "Authorization": f"Bearer {promoter_token}",
     })
     assert resp.status_code == 200
-    assert isinstance(resp.json(), list)
+    data = resp.json()
+    assert isinstance(data, dict)
+    assert "items" in data
+    assert "total" in data
 
 
 @pytest.mark.asyncio
