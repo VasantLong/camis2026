@@ -63,5 +63,5 @@ export default function DocumentList({ documents, loading }: Props) {
     },
   ];
 
-  return <Table rowKey="id" columns={columns} dataSource={documents} />;
+  return <Table rowKey="id" columns={columns} dataSource={documents} pagination={false} />;
 }

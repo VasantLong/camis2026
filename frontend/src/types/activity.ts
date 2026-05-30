@@ -22,6 +22,11 @@ export interface ActivityResponse {
   updated_at: string;
 }
 
+export interface ActivityPaginatedResponse {
+  items: ActivityResponse[];
+  total: number;
+}
+
 export interface ActivityListParams {
   status?: string;
   keyword?: string;

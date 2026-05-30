@@ -6,10 +6,11 @@ import type { ActivityResponse } from "@/types/activity";
 
 interface Props {
   data: ActivityResponse[];
+  total: number;
   loading: boolean;
 }
 
-export default function ActivityTable({ data, loading }: Props) {
+export default function ActivityTable({ data, total, loading }: Props) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const page = Number(searchParams.get("page") || "1");
@@ -85,6 +86,7 @@ export default function ActivityTable({ data, loading }: Props) {
       pagination={{
         current: page,
         pageSize: size,
+        total,
         showSizeChanger: true,
         pageSizeOptions: ["10", "20", "50"],
         showTotal: (total) => `共 ${total} 条`,

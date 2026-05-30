@@ -16,7 +16,7 @@ from app.models.document import Document
 from app.models.user import User
 from app.models.rbac import Role, UserRole
 from app.rbac import get_user_permissions, require_permission
-from app.schemas.activity import ActivityCreate, ActivityListParams, ActivityResponse, StatusLogEntry
+from app.schemas.activity import ActivityCreate, ActivityListParams, ActivityPaginatedResponse, ActivityResponse, StatusLogEntry
 from app.services.activity_service import ActivityService
 from app.services.redis_client import get_redis
 from app.errors import NotFoundError, ValidationError
@@ -81,7 +81,7 @@ async def create_activity(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT if "冲突" in str(e) else status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get("", response_model=list[ActivityResponse])
+@router.get("", response_model=ActivityPaginatedResponse)
 async def list_activities(
     status_filter: str | None = Query(None, alias="status"),
     keyword: str | None = None,
@@ -105,8 +105,8 @@ async def list_activities(
         page=page,
         size=size,
     )
-    items, _ = await svc.list(params, owner_id, allowed)
-    return items
+    items, total = await svc.list(params, owner_id, allowed)
+    return ActivityPaginatedResponse(items=items, total=total)
 
 
 @router.get("/{activity_id}", response_model=ActivityResponse)

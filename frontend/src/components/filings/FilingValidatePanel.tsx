@@ -44,5 +44,5 @@ export default function FilingValidatePanel({ data }: Props) {
     },
   ];
 
-  return <Table rowKey="material_id" columns={columns} dataSource={data} />;
+  return <Table rowKey="material_id" columns={columns} dataSource={data} pagination={false} />;
 }

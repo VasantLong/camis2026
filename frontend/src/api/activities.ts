@@ -3,13 +3,14 @@ import type {
   ActivityCreate,
   ActivityResponse,
   ActivityListParams,
+  ActivityPaginatedResponse,
   StatusLogEntry,
 } from "@/types/activity";
 import type { DocumentResponse } from "@/types/document";
 
 export const activitiesApi = {
   list: (params: ActivityListParams) =>
-    client.get<ActivityResponse[]>("/activities", { params }),
+    client.get<ActivityPaginatedResponse>("/activities", { params }),
 
   get: (id: string) =>
     client.get<ActivityResponse>(`/activities/${id}`),

@@ -52,6 +52,7 @@ export default function AnomalyList({ anomalies }: Props) {
         rowKey="activity_id"
         columns={columns}
         dataSource={anomalies}
+        pagination={false}
       />
     </Card>
   );

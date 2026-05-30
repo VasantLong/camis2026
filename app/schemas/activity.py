@@ -30,6 +30,11 @@ class ActivityResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ActivityPaginatedResponse(BaseModel):
+    items: list[ActivityResponse]
+    total: int
+
+
 class ActivityListParams(BaseModel):
     status: str | None = None
     keyword: str | None = None

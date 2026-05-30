@@ -22,7 +22,9 @@ export default function ActivityListPage() {
     size: Number(searchParams.get("size") || "20"),
   };
 
-  const { data = [], isLoading } = useActivities(params);
+  const { data: paginated, isLoading } = useActivities(params);
+  const data = paginated?.items ?? [];
+  const total = paginated?.total ?? 0;
 
   return (
     <div style={{ padding: 24 }}>
@@ -48,7 +50,7 @@ export default function ActivityListPage() {
         )}
       </div>
       <ActivityFilters />
-      <ActivityTable data={data} loading={isLoading} />
+      <ActivityTable data={data} total={total} loading={isLoading} />
     </div>
   );
 }
