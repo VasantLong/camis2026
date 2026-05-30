@@ -52,6 +52,7 @@ export default function ActivityForm({ onSubmit, loading, initialValues }: Props
           format="YYYY-MM-DD HH:mm"
           placeholder="YYYY-MM-DD HH:mm"
           style={{ width: "100%" }}
+          disabledDate={(d) => d && d.isBefore(dayjs().startOf("day"))}
         />
       </Form.Item>
 
@@ -122,6 +123,7 @@ export default function ActivityForm({ onSubmit, loading, initialValues }: Props
           format="YYYY-MM-DD HH:mm"
           placeholder="YYYY-MM-DD HH:mm"
           style={{ width: "100%" }}
+          disabledDate={(d) => d && d.isBefore(dayjs().startOf("day"))}
         />
       </Form.Item>
 
