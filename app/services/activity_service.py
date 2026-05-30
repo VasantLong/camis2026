@@ -62,6 +62,8 @@ class ActivityService:
             estimated_time=data.estimated_time,
             location=data.location,
             sponsor=data.sponsor,
+            sponsor_contact=data.sponsor_contact,
+            sponsor_phone=data.sponsor_phone,
             deadline=data.deadline,
             status="待设计方案",
             owner_id=owner_id,
