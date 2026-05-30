@@ -31,6 +31,7 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
     display_name: str
+    contact_phone: str | None = None
 
 
 class LoginRequest(BaseModel):
@@ -56,6 +57,7 @@ class UserResponse(BaseModel):
     email: str
     display_name: str
     is_active: bool
+    contact_phone: str | None = None
     permissions: list[str] = []
     roles: list[str] = []
     role_permissions: dict[str, list[str]] = {}
@@ -74,6 +76,7 @@ async def register(body: RegisterRequest, response: Response, bg: BackgroundTask
         email=body.email,
         password_hash=hash_password(body.password),
         display_name=body.display_name,
+        contact_phone=body.contact_phone,
     )
     db.add(user)
     await db.commit()
@@ -177,6 +180,7 @@ async def me(current_user: User = Depends(get_current_user), db=Depends(get_db))
         email=current_user.email,
         display_name=current_user.display_name,
         is_active=current_user.is_active,
+        contact_phone=current_user.contact_phone,
         permissions=permissions,
         roles=roles,
         role_permissions=role_perms,
@@ -186,6 +190,7 @@ async def me(current_user: User = Depends(get_current_user), db=Depends(get_db))
 
 class UpdateProfileRequest(BaseModel):
     display_name: str
+    contact_phone: str | None = None
 
 
 @router.patch("/me", response_model=UserResponse)
@@ -195,6 +200,8 @@ async def update_profile(
     db=Depends(get_db),
 ):
     current_user.display_name = body.display_name
+    if body.contact_phone is not None:
+        current_user.contact_phone = body.contact_phone
     db.add(current_user)
     await db.commit()
     await db.refresh(current_user)
@@ -239,6 +246,7 @@ async def update_profile(
     return UserResponse(
         id=str(current_user.id), email=current_user.email,
         display_name=current_user.display_name, is_active=current_user.is_active,
+        contact_phone=current_user.contact_phone,
         permissions=list(perm_set), roles=roles,
         role_permissions=role_perms, pending_role_request=pending_rr,
     )
