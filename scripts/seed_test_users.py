@@ -16,8 +16,10 @@ from app.models.user import User
 SEED_USERS = [
     ("superadmin@test.com", "pass123", ["SuperAdmin"]),
     ("promoter@test.com", "pass123", ["Promoter"]),
-    ("security@test.com", "pass123", ["SecurityOfficer", "SecurityManager"]),
-    ("admin@test.com", "pass123", ["AdminStaff", "AdminManager"]),
+    ("security@test.com", "pass123", ["SecurityOfficer"]),
+    ("security_mgr@test.com", "pass123", ["SecurityManager"]),
+    ("admin@test.com", "pass123", ["AdminStaff"]),
+    ("admin_mgr@test.com", "pass123", ["AdminManager"]),
     ("liaison@test.com", "pass123", ["GovLiaison"]),
     ("testuser@test.com", "test123", []),
 ]

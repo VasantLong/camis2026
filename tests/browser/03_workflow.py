@@ -52,8 +52,9 @@ def sidebar_nav(page, text):
 def find_activity_link(page, name):
     """Click activity by name in the table."""
     sidebar_nav(page, "全部活动")
-    page.wait_for_timeout(1000)
-    link = page.locator(f'a:has-text("{name}")').first
+    page.wait_for_timeout(1500)
+    page.wait_for_load_state("networkidle")
+    link = page.locator(f'td a:has-text("{name}")').first
     if link.count() > 0:
         link.click()
         page.wait_for_timeout(2000)
@@ -124,17 +125,17 @@ with sync_playwright() as p:
         page.wait_for_timeout(800)
     check("需进行安保方案设计" in page.content() or wf_name in page.content(), "notification content visible")
 
-    # === Step 2: SecurityOfficer sees both buttons, rejects ===
-    print("\n2. SecurityOfficer: reject")
+    # === Step 2: SecurityManager rejects ===
+    print("\n2. SecurityManager: reject")
+    login_as(page, "security_mgr@test.com", "pass123")
+    check("/login" not in page.url, "security mgr logged in")
     find_activity_link(page, wf_name)
     check("/activities/" in page.url, f"on detail page (got {page.url})")
     check("待安保方案设计" in page.content(), "activity in 待安保方案设计 status")
 
-    # Security sees both sign and reject buttons
-    has_sign2 = page.locator('button:has-text("签署完成")').count() > 0
+    # SecurityManager sees reject button (has reject_approval)
     has_reject2 = page.locator('button:has-text("驳回")').count() > 0
-    check(has_sign2, "security sees sign button")
-    check(has_reject2, "security sees reject button")
+    check(has_reject2, "security mgr sees reject button")
 
     rej = page.locator('button:has-text("驳回")').first
     if rej.count() > 0:
@@ -151,6 +152,8 @@ with sync_playwright() as p:
 
     # === Step 3: SecurityOfficer signs complete ===
     print("\n3. SecurityOfficer: sign complete")
+    login_as(page, "security@test.com", "pass123")
+    check("/login" not in page.url, "security logged in")
     find_activity_link(page, wf_name)
     check("待安保方案设计" in page.content(), "activity in 待安保方案设计 status")
 
