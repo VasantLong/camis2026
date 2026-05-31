@@ -1,0 +1,185 @@
+name: PR Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  # ── backend: Python syntax check on changed files ──
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Syntax check changed Python files
+        run: |
+          git diff --name-only origin/${{ github.base_ref }}...HEAD -- '*.py' > /tmp/changed_py.txt || true
+          if [ ! -s /tmp/changed_py.txt ]; then
+            echo "No Python files changed"
+            exit 0
+          fi
+          cat /tmp/changed_py.txt
+          errors=0
+          while IFS= read -r f; do
+            echo "::group::$f"
+            python -m py_compile "$f" || errors=$((errors + 1))
+            echo "::endgroup::"
+          done < /tmp/changed_py.txt
+          if [ $errors -gt 0 ]; then
+            echo "::error::$errors Python file(s) failed syntax check"
+            exit 1
+          fi
+          echo "All Python files OK"
+
+  # ── frontend: TypeScript type check ──
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: TypeScript check
+        run: |
+          cd frontend
+          changed=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- 'frontend/src/')
+          if [ -z "$changed" ]; then
+            echo "No frontend source files changed"
+          fi
+          npx tsc --noEmit
+
+  # ── hardcoded secrets detection ──
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Scan for hardcoded credentials
+        run: |
+          patterns=(
+            'api_key\s*=\s*"[^"]+"'
+            'secret\s*=\s*"[^"]+"'
+            'password\s*=\s*"[^"]+"'
+            'token\s*=\s*"[^"]+"'
+            'access_key\s*=\s*"[^"]+"'
+            'BEGIN\s+(RSA|EC)\s+PRIVATE\s+KEY'
+          )
+          violations=0
+          for pattern in "${patterns[@]}"; do
+            hits=$(git diff origin/${{ github.base_ref }}...HEAD | grep -nE "$pattern" | grep -v 'pass123\|test\|\.env\|#\|\.md\|PASSWORD' || true)
+            if [ -n "$hits" ]; then
+              echo "::warning::Potential hardcoded credential: $hits"
+              violations=$((violations + 1))
+            fi
+          done
+          if [ $violations -gt 0 ]; then
+            echo "::error::$violations potential credential(s) found in diff — review manually"
+            exit 1
+          fi
+          echo "No hardcoded credentials detected"
+
+  # ── branch naming check ──
+  branch-name:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate branch name
+        run: |
+          branch="${{ github.head_ref }}"
+          if echo "$branch" | grep -qE '^(feat|fix|test|docs|chore|refactor)(/|-)'; then
+            echo "Branch name OK: $branch"
+          else
+            echo "::error::Branch '$branch' does not match pattern: (feat|fix|test|docs|chore|refactor)[/-]..."
+            exit 1
+          fi
+
+  # ── DB migration safety check ──
+  db-migration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check SQL migrations for dangerous operations
+        run: |
+          sql_files=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- 'init-scripts/*.sql' || true)
+          if [ -z "$sql_files" ]; then
+            echo "No SQL migration files changed"
+            exit 0
+          fi
+          echo "Changed SQL files: $sql_files"
+          dangerous=0
+          for f in $sql_files; do
+            # DROP without IF EXISTS
+            if grep -nE 'DROP (TABLE|COLUMN|DATABASE)' "$f" | grep -v 'IF EXISTS' | grep -v 'DROP TABLE IF'; then
+              echo "::warning::$f: DROP without IF EXISTS detected"
+              dangerous=$((dangerous + 1))
+            fi
+            # ALTER TABLE without IF EXISTS / IF NOT EXISTS
+            if grep -nE 'ALTER TABLE.*(DROP|RENAME)' "$f" | grep -v 'IF EXISTS' | grep -v 'IF NOT EXISTS'; then
+              echo "::warning::$f: destructive ALTER without guard clause"
+              dangerous=$((dangerous + 1))
+            fi
+          done
+          if [ $dangerous -gt 0 ]; then
+            echo "::error::$dangerous dangerous SQL pattern(s) — add IF EXISTS/IF NOT EXISTS guards"
+            exit 1
+          fi
+          echo "SQL migrations look safe"
+
+  # ── dependency change alert ──
+  dep-changes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Alert on dependency changes
+        run: |
+          deps=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- \
+            'requirements.txt' 'frontend/package.json' 'frontend/package-lock.json' || true)
+          if [ -n "$deps" ]; then
+            echo "::warning::Dependency files changed:"
+            echo "$deps" | while read f; do echo "  - $f"; done
+            echo "---"
+            git diff origin/${{ github.base_ref }}...HEAD -- requirements.txt frontend/package.json | head -40
+            echo "---"
+            echo "::warning::Review dependency changes carefully for supply-chain risks"
+          else
+            echo "No dependency files changed"
+          fi
+
+  # ── summary comment on failure ──
+  notify:
+    needs: [backend, frontend, secrets, branch-name, db-migration, dep-changes]
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const jobs = ${{ toJson(needs) }};
+            const failed = Object.entries(jobs)
+              .filter(([, v]) => v.result === 'failure')
+              .map(([k]) => `- **${k}**`).join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `## PR Checks Failed\n\n${failed}\n\nPlease fix the errors above and push again.`,
+            });
