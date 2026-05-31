@@ -34,6 +34,10 @@ jobs:
           cat /tmp/changed_py.txt
           errors=0
           while IFS= read -r f; do
+            if [ ! -f "$f" ]; then
+              echo "  (deleted) $f"
+              continue
+            fi
             echo "::group::$f"
             python -m py_compile "$f" || errors=$((errors + 1))
             echo "::endgroup::"
