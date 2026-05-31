@@ -13,19 +13,29 @@ import {
   List,
   Spin,
   Popconfirm,
+  Input,
   message,
 } from "antd";
-import { StopOutlined, CheckOutlined, EditOutlined, LockOutlined, UndoOutlined } from "@ant-design/icons";
+import { StopOutlined, CheckOutlined, EditOutlined, LockOutlined } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminApi, type UserListItem, type UserOverview } from "@/api/admin";
 import { authApi } from "@/api/auth";
+import { useAuthStore } from "@/stores/authStore";
 import { ROLE_LABEL_MAP } from "@/utils/constants";
 
 export default function UserManagementPage() {
   const queryClient = useQueryClient();
+  const currentUserId = useAuthStore((s) => s.user?.id);
   const [editingUser, setEditingUser] = useState<UserListItem | null>(null);
   const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([]);
   const [detailUser, setDetailUser] = useState<UserListItem | null>(null);
+  const [archivingUser, setArchivingUser] = useState<UserListItem | null>(null);
+  const [archiveReason, setArchiveReason] = useState("");
+  const [keyword, setKeyword] = useState("");
+  const [searchValue, setSearchValue] = useState("");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [filterRole, setFilterRole] = useState<string | undefined>();
+  const [filterStatus, setFilterStatus] = useState<string | undefined>();
 
   const { data: overview, isFetching: overviewLoading } = useQuery({
     queryKey: ["admin", "users", detailUser?.id, "overview"],
@@ -35,8 +45,8 @@ export default function UserManagementPage() {
   });
 
   const { data: users = [], isLoading } = useQuery({
-    queryKey: ["admin", "users"],
-    queryFn: () => adminApi.getUsers().then((r) => r.data),
+    queryKey: ["admin", "users", keyword, sortOrder, filterRole, filterStatus],
+    queryFn: () => adminApi.getUsers(keyword || undefined, sortOrder, filterRole, filterStatus).then((r) => r.data),
   });
 
   const { data: roles = [] } = useQuery({
@@ -56,18 +66,12 @@ export default function UserManagementPage() {
   });
 
   const archiveMutation = useMutation({
-    mutationFn: (id: string) => adminApi.archiveUser(id),
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      adminApi.archiveUser(id, reason),
     onSuccess: () => {
-      message.success("已归档");
-      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
-    },
-    onError: (err: any) => message.error(err?.detail || "操作失败"),
-  });
-
-  const unarchiveMutation = useMutation({
-    mutationFn: (id: string) => adminApi.unarchiveUser(id),
-    onSuccess: () => {
-      message.success("已取消归档");
+      message.success("已归档，操作不可撤回");
+      setArchivingUser(null);
+      setArchiveReason("");
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
     },
     onError: (err: any) => message.error(err?.detail || "操作失败"),
@@ -118,8 +122,13 @@ export default function UserManagementPage() {
       key: "status",
       render: (_: unknown, record: UserListItem) => (
         <Space size={4}>
-          {record.is_active ? <Tag color="green">正常</Tag> : <Tag color="red">已禁用</Tag>}
-          {record.is_archived && <Tag color="default">已归档</Tag>}
+          {record.is_archived ? (
+            <Tag color="volcano">已归档</Tag>
+          ) : record.is_active ? (
+            <Tag color="green">正常</Tag>
+          ) : (
+            <Tag color="red">已禁用</Tag>
+          )}
         </Space>
       ),
     },
@@ -132,66 +141,76 @@ export default function UserManagementPage() {
     {
       title: "操作",
       key: "actions",
-      render: (_: unknown, record: UserListItem) => (
-        <Space>
-          <Button
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => {
-              setEditingUser(record);
-              setSelectedRoleIds(
-                roles
-                  .filter((r) => record.roles.includes(r.name))
-                  .map((r) => r.id)
-              );
-            }}
-          >
-            角色
-          </Button>
-          {record.is_active ? (
-            <Popconfirm
-              title="确认禁用该用户？"
-              onConfirm={() =>
-                statusMutation.mutate({ id: record.id, active: false })
-              }
+      render: (_: unknown, record: UserListItem) => {
+        if (record.is_archived) {
+          return (
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              已封存
+            </Typography.Text>
+          );
+        }
+        if (record.id === currentUserId) {
+          return (
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              当前用户
+            </Typography.Text>
+          );
+        }
+        return (
+          <Space>
+            <Button
+              size="small"
+              icon={<EditOutlined />}
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditingUser(record);
+                setSelectedRoleIds(
+                  roles
+                    .filter((r) => record.roles.includes(r.name))
+                    .map((r) => r.id)
+                );
+              }}
             >
-              <Button size="small" icon={<StopOutlined />} danger>
-                禁用
-              </Button>
-            </Popconfirm>
-          ) : (
-            <Popconfirm
-              title="确认启用该用户？"
-              onConfirm={() =>
-                statusMutation.mutate({ id: record.id, active: true })
-              }
+              角色
+            </Button>
+            {record.is_active ? (
+              <Popconfirm
+                title="确认禁用该用户？"
+                onConfirm={() =>
+                  statusMutation.mutate({ id: record.id, active: false })
+                }
+              >
+                <Button size="small" icon={<StopOutlined />} danger onClick={(e) => e.stopPropagation()}>
+                  禁用
+                </Button>
+              </Popconfirm>
+            ) : (
+              <Popconfirm
+                title="确认启用该用户？"
+                onConfirm={() =>
+                  statusMutation.mutate({ id: record.id, active: true })
+                }
+              >
+                <Button size="small" icon={<CheckOutlined />} type="primary" onClick={(e) => e.stopPropagation()}>
+                  启用
+                </Button>
+              </Popconfirm>
+            )}
+            <Button
+              size="small"
+              icon={<LockOutlined />}
+              danger
+              onClick={(e) => {
+                e.stopPropagation();
+                setArchivingUser(record);
+                setArchiveReason("");
+              }}
             >
-              <Button size="small" icon={<CheckOutlined />} type="primary">
-                启用
-              </Button>
-            </Popconfirm>
-          )}
-          {record.is_archived ? (
-            <Popconfirm
-              title="确认取消归档该用户？"
-              onConfirm={() => unarchiveMutation.mutate(record.id)}
-            >
-              <Button size="small" icon={<UndoOutlined />}>
-                取消归档
-              </Button>
-            </Popconfirm>
-          ) : (
-            <Popconfirm
-              title="确认归档该用户？归档后该用户将无法登录"
-              onConfirm={() => archiveMutation.mutate(record.id)}
-            >
-              <Button size="small" icon={<LockOutlined />} danger>
-                归档
-              </Button>
-            </Popconfirm>
-          )}
-        </Space>
-      ),
+              归档
+            </Button>
+          </Space>
+        );
+      },
     },
   ];
 
@@ -205,7 +224,55 @@ export default function UserManagementPage() {
 
   return (
     <div style={{ padding: 24 }}>
-      <Typography.Title level={3}>用户管理</Typography.Title>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <Typography.Title level={3} style={{ margin: 0 }}>用户管理</Typography.Title>
+        <Space wrap>
+          <Input.Search
+            placeholder="搜索邮箱或显示名称"
+            allowClear
+            style={{ width: 280 }}
+            value={searchValue}
+            onChange={(e) => setSearchValue(e.target.value)}
+            onSearch={(v) => setKeyword(v)}
+          />
+          <Select
+            placeholder="角色"
+            allowClear
+            value={filterRole}
+            onChange={(v) => setFilterRole(v)}
+            style={{ width: 120 }}
+            options={roles.map((r) => ({ value: r.name, label: r.label }))}
+          />
+          <Select
+            placeholder="状态"
+            allowClear
+            value={filterStatus}
+            onChange={(v) => setFilterStatus(v)}
+            style={{ width: 100 }}
+            options={[
+              { value: "active", label: "正常" },
+              { value: "disabled", label: "已禁用" },
+              { value: "archived", label: "已归档" },
+            ]}
+          />
+          <Select
+            value={sortOrder}
+            onChange={(v) => setSortOrder(v)}
+            style={{ width: 100 }}
+            options={[
+              { value: "desc", label: "最新优先" },
+              { value: "asc", label: "最早优先" },
+            ]}
+          />
+          {(keyword || sortOrder !== "desc" || filterRole || filterStatus) && (
+            <Button
+              onClick={() => { setKeyword(""); setSearchValue(""); setSortOrder("desc"); setFilterRole(undefined); setFilterStatus(undefined); }}
+            >
+              重置
+            </Button>
+          )}
+        </Space>
+      </div>
       <Table
         columns={columns}
         dataSource={users}
@@ -229,6 +296,24 @@ export default function UserManagementPage() {
           <Spin />
         ) : overview ? (
           <>
+            {overview.is_archived && (
+              <div style={{
+                background: "#fff2f0",
+                border: "1px solid #ffccc7",
+                borderRadius: 8,
+                padding: "12px 16px",
+                marginBottom: 16,
+              }}>
+                <Typography.Text strong style={{ color: "#ff4d4f", fontSize: 14 }}>
+                  此用户已于 {overview.archived_at ? new Date(overview.archived_at).toLocaleString("zh-CN") : "—"} 归档封存
+                </Typography.Text>
+                {overview.archive_reason && (
+                  <Typography.Paragraph style={{ marginTop: 8, marginBottom: 0 }}>
+                    归档凭证：{overview.archive_reason}
+                  </Typography.Paragraph>
+                )}
+              </div>
+            )}
             <Descriptions column={1} bordered size="small" style={{ marginBottom: 16 }}>
               <Descriptions.Item label="UUID">
                 <Typography.Text code style={{ fontSize: 11 }}>
@@ -239,10 +324,13 @@ export default function UserManagementPage() {
               <Descriptions.Item label="显示名称">{overview.display_name}</Descriptions.Item>
               <Descriptions.Item label="状态">
                 <Space size={4}>
-                  <Tag color={overview.is_active ? "green" : "red"}>
-                    {overview.is_active ? "正常" : "已禁用"}
-                  </Tag>
-                  {overview.is_archived && <Tag color="default">已归档</Tag>}
+                  {overview.is_archived ? (
+                    <Tag color="volcano">已归档</Tag>
+                  ) : overview.is_active ? (
+                    <Tag color="green">正常</Tag>
+                  ) : (
+                    <Tag color="red">已禁用</Tag>
+                  )}
                 </Space>
               </Descriptions.Item>
               <Descriptions.Item label="角色">
@@ -328,6 +416,39 @@ export default function UserManagementPage() {
             label: `${r.label} (${r.name})`,
           }))}
         />
+      </Modal>
+
+      <Modal
+        title="确认归档"
+        open={!!archivingUser}
+        onCancel={() => setArchivingUser(null)}
+        onOk={() => {
+          if (archivingUser) {
+            archiveMutation.mutate({ id: archivingUser.id, reason: archiveReason });
+          }
+        }}
+        confirmLoading={archiveMutation.isPending}
+        okText="确认归档"
+        cancelText="取消"
+        okButtonProps={{ danger: true }}
+      >
+        {archivingUser && (
+          <>
+            <Typography.Paragraph style={{ marginBottom: 12 }}>
+              归档用户 <strong>{archivingUser.display_name}</strong>（{archivingUser.email}），
+              此操作<strong style={{ color: "#ff4d4f" }}>不可撤回</strong>。
+            </Typography.Paragraph>
+            <Typography.Text type="secondary" style={{ display: "block", marginBottom: 8 }}>
+              归档凭证（原因说明、证明材料编号等）：
+            </Typography.Text>
+            <Input.TextArea
+              rows={3}
+              placeholder="请填写归档原因或凭证编号"
+              value={archiveReason}
+              onChange={(e) => setArchiveReason(e.target.value)}
+            />
+          </>
+        )}
       </Modal>
     </div>
   );

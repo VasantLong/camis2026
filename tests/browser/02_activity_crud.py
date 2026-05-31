@@ -1,61 +1,23 @@
 """Activity CRUD: create via API, verify frontend display + filter + detail."""
 from pathlib import Path
-import json, uuid, urllib.request
+import uuid
 from playwright.sync_api import sync_playwright
-from utils import CDP, BASE, create_page, setup_logging, start_recording
+from utils import (CDP, BASE, API, create_page, setup_logging, start_recording,
+                   check, get_failed, login_as, sidebar_nav, api_post, login_api)
 
-API = "http://localhost:8000"
 OUT = Path(__file__).parent / "screenshots"
-failed = 0
-
-def check(cond, msg):
-    global failed
-    if cond:
-        print(f"  OK: {msg}")
-    else:
-        failed += 1
-        print(f"  FAIL: {msg}")
-
-def sidebar_nav(page, item_text):
-    sub = page.locator('.ant-menu-submenu-title:has-text("活动管理")')
-    if sub.count() > 0 and sub.first.get_attribute("aria-expanded") != "true":
-        sub.first.click()
-        page.wait_for_timeout(400)
-    it = page.locator(f'.ant-menu-item:has-text("{item_text}")').first
-    if it.count() > 0:
-        it.click()
-        page.wait_for_timeout(1500)
-        page.wait_for_load_state("networkidle")
-        return True
-    return False
-
-# --- API helpers ---
-def login_api():
-    data = json.dumps({"email": "promoter@test.com", "password": "pass123"}).encode()
-    req = urllib.request.Request(f"{API}/auth/login", data=data, headers={"Content-Type": "application/json"})
-    resp = json.loads(urllib.request.urlopen(req).read())
-    token = resp["access_token"]
-    me_req = urllib.request.Request(f"{API}/auth/me", headers={"Authorization": f"Bearer {token}"})
-    user = json.loads(urllib.request.urlopen(me_req).read())
-    return token, user["id"]
-
-def create_activity(token, name, designer_id):
-    body = json.dumps({
-        "name": name, "type": "大型活动",
-        "estimated_time": "2026-06-15T09:00:00+08:00",
-        "location": "测试广场", "sponsor": "测试主办方",
-        "sponsor_contact": "张三", "sponsor_phone": "13800138000",
-        "deadline": "2026-06-01T18:00:00+08:00",
-        "designer_id": designer_id
-    }).encode()
-    req = urllib.request.Request(f"{API}/activities", data=body,
-        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
-    return json.loads(urllib.request.urlopen(req).read())
 
 # --- Create test data ---
-token, user_id = login_api()
+token, user_id = login_api("promoter@test.com", "pass123")
 aname = f"测试活动_{uuid.uuid4().hex[:6]}"
-act = create_activity(token, aname, user_id)
+act = api_post("/activities", {
+    "name": aname, "type": "大型活动",
+    "estimated_time": "2026-06-15T09:00:00+08:00",
+    "location": "测试广场", "sponsor": "测试主办方",
+    "sponsor_contact": "张三", "sponsor_phone": "13800138000",
+    "deadline": "2026-06-01T18:00:00+08:00",
+    "designer_id": user_id,
+}, token)
 aid = act["id"]
 print(f"API created: {aname} (id={aid[:8]}...) status={act['status']}")
 
@@ -72,17 +34,9 @@ with sync_playwright() as p:
 
     # Login — 登录后默认跳转到 /profile，用户通过侧边栏导航到活动管理
     print("\n0. Login")
-    page.goto(f"{BASE}/login")
-    page.wait_for_load_state("networkidle")
-    page.context.clear_cookies()
-    page.fill('input[placeholder="邮箱"]', "promoter@test.com")
-    page.fill('input[type="password"]', "pass123")
-    page.click('button[type="submit"]')
-    page.wait_for_timeout(3000)
-    page.wait_for_load_state("networkidle")
+    login_as(page, "promoter@test.com", "pass123")
     check("/login" not in page.url, "logged in")
 
-    # Navigate to activity list via sidebar
     sidebar_nav(page, "全部活动")
     check("/activities" in page.url, "navigated to activity list")
 
@@ -92,7 +46,6 @@ with sync_playwright() as p:
 
     # 2. Status filter
     print("\n2. Status filter")
-    # Find any select that might be the status filter
     status_selects = page.locator('.ant-select').all()
     filtered = False
     for sel in status_selects:
@@ -137,7 +90,6 @@ with sync_playwright() as p:
         doc.click()
         page.wait_for_timeout(1000)
         check(True, "document tab opened")
-        # Upload area should be present
         upload = page.locator('.ant-upload').first
         check(upload.count() > 0, "upload component present")
     else:
@@ -145,8 +97,8 @@ with sync_playwright() as p:
 
     # 6. Back to list via sidebar
     print("\n6. Back to list")
-    if sidebar_nav(page, "全部活动"):
-        check(aname in page.content(), "back in list, activity visible")
+    sidebar_nav(page, "全部活动")
+    check(aname in page.content(), "back in list, activity visible")
 
     page.screenshot(path=f"{OUT / '02_activity_crud_final.png'}", full_page=True)
     if recorder:
@@ -158,6 +110,7 @@ with sync_playwright() as p:
         if "[error]" in e or "PAGE_ERROR" in e:
             print(f"  {e}")
 
+    failed = get_failed()
     print(f"\nFailed: {failed}")
     if failed > 0:
         raise SystemExit(1)

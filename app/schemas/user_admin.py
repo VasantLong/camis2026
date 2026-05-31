@@ -10,6 +10,8 @@ class UserListItem(BaseModel):
     display_name: str
     is_active: bool
     is_archived: bool
+    archive_reason: str | None = None
+    archived_at: datetime | None = None
     roles: list[str]
     created_at: datetime
 
@@ -52,6 +54,8 @@ class UserOverview(BaseModel):
     display_name: str
     is_active: bool
     is_archived: bool
+    archive_reason: str | None = None
+    archived_at: datetime | None = None
     roles: list[str]
     created_at: datetime
     login_history: list[LoginHistoryItem] = []

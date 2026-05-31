@@ -1,68 +1,12 @@
 """Workflow: state transitions with single-role users + notification checks."""
 from pathlib import Path
-import json, uuid, urllib.request
+import uuid
 from playwright.sync_api import sync_playwright
-from utils import CDP, BASE, create_page, setup_logging, start_recording
+from utils import (CDP, BASE, API, create_page, setup_logging, start_recording,
+                   check, get_failed, login_as, sidebar_nav, navigate_to_activity,
+                   api_post, login_api)
 
-API = "http://localhost:8000"
 OUT = Path(__file__).parent / "screenshots"
-failed = 0
-
-def check(cond, msg):
-    global failed
-    if cond: print(f"  OK: {msg}")
-    else: failed += 1; print(f"  FAIL: {msg}")
-
-# --- API helpers ---
-def api_post(path, body, token):
-    data = json.dumps(body).encode()
-    req = urllib.request.Request(f"{API}{path}", data=data,
-        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
-    return json.loads(urllib.request.urlopen(req).read())
-
-def login_api(email, password):
-    resp = api_post("/auth/login", {"email": email, "password": password}, None)
-    token = resp["access_token"]
-    req = urllib.request.Request(f"{API}/auth/me", headers={"Authorization": f"Bearer {token}"})
-    user = json.loads(urllib.request.urlopen(req).read())
-    return token, user["id"]
-
-# --- Browser helpers ---
-def login_as(page, email, password):
-    page.context.clear_cookies()
-    page.goto(f"{BASE}/login")
-    page.wait_for_load_state("networkidle")
-    page.fill('input[placeholder="邮箱"]', email)
-    page.fill('input[type="password"]', password)
-    page.click('button[type="submit"]')
-    page.wait_for_timeout(3000)
-    page.wait_for_load_state("networkidle")
-
-def sidebar_nav(page, text):
-    sub = page.locator('.ant-menu-submenu-title:has-text("活动管理")')
-    if sub.count() > 0 and sub.first.get_attribute("aria-expanded") != "true":
-        sub.first.click()
-        page.wait_for_timeout(400)
-    it = page.locator(f'.ant-menu-item:has-text("{text}")').first
-    if it.count() > 0:
-        it.click()
-        page.wait_for_timeout(1500)
-        page.wait_for_load_state("networkidle")
-
-def find_activity_link(page, name):
-    """Click activity by name in the table."""
-    sidebar_nav(page, "全部活动")
-    page.wait_for_timeout(1000)
-    # Wait for table rows to appear
-    page.wait_for_selector('.ant-table-tbody tr', timeout=5000)
-    page.wait_for_timeout(500)
-    link = page.locator(f'a:has-text("{name}")').first
-    if link.count() > 0:
-        link.click()
-        page.wait_for_timeout(2000)
-        page.wait_for_load_state("networkidle")
-        return True
-    return False
 
 # --- Create one activity via API ---
 p_token, p_user_id = login_api("promoter@test.com", "pass123")
@@ -92,7 +36,7 @@ with sync_playwright() as p:
     print("\n1. Promoter: submit to 待安保方案设计")
     login_as(page, "promoter@test.com", "pass123")
     check("/login" not in page.url, "promoter logged in")
-    find_activity_link(page, wf_name)
+    navigate_to_activity(page, wf_name)
     check("/activities/" in page.url, f"on detail page (got {page.url})")
     check("待设计方案" in page.content(), "activity in 待设计方案 status")
 
@@ -141,7 +85,7 @@ with sync_playwright() as p:
     print("\n2. SecurityManager: reject")
     login_as(page, "security_mgr@test.com", "pass123")
     check("/login" not in page.url, "security mgr logged in")
-    find_activity_link(page, wf_name)
+    navigate_to_activity(page, wf_name)
     check("/activities/" in page.url, f"on detail page (got {page.url})")
     check("待安保方案设计" in page.content(), "activity in 待安保方案设计 status")
 
@@ -166,7 +110,7 @@ with sync_playwright() as p:
     print("\n3. SecurityOfficer: sign complete")
     login_as(page, "security@test.com", "pass123")
     check("/login" not in page.url, "security logged in")
-    find_activity_link(page, wf_name)
+    navigate_to_activity(page, wf_name)
     check("待安保方案设计" in page.content(), "activity in 待安保方案设计 status")
 
     sign = page.locator('button:has-text("签署完成")').first
@@ -186,7 +130,7 @@ with sync_playwright() as p:
     print("\n4. AdminManager: force cancel")
     login_as(page, "admin_mgr@test.com", "pass123")
     check("/login" not in page.url, "admin mgr logged in")
-    find_activity_link(page, wf_name)
+    navigate_to_activity(page, wf_name)
     check("/activities/" in page.url, f"on cancel activity detail (got {page.url})")
 
     cancel = page.locator('button:has-text("强制取消")').first
@@ -228,6 +172,7 @@ with sync_playwright() as p:
         if "[error]" in e or "PAGE_ERROR" in e:
             print(f"  {e}")
 
+    failed = get_failed()
     print(f"\nFailed: {failed}")
     if failed > 0:
         raise SystemExit(1)

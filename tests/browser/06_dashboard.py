@@ -1,18 +1,10 @@
 from pathlib import Path
 """Dashboard: stats cards, status distribution, anomaly list, report export."""
 from playwright.sync_api import sync_playwright
-from utils import CDP, BASE, create_page, setup_logging, start_recording
+from utils import (CDP, BASE, create_page, setup_logging, start_recording,
+                   check, get_failed, login_as)
 
 OUT = Path(__file__).parent / 'screenshots'
-failed = 0
-
-def check(cond, msg):
-    global failed
-    if cond:
-        print(f"  OK: {msg}")
-    else:
-        failed += 1
-        print(f"  FAIL: {msg}")
 
 with sync_playwright() as p:
     browser = p.chromium.connect_over_cdp(CDP)
@@ -25,25 +17,15 @@ with sync_playwright() as p:
     page.on("console", lambda m: errors.append(f"[{m.type}] {m.text}"))
     page.on("pageerror", lambda e: errors.append(f"PAGE_ERROR: {e}"))
 
-    # Login
-    page.goto(f"{BASE}/login")
-    page.wait_for_load_state("networkidle")
-    page.fill('input[placeholder="邮箱"]', "promoter@test.com")
-    page.fill('input[type="password"]', "pass123")
-    page.click('button[type="submit"]')
-    page.wait_for_timeout(3000)
-    page.wait_for_load_state("networkidle")
-    check("/activities" in page.url, "logged in")
+    # Login as admin (has view_dashboard)
+    login_as(page, "admin@test.com", "pass123")
+    check("/login" not in page.url, "logged in")
 
-    # 1. Navigate to dashboard
+    # 1. Navigate to dashboard via sidebar
     print("\n1. Navigate to dashboard")
     dash_item = page.locator('.ant-menu-item:has-text("活动面板")')
     if dash_item.count() > 0:
         dash_item.first.click()
-        page.wait_for_timeout(2000)
-        page.wait_for_load_state("networkidle")
-    else:
-        page.goto(f"{BASE}/dashboard")
         page.wait_for_timeout(2000)
         page.wait_for_load_state("networkidle")
     check("/dashboard" in page.url, f"on dashboard (got {page.url})")
@@ -56,12 +38,10 @@ with sync_playwright() as p:
 
     # 3. Status distribution
     print("\n3. Status distribution")
-    # Should have progress bars or status labels
     dist = page.locator('.ant-progress').first
     if dist.count() > 0:
         check(True, "progress bars rendered for status distribution")
     else:
-        # Fallback: look for status labels
         check("待设计方案" in content or "审批通过" in content,
               "status labels visible in distribution")
 
@@ -77,19 +57,16 @@ with sync_playwright() as p:
     print("\n5. Export monthly report")
     export_btn = page.locator('button:has-text("导出月报")').first
     if export_btn.count() > 0:
-        # Click month picker first
         month_picker = page.locator('input[placeholder="选择月份"]').first
         if month_picker.count() > 0:
             month_picker.click()
             page.wait_for_timeout(500)
-            # Click current month
             today_cell = page.locator('.ant-picker-cell-in-view').first
             if today_cell.count() > 0:
                 today_cell.click()
                 page.wait_for_timeout(500)
         export_btn.click()
         page.wait_for_timeout(2000)
-        # Look for success toast
         toast = page.locator('.ant-message').first
         if toast.count() > 0:
             check(True, f"report export result: '{toast.inner_text()}'")
@@ -110,6 +87,7 @@ with sync_playwright() as p:
     if not error_msgs:
         print("  (none)")
 
+    failed = get_failed()
     print(f"\nFailed: {failed}")
     if failed > 0:
         raise SystemExit(1)

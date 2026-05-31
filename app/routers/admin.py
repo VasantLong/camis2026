@@ -1,8 +1,8 @@
 from datetime import datetime, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -139,13 +139,31 @@ async def reject_role_request(
 
 @router.get("/users", response_model=list[UserListItem])
 async def list_users(
+    keyword: str | None = Query(None),
+    sort_order: str = Query("desc", pattern="^(asc|desc)$"),
+    role: str | None = Query(None),
+    status: str | None = Query(None, pattern="^(active|disabled|archived)$"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _perm: None = require_permission("administer_users"),
 ):
-    result = await db.execute(
-        select(User).order_by(User.created_at.desc())
-    )
+    order = User.created_at.asc() if sort_order == "asc" else User.created_at.desc()
+    query = select(User).order_by(order)
+    if keyword:
+        pattern = f"%{keyword}%"
+        query = query.where(
+            or_(User.email.ilike(pattern), User.display_name.ilike(pattern))
+        )
+    if role:
+        sub = select(UserRole.user_id).join(Role, UserRole.role_id == Role.id).where(Role.name == role)
+        query = query.where(User.id.in_(sub))
+    if status == "active":
+        query = query.where(User.is_active == True, User.is_archived == False)
+    elif status == "disabled":
+        query = query.where(User.is_active == False, User.is_archived == False)
+    elif status == "archived":
+        query = query.where(User.is_archived == True)
+    result = await db.execute(query)
     users = result.scalars().all()
     output = []
     for u in users:
@@ -161,6 +179,8 @@ async def list_users(
             display_name=u.display_name,
             is_active=u.is_active,
             is_archived=u.is_archived,
+            archive_reason=u.archive_reason,
+            archived_at=u.archived_at,
             roles=roles,
             created_at=u.created_at,
         ))
@@ -264,6 +284,7 @@ async def get_user_overview(
     return UserOverview(
         id=u.id, email=u.email, display_name=u.display_name,
         is_active=u.is_active, is_archived=u.is_archived,
+        archive_reason=u.archive_reason, archived_at=u.archived_at,
         roles=roles, created_at=u.created_at,
         login_history=login_history, recent_actions=actions,
     )
@@ -280,6 +301,8 @@ async def update_user_roles(
     u = await db.get(User, user_id)
     if u is None:
         raise NotFoundError("用户不存在")
+    if u.id == current_user.id:
+        raise ConflictError("不能修改自己的角色")
 
     existing = (await db.execute(
         select(UserRole).where(UserRole.user_id == user_id)
@@ -331,6 +354,8 @@ async def update_user_status(
     u = await db.get(User, user_id)
     if u is None:
         raise NotFoundError("用户不存在")
+    if u.id == current_user.id:
+        raise ConflictError("不能修改自己的状态")
 
     u.is_active = body.is_active
     await db.commit()
@@ -367,6 +392,7 @@ async def update_user_status(
 @router.post("/users/{user_id}/archive")
 async def archive_user(
     user_id: UUID,
+    body: dict | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _perm: None = require_permission("administer_users"),
@@ -377,6 +403,8 @@ async def archive_user(
     if u.id == current_user.id:
         raise ConflictError("不能归档自己")
     u.is_archived = True
+    u.archived_at = datetime.now(timezone.utc)
+    u.archive_reason = (body or {}).get("reason")
     await db.commit()
     return {"message": "已归档"}
 

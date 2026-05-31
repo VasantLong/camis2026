@@ -1,48 +1,11 @@
 """GovLiaison scenario: approve, supplement, reject on 备案材料已交接 activities."""
 from pathlib import Path
-import json, uuid, urllib.request
+import uuid
 from playwright.sync_api import sync_playwright
-from utils import CDP, BASE, create_page, setup_logging, start_recording
+from utils import (CDP, BASE, API, create_page, setup_logging, start_recording,
+                   check, get_failed, login_as, sidebar_nav, api_post, api_put, login_api)
 
-API = "http://localhost:8000"
 OUT = Path(__file__).parent / "screenshots"
-failed = 0
-
-def check(cond, msg):
-    global failed
-    if cond: print(f"  OK: {msg}")
-    else: failed += 1; print(f"  FAIL: {msg}")
-
-def api_post(path, body, token):
-    data = json.dumps(body).encode()
-    req = urllib.request.Request(f"{API}{path}", data=data,
-        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
-    return json.loads(urllib.request.urlopen(req).read())
-
-def api_put(path, body, token):
-    data = json.dumps(body).encode()
-    req = urllib.request.Request(f"{API}{path}", data=data,
-        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-        method="PUT")
-    return json.loads(urllib.request.urlopen(req).read())
-
-def login_api(email, password):
-    resp = api_post("/auth/login", {"email": email, "password": password}, None)
-    token = resp["access_token"]
-    req = urllib.request.Request(f"{API}/auth/me", headers={"Authorization": f"Bearer {token}"})
-    user = json.loads(urllib.request.urlopen(req).read())
-    return token, user["id"]
-
-def sidebar_nav(page, text):
-    sub = page.locator('.ant-menu-submenu-title:has-text("活动管理")')
-    if sub.count() > 0 and sub.first.get_attribute("aria-expanded") != "true":
-        sub.first.click()
-        page.wait_for_timeout(400)
-    it = page.locator(f'.ant-menu-item:has-text("{text}")').first
-    if it.count() > 0:
-        it.click()
-        page.wait_for_timeout(1500)
-        page.wait_for_load_state("networkidle")
 
 # --- Create 3 activities in 备案材料已交接 via API (devtest, all permissions) ---
 token, user_id = login_api("devtest@test.com", "pass123")
@@ -81,13 +44,7 @@ with sync_playwright() as p:
 
     # Login as GovLiaison — 登录后通过侧边栏导航到活动列表
     print("\n0. Login")
-    page.goto(f"{BASE}/login")
-    page.wait_for_load_state("networkidle")
-    page.fill('input[placeholder="邮箱"]', "liaison@test.com")
-    page.fill('input[type="password"]', "pass123")
-    page.click('button[type="submit"]')
-    page.wait_for_timeout(3000)
-    page.wait_for_load_state("networkidle")
+    login_as(page, "liaison@test.com", "pass123")
     check("/login" not in page.url, "logged in")
 
     sidebar_nav(page, "全部活动")
@@ -95,7 +52,6 @@ with sync_playwright() as p:
 
     # 1. Approve: 审批通过
     print("\n1. Approve (审批通过)")
-    sidebar_nav(page, "全部活动")
     approve_link = page.locator(f'a:has-text("{gov_names[0]}")').first
     if approve_link.count() > 0:
         approve_link.click()
@@ -175,6 +131,7 @@ with sync_playwright() as p:
         if "[error]" in e or "PAGE_ERROR" in e:
             print(f"  {e}")
 
+    failed = get_failed()
     print(f"\nFailed: {failed}")
     if failed > 0:
         raise SystemExit(1)
