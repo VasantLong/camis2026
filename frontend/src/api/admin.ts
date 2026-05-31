@@ -58,9 +58,14 @@ export const adminApi = {
       comment,
     }),
 
-  getUsers: (keyword?: string, sortOrder?: string) =>
+  getUsers: (keyword?: string, sortOrder?: string, role?: string, status?: string) =>
     client.get<UserListItem[]>("/admin/users", {
-      params: { ...(keyword ? { keyword } : {}), sort_order: sortOrder || "desc" },
+      params: {
+        ...(keyword ? { keyword } : {}),
+        sort_order: sortOrder || "desc",
+        ...(role ? { role } : {}),
+        ...(status ? { status } : {}),
+      },
     }),
 
   getUser: (id: string) => client.get<UserDetail>(`/admin/users/${id}`),

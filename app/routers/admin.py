@@ -141,6 +141,8 @@ async def reject_role_request(
 async def list_users(
     keyword: str | None = Query(None),
     sort_order: str = Query("desc", pattern="^(asc|desc)$"),
+    role: str | None = Query(None),
+    status: str | None = Query(None, pattern="^(active|disabled|archived)$"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _perm: None = require_permission("administer_users"),
@@ -152,6 +154,15 @@ async def list_users(
         query = query.where(
             or_(User.email.ilike(pattern), User.display_name.ilike(pattern))
         )
+    if role:
+        sub = select(UserRole.user_id).join(Role, UserRole.role_id == Role.id).where(Role.name == role)
+        query = query.where(User.id.in_(sub))
+    if status == "active":
+        query = query.where(User.is_active == True, User.is_archived == False)
+    elif status == "disabled":
+        query = query.where(User.is_active == False, User.is_archived == False)
+    elif status == "archived":
+        query = query.where(User.is_archived == True)
     result = await db.execute(query)
     users = result.scalars().all()
     output = []

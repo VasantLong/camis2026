@@ -32,6 +32,8 @@ export default function UserManagementPage() {
   const [keyword, setKeyword] = useState("");
   const [searchValue, setSearchValue] = useState("");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [filterRole, setFilterRole] = useState<string | undefined>();
+  const [filterStatus, setFilterStatus] = useState<string | undefined>();
 
   const { data: overview, isFetching: overviewLoading } = useQuery({
     queryKey: ["admin", "users", detailUser?.id, "overview"],
@@ -41,8 +43,8 @@ export default function UserManagementPage() {
   });
 
   const { data: users = [], isLoading } = useQuery({
-    queryKey: ["admin", "users", keyword, sortOrder],
-    queryFn: () => adminApi.getUsers(keyword || undefined, sortOrder).then((r) => r.data),
+    queryKey: ["admin", "users", keyword, sortOrder, filterRole, filterStatus],
+    queryFn: () => adminApi.getUsers(keyword || undefined, sortOrder, filterRole, filterStatus).then((r) => r.data),
   });
 
   const { data: roles = [] } = useQuery({
@@ -215,7 +217,7 @@ export default function UserManagementPage() {
     <div style={{ padding: 24 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <Typography.Title level={3} style={{ margin: 0 }}>用户管理</Typography.Title>
-        <Space>
+        <Space wrap>
           <Input.Search
             placeholder="搜索邮箱或显示名称"
             allowClear
@@ -223,6 +225,26 @@ export default function UserManagementPage() {
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
             onSearch={(v) => setKeyword(v)}
+          />
+          <Select
+            placeholder="角色"
+            allowClear
+            value={filterRole}
+            onChange={(v) => setFilterRole(v)}
+            style={{ width: 120 }}
+            options={roles.map((r) => ({ value: r.name, label: r.label }))}
+          />
+          <Select
+            placeholder="状态"
+            allowClear
+            value={filterStatus}
+            onChange={(v) => setFilterStatus(v)}
+            style={{ width: 100 }}
+            options={[
+              { value: "active", label: "正常" },
+              { value: "disabled", label: "已禁用" },
+              { value: "archived", label: "已归档" },
+            ]}
           />
           <Select
             value={sortOrder}
@@ -233,9 +255,9 @@ export default function UserManagementPage() {
               { value: "asc", label: "最早优先" },
             ]}
           />
-          {(keyword || sortOrder !== "desc") && (
+          {(keyword || sortOrder !== "desc" || filterRole || filterStatus) && (
             <Button
-              onClick={() => { setKeyword(""); setSearchValue(""); setSortOrder("desc"); }}
+              onClick={() => { setKeyword(""); setSearchValue(""); setSortOrder("desc"); setFilterRole(undefined); setFilterStatus(undefined); }}
             >
               重置
             </Button>
