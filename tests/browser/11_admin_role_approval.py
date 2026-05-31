@@ -3,7 +3,7 @@ from pathlib import Path
 import uuid
 from playwright.sync_api import sync_playwright
 from utils import (CDP, BASE, create_page, setup_logging, start_recording,
-                   check, get_failed)
+                   check, get_failed, login_as)
 
 OUT = Path(__file__).parent / "screenshots"
 
@@ -44,16 +44,10 @@ with sync_playwright() as p:
     pending_alert = page.locator('.ant-alert').filter(has_text="等待审核").first
     check(pending_alert.count() > 0, "申请提交成功，显示等待审核")
 
-    # ── Step 2: Admin (devtest) logs in and reviews the request ──
-    print("2. 管理员登录并查看角色审批列表")
+    # ── Step 2: AdminManager logs in and reviews the request ──
+    print("2. AdminManager 登录并查看角色审批列表")
     page.context.clear_cookies()
-    page.goto(f"{BASE}/login")
-    page.wait_for_load_state("networkidle")
-    page.fill('input[placeholder="邮箱"]', "devtest@test.com")
-    page.fill('input[type="password"]', "pass123")
-    page.click('button[type="submit"]')
-    page.wait_for_timeout(3000)
-    page.wait_for_load_state("networkidle")
+    login_as(page, "admin_mgr@test.com", "pass123")
 
     # Navigate to admin → role requests
     admin_sub = page.locator('.ant-menu-submenu-title:has-text("用户管理")')

@@ -36,53 +36,41 @@ WSL2 镜像网络模式下，`127.0.0.1:9222` 直接连通 Windows Edge。
 
 ## 测试清单
 
-| 脚本 | 覆盖场景 | 断言数 | 说明 |
-|------|---------|:-----:|------|
-| `00_inspect.py` | 页面侦察 | — | 截图所有页面 + 列出交互元素，为后续脚本提供 selector |
-| `01_auth.py` | 认证 | 11 | 登录(错误密码/用户名/正确)/登出/注册/重复注册/重定向 |
-| `02_activity_crud.py` | 活动 CRUD | 8 | API 创建活动 → 浏览器验证列表/详情/历史/文档/筛选 |
-| `03_workflow.py` | 工作流 | 8 | 状态流转→驳回→签署→强制取消→终态锁定 |
-| `04_permissions.py` | 权限 | 5 | 无角色 403 + 有角色侧边栏权限项显隐 |
-| `05_gov_liaison.py` | 政府审批 | 6 | 审批通过/补充材料/驳回—不通过 |
-| `06_dashboard.py` | 仪表盘 | 5 | 统计卡片/状态分布/异常列表/月报导出 |
-| `07_role_request.py` | 角色申请 | 9 | 注册→/profile→选角色→提交→等待审核 |
-| `08_filing_materials.py` | 材料签署审查 | 10 | SecurityOfficer 签署 + GovLiaison 审查 + 审查历史 |
-| `09_email_verification.py` | 邮件验证 | 7 | 注册 → Mailpit 捕获欢迎邮件 → 验证标题/内容 |
-| `10_email_change.py` | 邮箱更改 | 10 | 点击编辑 → 输入新邮箱 → Mailpit 验证链接 → 新邮箱登录 |
-| `11_admin_role_approval.py` | 角色审批 | 8 | 用户申请角色 → 管理员登录 → 按邮箱查找 → 批准 |
-| `12_document_upload.py` | 文档上传 | 7 | 活动详情 → 文档 tab → filechooser 上传 → 验证列表 |
-| `13_filing_pack.py` | 备案打包交接 | 8 | 签署材料 → 打包 → 勾选确认 → 纸质交接 |
-| `14_user_archive.py` | 用户归档 | 8 | 确保状态干净 → API 归档 → 登录被拦截 → 取消归档+确保活跃 → 恢复登录 |
-| `15_notifications.py` | 通知中心 | 3 | 状态流转触发通知 → 铃铛badge → 下拉面板 → 自动标记已读 |
-| `16_activity_tabs.py` | 活动分类 | 5 | 待操作/已完成 Tab 切换 → 终态活动正确归类 |
-
-**合计 ~115 断言。**
+| 脚本 | 覆盖场景 | 说明 |
+|------|---------|------|
+| `00_inspect.py` | 页面侦察 | 截图所有页面 + 列出交互元素，为后续脚本提供 selector |
+| `01_user_lifecycle.py` | 用户全生命周期 | 错误登录→正确登录→登出→注册→欢迎邮件→角色申请→改邮箱→验证→改联系方式→会话踢出 |
+| `02_activity_crud.py` | 活动 CRUD | API 创建活动 → 浏览器验证列表/详情/历史/文档/筛选 |
+| `03_workflow.py` | 工作流 + 通知 | 全状态流转→驳回→签署→强制取消→终态锁定→通知铃铛→点击跳转 |
+| `04_permissions.py` | 权限边界 | 无角色 403 + 角色按钮显隐(SecurityOfficer/Manager 拆分) |
+| `05_gov_liaison.py` | 政府审批 | 审批通过/补充材料/驳回—不通过 |
+| `06_dashboard.py` | 仪表盘 | 统计卡片/状态分布/异常列表/月报导出 |
+| `08_filing.py` | 备案全流程 | 签署材料→审查→打包→纸质交接 |
+| `11_admin_role_approval.py` | 角色审批 | admin_mgr 审批/驳回角色申请 |
+| `12_document_upload.py` | 文档上传 | 活动详情 → 文档 tab → filechooser 上传 → 验证列表 |
+| `14_superadmin_users.py` | 用户管理 | 用户列表→详情抽屉→归档→取消归档→编辑角色→启/停用 |
+| `16_activity_tabs.py` | 活动分类 | 待操作/已完成 Tab 切换 → 终态活动正确归类 |
 
 ## 架构
 
 ```
 tests/browser/
-├── utils.py               # 共享模块 (CDP/BASE 常量, create_page)
-├── 00_inspect.py          # 页面侦察
-├── 01_auth.py             # 认证
-├── 02_activity_crud.py    # 活动 CRUD
-├── 03_workflow.py         # 工作流
-├── 04_permissions.py      # 权限
-├── 05_gov_liaison.py      # 政府审批
-├── 06_dashboard.py        # 仪表盘
-├── 07_role_request.py     # 角色申请
-├── 08_filing_materials.py # 材料签署审查
-├── 09_email_verification.py # 邮件验证
-├── 10_email_change.py     # 邮箱更改验证
-├── 11_admin_role_approval.py # 角色审批
-├── 12_document_upload.py  # 文档上传
-├── 13_filing_pack.py      # 备案打包交接
-├── 14_user_archive.py     # 用户归档登录拦截
-├── 15_notifications.py    # 通知中心
-├── 16_activity_tabs.py    # 活动列表分类
-├── .gitignore              # 忽略 recordings/
-├── recordings/             # 视频录制输出 (gitignored)
-└── screenshots/           # 测试截图输出
+├── utils.py                   # 共享模块 (helpers, CDP/BASE 常量, create_page)
+├── 00_inspect.py              # 页面侦察
+├── 01_user_lifecycle.py       # 用户全生命周期（注册/登录/角色/邮箱/联系方式）
+├── 02_activity_crud.py        # 活动 CRUD
+├── 03_workflow.py             # 工作流 + 通知中心
+├── 04_permissions.py          # 权限边界
+├── 05_gov_liaison.py          # 政府审批
+├── 06_dashboard.py            # 仪表盘
+├── 08_filing.py               # 备案全流程（签署/审查/打包/交接）
+├── 11_admin_role_approval.py  # 角色审批（admin_mgr）
+├── 12_document_upload.py      # 文档上传
+├── 14_superadmin_users.py     # 用户管理（列表/详情/归档/角色/启停）
+├── 16_activity_tabs.py        # 活动列表分类
+├── .gitignore                 # 忽略 recordings/
+├── recordings/                # 视频录制输出 (gitignored)
+└── screenshots/               # 测试截图输出
 ```
 
 ## 视频录制
@@ -188,6 +176,27 @@ Ant Design Modal 关闭后 DOM 不销毁，使用 `.ant-modal:visible` 前缀限
 ### 模块级 `didRefresh` 标志
 
 React 19 StrictMode 双重挂载组件时，第一次 API 调用消耗 refresh token，第二次调用失败。`didRefresh` 模块级变量跨挂载去重，且 `setChecking(false)` 始终执行，防止 Spin 死锁。
+
+## 已知缺口 (TODO)
+
+以下场景尚无浏览器测试覆盖：
+
+| 优先级 | 缺口 | 说明 |
+|--------|------|------|
+| **高** | 密码重置 (forgot-password) | 请求重置 → 收邮件 → 点击链接 → 设新密码 |
+| **高** | 角色申请驳回 | 管理员驳回角色申请 → 用户看到驳回状态 |
+| **高** | 关键词搜索 + 日期筛选 | 活动列表搜索框、日期范围筛选、组合筛选 |
+| **中** | 活动编辑 | 修改活动字段（名称、日期、地点等） |
+| **中** | 分页 | 超过一页时活动列表分页功能 |
+| **中** | 空状态渲染 | 零活动/零通知/零角色申请时的空状态 UI |
+| **中** | 排序 | 表头点击排序 |
+| **中** | 文档下载 | 上传后点击下载链接 |
+| **低** | 404 页面 | 访问不存在路由时的 404 页面 |
+| **低** | 修改密码（已登录） | 在个人中心修改密码 |
+| **低** | 并发登录 | 同一用户从两个浏览器同时登录 |
+| **低** | 活动删除 | 彻底删除活动（如有此功能） |
+| **低** | Token 刷新 | 访问 Token 过期后透明刷新 |
+| **低** | 移动端响应式 | 窄视口下布局适配 |
 
 ## 添加新测试
 
