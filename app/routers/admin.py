@@ -301,6 +301,8 @@ async def update_user_roles(
     u = await db.get(User, user_id)
     if u is None:
         raise NotFoundError("用户不存在")
+    if u.id == current_user.id:
+        raise ConflictError("不能修改自己的角色")
 
     existing = (await db.execute(
         select(UserRole).where(UserRole.user_id == user_id)
@@ -352,6 +354,8 @@ async def update_user_status(
     u = await db.get(User, user_id)
     if u is None:
         raise NotFoundError("用户不存在")
+    if u.id == current_user.id:
+        raise ConflictError("不能修改自己的状态")
 
     u.is_active = body.is_active
     await db.commit()

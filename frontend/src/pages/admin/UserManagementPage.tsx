@@ -20,10 +20,12 @@ import { StopOutlined, CheckOutlined, EditOutlined, LockOutlined } from "@ant-de
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminApi, type UserListItem, type UserOverview } from "@/api/admin";
 import { authApi } from "@/api/auth";
+import { useAuthStore } from "@/stores/authStore";
 import { ROLE_LABEL_MAP } from "@/utils/constants";
 
 export default function UserManagementPage() {
   const queryClient = useQueryClient();
+  const currentUserId = useAuthStore((s) => s.user?.id);
   const [editingUser, setEditingUser] = useState<UserListItem | null>(null);
   const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([]);
   const [detailUser, setDetailUser] = useState<UserListItem | null>(null);
@@ -144,6 +146,13 @@ export default function UserManagementPage() {
           return (
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
               已封存
+            </Typography.Text>
+          );
+        }
+        if (record.id === currentUserId) {
+          return (
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              当前用户
             </Typography.Text>
           );
         }
