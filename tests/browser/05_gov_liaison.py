@@ -79,7 +79,8 @@ with sync_playwright() as p:
     page.on("console", lambda m: errors.append(f"[{m.type}] {m.text}"))
     page.on("pageerror", lambda e: errors.append(f"PAGE_ERROR: {e}"))
 
-    # Login as GovLiaison
+    # Login as GovLiaison — 登录后通过侧边栏导航到活动列表
+    print("\n0. Login")
     page.goto(f"{BASE}/login")
     page.wait_for_load_state("networkidle")
     page.fill('input[placeholder="邮箱"]', "liaison@test.com")
@@ -87,7 +88,10 @@ with sync_playwright() as p:
     page.click('button[type="submit"]')
     page.wait_for_timeout(3000)
     page.wait_for_load_state("networkidle")
-    check("/activities" in page.url, "logged in")
+    check("/login" not in page.url, "logged in")
+
+    sidebar_nav(page, "全部活动")
+    check("/activities" in page.url, "navigated to activity list")
 
     # 1. Approve: 审批通过
     print("\n1. Approve (审批通过)")

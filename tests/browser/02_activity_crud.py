@@ -70,7 +70,8 @@ with sync_playwright() as p:
     page.on("console", lambda m: errors.append(f"[{m.type}] {m.text}"))
     page.on("pageerror", lambda e: errors.append(f"PAGE_ERROR: {e}"))
 
-    # Login
+    # Login — 登录后默认跳转到 /profile，用户通过侧边栏导航到活动管理
+    print("\n0. Login")
     page.goto(f"{BASE}/login")
     page.wait_for_load_state("networkidle")
     page.context.clear_cookies()
@@ -79,7 +80,11 @@ with sync_playwright() as p:
     page.click('button[type="submit"]')
     page.wait_for_timeout(3000)
     page.wait_for_load_state("networkidle")
-    check("/activities" in page.url, "logged in")
+    check("/login" not in page.url, "logged in")
+
+    # Navigate to activity list via sidebar
+    sidebar_nav(page, "全部活动")
+    check("/activities" in page.url, "navigated to activity list")
 
     # 1. Activity list shows created activity
     print("\n1. Activity in list")
