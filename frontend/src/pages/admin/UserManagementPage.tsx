@@ -30,6 +30,7 @@ export default function UserManagementPage() {
   const [archivingUser, setArchivingUser] = useState<UserListItem | null>(null);
   const [archiveReason, setArchiveReason] = useState("");
   const [keyword, setKeyword] = useState("");
+  const [searchValue, setSearchValue] = useState("");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   const { data: overview, isFetching: overviewLoading } = useQuery({
@@ -219,8 +220,8 @@ export default function UserManagementPage() {
             placeholder="搜索邮箱或显示名称"
             allowClear
             style={{ width: 280 }}
-            value={keyword}
-            onChange={(e) => { if (!e.target.value) setKeyword(""); }}
+            value={searchValue}
+            onChange={(e) => setSearchValue(e.target.value)}
             onSearch={(v) => setKeyword(v)}
           />
           <Select
@@ -234,7 +235,7 @@ export default function UserManagementPage() {
           />
           {(keyword || sortOrder !== "desc") && (
             <Button
-              onClick={() => { setKeyword(""); setSortOrder("desc"); }}
+              onClick={() => { setKeyword(""); setSearchValue(""); setSortOrder("desc"); }}
             >
               重置
             </Button>
