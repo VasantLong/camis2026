@@ -140,11 +140,13 @@ async def reject_role_request(
 @router.get("/users", response_model=list[UserListItem])
 async def list_users(
     keyword: str | None = Query(None),
+    sort_order: str = Query("desc", pattern="^(asc|desc)$"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _perm: None = require_permission("administer_users"),
 ):
-    query = select(User).order_by(User.created_at.desc())
+    order = User.created_at.asc() if sort_order == "asc" else User.created_at.desc()
+    query = select(User).order_by(order)
     if keyword:
         pattern = f"%{keyword}%"
         query = query.where(

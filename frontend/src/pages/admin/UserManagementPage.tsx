@@ -30,6 +30,7 @@ export default function UserManagementPage() {
   const [archivingUser, setArchivingUser] = useState<UserListItem | null>(null);
   const [archiveReason, setArchiveReason] = useState("");
   const [keyword, setKeyword] = useState("");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   const { data: overview, isFetching: overviewLoading } = useQuery({
     queryKey: ["admin", "users", detailUser?.id, "overview"],
@@ -39,8 +40,8 @@ export default function UserManagementPage() {
   });
 
   const { data: users = [], isLoading } = useQuery({
-    queryKey: ["admin", "users", keyword],
-    queryFn: () => adminApi.getUsers(keyword || undefined).then((r) => r.data),
+    queryKey: ["admin", "users", keyword, sortOrder],
+    queryFn: () => adminApi.getUsers(keyword || undefined, sortOrder).then((r) => r.data),
   });
 
   const { data: roles = [] } = useQuery({
@@ -213,12 +214,32 @@ export default function UserManagementPage() {
     <div style={{ padding: 24 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <Typography.Title level={3} style={{ margin: 0 }}>用户管理</Typography.Title>
-        <Input.Search
-          placeholder="搜索邮箱或显示名称"
-          allowClear
-          style={{ width: 320 }}
-          onSearch={(v) => setKeyword(v)}
-        />
+        <Space>
+          <Input.Search
+            placeholder="搜索邮箱或显示名称"
+            allowClear
+            style={{ width: 280 }}
+            value={keyword}
+            onChange={(e) => { if (!e.target.value) setKeyword(""); }}
+            onSearch={(v) => setKeyword(v)}
+          />
+          <Select
+            value={sortOrder}
+            onChange={(v) => setSortOrder(v)}
+            style={{ width: 100 }}
+            options={[
+              { value: "desc", label: "最新优先" },
+              { value: "asc", label: "最早优先" },
+            ]}
+          />
+          {(keyword || sortOrder !== "desc") && (
+            <Button
+              onClick={() => { setKeyword(""); setSortOrder("desc"); }}
+            >
+              重置
+            </Button>
+          )}
+        </Space>
       </div>
       <Table
         columns={columns}
