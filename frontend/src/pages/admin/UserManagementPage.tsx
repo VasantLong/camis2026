@@ -119,7 +119,7 @@ export default function UserManagementPage() {
       render: (_: unknown, record: UserListItem) => (
         <Space size={4}>
           {record.is_archived ? (
-            <Tag color="default">已归档</Tag>
+            <Tag color="volcano">已归档</Tag>
           ) : record.is_active ? (
             <Tag color="green">正常</Tag>
           ) : (
@@ -154,28 +154,30 @@ export default function UserManagementPage() {
           >
             角色
           </Button>
-          {record.is_active ? (
-            <Popconfirm
-              title="确认禁用该用户？"
-              onConfirm={() =>
-                statusMutation.mutate({ id: record.id, active: false })
-              }
-            >
-              <Button size="small" icon={<StopOutlined />} danger onClick={(e) => e.stopPropagation()}>
-                禁用
-              </Button>
-            </Popconfirm>
-          ) : (
-            <Popconfirm
-              title="确认启用该用户？"
-              onConfirm={() =>
-                statusMutation.mutate({ id: record.id, active: true })
-              }
-            >
-              <Button size="small" icon={<CheckOutlined />} type="primary" onClick={(e) => e.stopPropagation()}>
-                启用
-              </Button>
-            </Popconfirm>
+          {!record.is_archived && (
+            record.is_active ? (
+              <Popconfirm
+                title="确认禁用该用户？"
+                onConfirm={() =>
+                  statusMutation.mutate({ id: record.id, active: false })
+                }
+              >
+                <Button size="small" icon={<StopOutlined />} danger onClick={(e) => e.stopPropagation()}>
+                  禁用
+                </Button>
+              </Popconfirm>
+            ) : (
+              <Popconfirm
+                title="确认启用该用户？"
+                onConfirm={() =>
+                  statusMutation.mutate({ id: record.id, active: true })
+                }
+              >
+                <Button size="small" icon={<CheckOutlined />} type="primary" onClick={(e) => e.stopPropagation()}>
+                  启用
+                </Button>
+              </Popconfirm>
+            )
           )}
           {record.is_archived ? (
             <Popconfirm
@@ -246,7 +248,7 @@ export default function UserManagementPage() {
               <Descriptions.Item label="状态">
                 <Space size={4}>
                   {overview.is_archived ? (
-                    <Tag color="default">已归档</Tag>
+                    <Tag color="volcano">已归档</Tag>
                   ) : overview.is_active ? (
                     <Tag color="green">正常</Tag>
                   ) : (
