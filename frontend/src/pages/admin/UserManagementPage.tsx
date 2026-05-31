@@ -29,6 +29,7 @@ export default function UserManagementPage() {
   const [detailUser, setDetailUser] = useState<UserListItem | null>(null);
   const [archivingUser, setArchivingUser] = useState<UserListItem | null>(null);
   const [archiveReason, setArchiveReason] = useState("");
+  const [keyword, setKeyword] = useState("");
 
   const { data: overview, isFetching: overviewLoading } = useQuery({
     queryKey: ["admin", "users", detailUser?.id, "overview"],
@@ -38,8 +39,8 @@ export default function UserManagementPage() {
   });
 
   const { data: users = [], isLoading } = useQuery({
-    queryKey: ["admin", "users"],
-    queryFn: () => adminApi.getUsers().then((r) => r.data),
+    queryKey: ["admin", "users", keyword],
+    queryFn: () => adminApi.getUsers(keyword || undefined).then((r) => r.data),
   });
 
   const { data: roles = [] } = useQuery({
@@ -210,7 +211,15 @@ export default function UserManagementPage() {
 
   return (
     <div style={{ padding: 24 }}>
-      <Typography.Title level={3}>用户管理</Typography.Title>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <Typography.Title level={3} style={{ margin: 0 }}>用户管理</Typography.Title>
+        <Input.Search
+          placeholder="搜索邮箱或显示名称"
+          allowClear
+          style={{ width: 320 }}
+          onSearch={(v) => setKeyword(v)}
+        />
+      </div>
       <Table
         columns={columns}
         dataSource={users}
