@@ -53,6 +53,7 @@ aid = api_post("/activities", {
     "name": uname, "type": "大型活动",
     "estimated_time": "2026-07-15T09:00:00+08:00",
     "location": f"通知测试广场_{uname}", "sponsor": "测试主办方",
+    "sponsor_contact": "张三", "sponsor_phone": "13800138000",
     "deadline": "2026-07-01T18:00:00+08:00",
     "designer_id": api_get("/auth/me", p_token)["id"],
 }, p_token)["id"]
@@ -96,7 +97,21 @@ with sync_playwright() as p:
     badge_after = page.locator('.ant-badge-count, .ant-scroll-number').count()
     check(badge_after == 0, "badge cleared after opening")
 
-    page.screenshot(path=f"{OUT / '15_notifications_final.png'}", full_page=True)
+    # === Step 4: Click notification item navigates to activity detail ===
+    print("\n4. Click notification navigates to activity detail")
+    # Re-open the bell dropdown
+    bell2 = page.locator('button[aria-label="通知"]')
+    if bell2.count() > 0:
+        bell2.first.click()
+        page.wait_for_timeout(800)
+    # Click the notification item that references the activity
+    item = page.locator(f'.ant-dropdown-menu-item:has-text("{uname}")').first
+    if item.count() > 0:
+        item.click()
+        page.wait_for_timeout(2000)
+        page.wait_for_load_state("networkidle")
+    check(f"/activities/{aid}" in page.url, f"navigated to activity detail (got {page.url})")
+    check(uname in page.content(), "activity name visible on detail page")
     if recorder:
         recorder.stop()
     page.close()

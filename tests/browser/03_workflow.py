@@ -71,6 +71,7 @@ aid = api_post("/activities", {
     "name": wf_name, "type": "大型活动",
     "estimated_time": "2026-06-15T09:00:00+08:00",
     "location": f"测试广场_{wf_name}", "sponsor": "测试主办方",
+    "sponsor_contact": "张三", "sponsor_phone": "13800138000",
     "deadline": "2026-06-01T18:00:00+08:00",
     "designer_id": p_user_id,
 }, p_token)["id"]

@@ -44,6 +44,7 @@ def create_activity(token, name, designer_id):
         "name": name, "type": "大型活动",
         "estimated_time": "2026-06-15T09:00:00+08:00",
         "location": "测试广场", "sponsor": "测试主办方",
+        "sponsor_contact": "张三", "sponsor_phone": "13800138000",
         "deadline": "2026-06-01T18:00:00+08:00",
         "designer_id": designer_id
     }).encode()
