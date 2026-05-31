@@ -50,6 +50,6 @@ export function useActivityCounts() {
     queryKey: ["activities", "counts"],
     queryFn: () => activitiesApi.fetchCounts().then((r) => r.data),
     refetchInterval: 30_000,
-    staleTime: 10_000,
+    staleTime: 0,
   });
 }

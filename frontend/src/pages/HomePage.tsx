@@ -4,6 +4,7 @@ import {
   SearchOutlined,
   DashboardOutlined,
   SettingOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
@@ -40,6 +41,21 @@ export default function HomePage() {
             : "/profile";
     navigate(target, { replace: true });
     return null;
+  }
+
+  // No role — prompt user to apply
+  if (roles.length === 0) {
+    return (
+      <div style={{ padding: 24, textAlign: "center" }}>
+        <Title level={3} style={{ marginBottom: 8 }}>欢迎使用 CAMIS</Title>
+        <Text type="secondary" style={{ display: "block", marginBottom: 24 }}>
+          你还没有分配角色，请先申请角色以使用系统功能
+        </Text>
+        <Button type="primary" icon={<UserOutlined />} onClick={() => navigate("/profile")}>
+          前往个人中心申请角色
+        </Button>
+      </div>
+    );
   }
 
   const role = roles[0];
