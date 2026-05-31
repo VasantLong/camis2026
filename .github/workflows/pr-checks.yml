@@ -81,14 +81,19 @@ jobs:
           )
           violations=0
           for pattern in "${patterns[@]}"; do
-            hits=$(git diff origin/${{ github.base_ref }}...HEAD | grep -nE "$pattern" | grep -v 'pass123\|test\|\.env\|#\|\.md\|PASSWORD' || true)
+            # Exclude tests/ and docs/ — test credentials and doc examples are expected
+            hits=$(git diff origin/${{ github.base_ref }}...HEAD -- . ':!tests/' ':!docs/' \
+              | grep -nE "$pattern" \
+              | grep -v 'pass123\|test123\|test_\|\.env\|#.*[Pp]assword\|PASSWORD_EXAMPLE' \
+              || true)
             if [ -n "$hits" ]; then
-              echo "::warning::Potential hardcoded credential: $hits"
+              echo "::warning::Potential hardcoded credential:"
+              echo "$hits"
               violations=$((violations + 1))
             fi
           done
           if [ $violations -gt 0 ]; then
-            echo "::error::$violations potential credential(s) found in diff — review manually"
+            echo "::error::$violations potential credential(s) found — review manually"
             exit 1
           fi
           echo "No hardcoded credentials detected"
