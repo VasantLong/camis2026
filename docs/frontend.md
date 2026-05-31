@@ -53,6 +53,7 @@ frontend/src/
 │       └── DashboardPage.tsx       # 统计卡片 + 状态分布 + 异常列表 + 月报
 │   ├── profile/
 │   │   └── ProfilePage.tsx         # 用户信息、角色状态、角色申请
+│   ├── NotificationsPage.tsx       # 消息中心（未读/全部 Tab）
 │   └── admin/
 │       ├── RoleRequestsPage.tsx    # 待审批角色申请表格
 │       └── UserManagementPage.tsx  # 用户列表、角色编辑、禁用/归档
@@ -117,6 +118,7 @@ frontend/src/
 | `/activities/new` | ActivityCreatePage | `create_activity` | AppLayout |
 | `/activities/:id` | ActivityDetailPage | `view_owned_activity` or `view_dashboard` | AppLayout |
 | `/dashboard` | DashboardPage | `view_dashboard` | AppLayout |
+| `/notifications` | NotificationsPage | 登录即可 | AppLayout |
 | `/profile` | ProfilePage | 登录即可 | AppLayout |
 | `/admin/role-requests` | RoleRequestsPage | `manage_users` | AppLayout |
 | `/admin/users` | UserManagementPage | `administer_users` | AppLayout |

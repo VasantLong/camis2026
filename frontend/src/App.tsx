@@ -16,6 +16,7 @@ import ProfilePage from "@/pages/profile/ProfilePage";
 import RoleRequestsPage from "@/pages/admin/RoleRequestsPage";
 import UserManagementPage from "@/pages/admin/UserManagementPage";
 import HomePage from "@/pages/HomePage";
+import NotificationsPage from "@/pages/NotificationsPage";
 
 export default function App() {
   return (
@@ -65,6 +66,14 @@ export default function App() {
                 element={
                   <ProtectedRoute requiredPermissions={["view_dashboard"]}>
                     <DashboardPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/notifications"
+                element={
+                  <ProtectedRoute>
+                    <NotificationsPage />
                   </ProtectedRoute>
                 }
               />

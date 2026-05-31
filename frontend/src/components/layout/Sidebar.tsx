@@ -1,5 +1,6 @@
 import { Badge, Menu } from "antd";
 import {
+  BellOutlined,
   HomeOutlined,
   PlusOutlined,
   UnorderedListOutlined,
@@ -136,6 +137,13 @@ export default function Sidebar() {
     }
   }
 
+  // ── 消息中心 ──
+  items.push({
+    key: "/notifications",
+    label: "消息中心",
+    icon: <BellOutlined />,
+  });
+
   // ── 个人中心 (always last) ──
   items.push({
     key: "/profile",
@@ -157,9 +165,11 @@ export default function Sidebar() {
               ? location.pathname + location.search
               : location.pathname.startsWith("/dashboard")
                 ? "/dashboard"
-                : location.pathname.startsWith("/profile")
-                  ? "/profile"
-                  : undefined;
+                : location.pathname.startsWith("/notifications")
+                  ? "/notifications"
+                  : location.pathname.startsWith("/profile")
+                    ? "/profile"
+                    : undefined;
 
   return (
     <Menu
