@@ -20,6 +20,8 @@ export interface UserOverview {
   display_name: string;
   is_active: boolean;
   is_archived: boolean;
+  archive_reason?: string | null;
+  archived_at?: string | null;
   roles: string[];
   created_at: string;
   login_history: { login_id: string; success: boolean; created_at: string }[];
@@ -32,6 +34,8 @@ export interface UserListItem {
   display_name: string;
   is_active: boolean;
   is_archived: boolean;
+  archive_reason?: string | null;
+  archived_at?: string | null;
   roles: string[];
   created_at: string;
 }
@@ -69,9 +73,6 @@ export const adminApi = {
       is_active: isActive,
     }),
 
-  archiveUser: (id: string) =>
-    client.post(`/admin/users/${id}/archive`),
-
-  unarchiveUser: (id: string) =>
-    client.post(`/admin/users/${id}/unarchive`),
+  archiveUser: (id: string, reason: string) =>
+    client.post(`/admin/users/${id}/archive`, { reason }),
 };

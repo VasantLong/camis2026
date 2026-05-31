@@ -161,6 +161,8 @@ async def list_users(
             display_name=u.display_name,
             is_active=u.is_active,
             is_archived=u.is_archived,
+            archive_reason=u.archive_reason,
+            archived_at=u.archived_at,
             roles=roles,
             created_at=u.created_at,
         ))
@@ -264,6 +266,7 @@ async def get_user_overview(
     return UserOverview(
         id=u.id, email=u.email, display_name=u.display_name,
         is_active=u.is_active, is_archived=u.is_archived,
+        archive_reason=u.archive_reason, archived_at=u.archived_at,
         roles=roles, created_at=u.created_at,
         login_history=login_history, recent_actions=actions,
     )
@@ -367,6 +370,7 @@ async def update_user_status(
 @router.post("/users/{user_id}/archive")
 async def archive_user(
     user_id: UUID,
+    body: dict | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _perm: None = require_permission("administer_users"),
@@ -377,6 +381,8 @@ async def archive_user(
     if u.id == current_user.id:
         raise ConflictError("不能归档自己")
     u.is_archived = True
+    u.archived_at = datetime.now(timezone.utc)
+    u.archive_reason = (body or {}).get("reason")
     await db.commit()
     return {"message": "已归档"}
 
