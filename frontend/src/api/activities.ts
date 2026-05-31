@@ -31,4 +31,7 @@ export const activitiesApi = {
       manager_name: string | null;
       sign_time: string | null;
     }>(`/activities/${id}/security-plan`),
+
+  fetchCounts: () =>
+    client.get<Record<string, number>>("/activities/counts"),
 };

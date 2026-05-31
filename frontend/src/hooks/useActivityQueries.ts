@@ -44,3 +44,12 @@ export function useActivityDocuments(id: string) {
     enabled: !!id,
   });
 }
+
+export function useActivityCounts() {
+  return useQuery({
+    queryKey: ["activities", "counts"],
+    queryFn: () => activitiesApi.fetchCounts().then((r) => r.data),
+    refetchInterval: 30_000,
+    staleTime: 10_000,
+  });
+}

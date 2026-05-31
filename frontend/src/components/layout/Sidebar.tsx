@@ -1,4 +1,4 @@
-import { Menu } from "antd";
+import { Badge, Menu, Space } from "antd";
 import {
   UnorderedListOutlined,
   PlusOutlined,
@@ -10,6 +10,7 @@ import {
 } from "@ant-design/icons";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
+import { useActivityCounts } from "@/hooks/useActivityQueries";
 
 export default function Sidebar() {
   const location = useLocation();
@@ -17,13 +18,18 @@ export default function Sidebar() {
   const userPermissions = useAuthStore((s) => s.user?.permissions);
   const permissions = userPermissions ?? [];
   const EMPTY: string[] = [];
+  const { data: counts } = useActivityCounts();
 
   const items: Array<{
     key: string;
-    label: string;
+    label: React.ReactNode;
     icon: React.ReactNode;
     children?: typeof items;
   }> = [];
+
+  const activityBadge = counts
+    ? (counts.my_activities ?? counts.pending_draft ?? counts.pending_review ?? counts.pending_sign_confirm ?? counts.total)
+    : null;
 
   const canViewActivities =
     permissions.includes("view_owned_activity") || permissions.includes("view_dashboard");
@@ -32,7 +38,12 @@ export default function Sidebar() {
     const children = [
       {
         key: "/activities",
-        label: "全部活动",
+        label: (
+          <Space>
+            <span>全部活动</span>
+            {activityBadge != null && activityBadge > 0 && <Badge count={activityBadge} size="small" />}
+          </Space>
+        ),
         icon: <UnorderedListOutlined />,
       },
     ];
@@ -54,7 +65,12 @@ export default function Sidebar() {
   if (permissions.includes("view_dashboard")) {
     items.push({
       key: "/dashboard",
-      label: "活动面板",
+      label: (
+        <Space>
+          <span>活动面板</span>
+          {counts?.total != null && <Badge count={counts.total} size="small" />}
+        </Space>
+      ),
       icon: <DashboardOutlined />,
     });
   }
@@ -70,7 +86,14 @@ export default function Sidebar() {
     }
     children.push({
       key: "/admin/role-requests",
-      label: "角色审批",
+      label: (
+        <Space>
+          <span>角色审批</span>
+          {counts?.pending_role_requests != null && counts.pending_role_requests > 0 && (
+            <Badge count={counts.pending_role_requests} size="small" />
+          )}
+        </Space>
+      ),
       icon: <AuditOutlined />,
     });
     items.push({

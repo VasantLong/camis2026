@@ -6,8 +6,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.deps import get_current_user
-from app.models.rbac import Permission, RolePermission, UserRole
+from app.models.rbac import Permission, Role, RolePermission, UserRole
 from app.models.user import User
+
+
+async def get_user_roles(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[str]:
+    result = await db.execute(
+        select(Role.name)
+        .join(UserRole, UserRole.role_id == Role.id)
+        .where(UserRole.user_id == user.id)
+    )
+    return [row[0] for row in result.all()]
 
 
 async def get_user_permissions(
