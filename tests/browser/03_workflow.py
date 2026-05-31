@@ -128,6 +128,15 @@ with sync_playwright() as p:
         page.wait_for_timeout(800)
     check("需进行安保方案设计" in page.content() or wf_name in page.content(), "notification content visible")
 
+    # Click notification item → navigate to activity detail
+    item = page.locator(f'.ant-dropdown-menu-item:has-text("{wf_name}")').first
+    if item.count() > 0:
+        item.click()
+        page.wait_for_timeout(2000)
+        page.wait_for_load_state("networkidle")
+    check(f"/activities/{aid}" in page.url, f"notification click navigated to activity detail (got {page.url})")
+    check(wf_name in page.content(), "activity name visible after notification click")
+
     # === Step 2: SecurityManager rejects ===
     print("\n2. SecurityManager: reject")
     login_as(page, "security_mgr@test.com", "pass123")

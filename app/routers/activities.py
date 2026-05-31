@@ -92,7 +92,7 @@ async def list_activities(
     date_to: str | None = None,
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
-    tab: str | None = Query(None, pattern="^(pending|completed)$"),
+    tab: str | None = Query(None, pattern="^(pending|completed|all)$"),
     current_user: User = Depends(get_current_user),
     svc: ActivityService = Depends(_service),
     _perm: None = require_permission("view_owned_activity"),
@@ -114,7 +114,8 @@ async def list_activities(
             page=page,
             size=size,
         )
-        items, total = await svc.list(params, owner_id, allowed)
+        include_terminal = (tab == "all")
+        items, total = await svc.list(params, owner_id, allowed, include_terminal)
     return ActivityPaginatedResponse(items=items, total=total)
 
 
