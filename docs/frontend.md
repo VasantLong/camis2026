@@ -160,9 +160,20 @@ ADR: [0005-task-driven-navigation.md](./adr/0005-task-driven-navigation.md)
 
 | 阶段 | 交付物 | 改动范围 | 状态 |
 |------|--------|---------|------|
-| P1 | 菜单项计数 Badge | `Sidebar.tsx` + 后端 `GET /activities/counts` | 待实现 |
-| P2 | 角色感知 HomePage | `HomePage.tsx` + `/` 路由 | 待实现 |
-| P3 | 任务驱动侧边栏 | `Sidebar.tsx` 重构 | 待实现 |
+| P1 | 菜单项计数 Badge | `Sidebar.tsx` + 后端 `GET /activities/counts` | ✅ 已实现 |
+| P2 | 角色感知 HomePage | `HomePage.tsx` + `/index` 路由 | ✅ 已实现 |
+| P3 | 任务驱动侧边栏 | `Sidebar.tsx` 重构 | ✅ 已实现 |
+
+**P3 已实现各角色菜单**（与信息架构图的设计一致）：
+
+| 角色 | 菜单项 |
+|------|--------|
+| Promoter | 工作台、新建立项、我的活动(N) |
+| SecurityOfficer | 工作台、待编制安保方案(N)、待打包备案(N) |
+| SecurityManager | 工作台、待签署确认(N)、备案申请 |
+| GovLiaison | 工作台、待审查材料(N)、审批记录 |
+| AdminStaff/Manager | 工作台、活动面板(N)、全部活动 |
+| SuperAdmin | 工作台、用户管理、角色审批(N)、全部活动(N) |
 
 ### 信息架构图
 
