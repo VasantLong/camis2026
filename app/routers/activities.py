@@ -7,15 +7,15 @@ from pydantic import BaseModel
 
 logger = logging.getLogger("camis.redis")
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.database import get_db
 from app.deps import get_current_user
-from app.models.activity import SecurityPlan
+from app.models.activity import Activity, ActivityStatusLog, SecurityPlan
 from app.models.document import Document
+from app.models.rbac import Role, RoleRequest, UserRole
 from app.models.user import User
-from app.models.rbac import Role, UserRole
-from app.rbac import get_user_permissions, require_permission
+from app.rbac import get_user_permissions, get_user_roles, require_permission
 from app.schemas.activity import ActivityCreate, ActivityListParams, ActivityPaginatedResponse, ActivityResponse, StatusLogEntry
 from app.services.activity_service import ActivityService
 from app.services.redis_client import get_redis
@@ -117,6 +117,123 @@ async def list_activities(
         include_terminal = (tab == "all")
         items, total = await svc.list(params, owner_id, allowed, include_terminal)
     return ActivityPaginatedResponse(items=items, total=total)
+
+
+@router.get("/counts")
+async def get_counts(
+    current_user: User = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    from datetime import date, datetime, timezone
+
+    roles = await get_user_roles(current_user, db)
+
+    from app.services.workflow_service import TERMINAL_STATUSES
+
+    counts: dict = {}
+
+    # SuperAdmin (check first — highest priority)
+    if "SuperAdmin" in roles:
+        total_users = await db.scalar(
+            select(func.count(User.id)).where(User.is_archived == False)
+        )
+        pending_rr = await db.scalar(
+            select(func.count(RoleRequest.id)).where(RoleRequest.status == "pending")
+        )
+        total_acts = await db.scalar(select(func.count(Activity.id)))
+        counts["total_users"] = total_users or 0
+        counts["pending_role_requests"] = pending_rr or 0
+        counts["total_activities"] = total_acts or 0
+        return counts
+
+    # AdminManager / AdminStaff
+    if "AdminManager" in roles or "AdminStaff" in roles:
+        total = await db.scalar(select(func.count(Activity.id)))
+        # approval_rate: numerator = approved-and-beyond; denominator = ever-reached-filing
+        numerator = await db.scalar(
+            select(func.count(Activity.id)).where(
+                Activity.status.in_({"审批通过-待举办", "举办中", "已结束"})
+            )
+        )
+        filing_subq = (
+            select(ActivityStatusLog.activity_id.distinct())
+            .where(ActivityStatusLog.to_status == "备案材料已交接")
+            .subquery()
+        )
+        denominator = await db.scalar(
+            select(func.count(Activity.id)).where(Activity.id.in_(filing_subq))
+        )
+        denom_val = denominator or 0
+        approval_rate = round((numerator or 0) / denom_val, 2) if denom_val > 0 else 0.0
+
+        now_utc = datetime.now(timezone.utc)
+        month_start = now_utc.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        new_this_month = await db.scalar(
+            select(func.count(Activity.id)).where(Activity.created_at >= month_start)
+        )
+
+        counts["total"] = total or 0
+        counts["approval_rate"] = approval_rate
+        counts["new_this_month"] = new_this_month or 0
+        counts["pending_force_confirm"] = 0  # future: AdminManager confirmation flow
+        return counts
+
+    # SecurityManager
+    if "SecurityManager" in roles:
+        pending_sign = await db.scalar(
+            select(func.count(Activity.id)).where(Activity.status == "待安保方案设计")
+        )
+        pending_pack = await db.scalar(
+            select(func.count(Activity.id)).where(Activity.status == "待备案申请")
+        )
+        counts["pending_sign_confirm"] = pending_sign or 0
+        counts["pending_pack"] = pending_pack or 0
+        return counts
+
+    # SecurityOfficer
+    if "SecurityOfficer" in roles:
+        pending_draft = await db.scalar(
+            select(func.count(Activity.id)).where(Activity.status == "待安保方案设计")
+        )
+        pending_pack = await db.scalar(
+            select(func.count(Activity.id)).where(Activity.status == "待备案申请")
+        )
+        counts["pending_draft"] = pending_draft or 0
+        counts["pending_pack"] = pending_pack or 0
+        return counts
+
+    # GovLiaison
+    if "GovLiaison" in roles:
+        pending_review = await db.scalar(
+            select(func.count(Activity.id)).where(Activity.status == "备案材料已交接")
+        )
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        registered_today = await db.scalar(
+            select(func.count(func.distinct(ActivityStatusLog.activity_id))).where(
+                ActivityStatusLog.operator_id == current_user.id,
+                ActivityStatusLog.created_at >= today_start,
+            )
+        )
+        counts["pending_review"] = pending_review or 0
+        counts["registered_today"] = registered_today or 0
+        return counts
+
+    # Promoter (default / fallback)
+    my_activities = await db.scalar(
+        select(func.count(Activity.id)).where(
+            Activity.owner_id == current_user.id,
+            Activity.status.notin_(TERMINAL_STATUSES),
+        )
+    )
+    pending_plan = await db.scalar(
+        select(func.count(Activity.id)).where(
+            Activity.owner_id == current_user.id,
+            Activity.status == "待设计方案",
+        )
+    )
+    counts["my_activities"] = my_activities or 0
+    counts["pending_plan"] = pending_plan or 0
+    return counts
 
 
 @router.get("/{activity_id}", response_model=ActivityResponse)

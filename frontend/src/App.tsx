@@ -15,16 +15,8 @@ import DashboardPage from "@/pages/dashboard/DashboardPage";
 import ProfilePage from "@/pages/profile/ProfilePage";
 import RoleRequestsPage from "@/pages/admin/RoleRequestsPage";
 import UserManagementPage from "@/pages/admin/UserManagementPage";
-import { useAuthStore } from "@/stores/authStore";
-
-function HomeRedirect() {
-  const permissions = useAuthStore((s) => s.user?.permissions) ?? [];
-  if (permissions.includes("administer_users")) return <Navigate to="/admin/users" replace />;
-  if (permissions.includes("manage_users")) return <Navigate to="/admin/role-requests" replace />;
-  if (permissions.includes("view_dashboard")) return <Navigate to="/dashboard" replace />;
-  if (permissions.includes("view_owned_activity")) return <Navigate to="/activities" replace />;
-  return <Navigate to="/profile" replace />;
-}
+import HomePage from "@/pages/HomePage";
+import NotificationsPage from "@/pages/NotificationsPage";
 
 export default function App() {
   return (
@@ -39,7 +31,8 @@ export default function App() {
 
             {/* protected routes — inside AppLayout */}
             <Route element={<AppLayout />}>
-              <Route path="/" element={<HomeRedirect />} />
+              <Route path="/" element={<Navigate to="/index" replace />} />
+              <Route path="/index" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
               <Route
                 path="/activities"
                 element={
@@ -73,6 +66,14 @@ export default function App() {
                 element={
                   <ProtectedRoute requiredPermissions={["view_dashboard"]}>
                     <DashboardPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/notifications"
+                element={
+                  <ProtectedRoute>
+                    <NotificationsPage />
                   </ProtectedRoute>
                 }
               />
