@@ -175,6 +175,16 @@ ADR: [0005-task-driven-navigation.md](./adr/0005-task-driven-navigation.md)
 | AdminStaff/Manager | 工作台、活动面板(N)、全部活动 |
 | SuperAdmin | 工作台、用户管理、角色审批(N)、全部活动(N) |
 
+**P3 待办：设计 vs 实现差异**
+
+以下菜单项在设计阶段提出，但因系统当前能力限制暂未实现。作为远期增强方向：
+
+| 角色 | 未实现项 | 原因 | 依赖 |
+|------|---------|------|------|
+| SecurityOfficer | 待我签署(N) | 签署状态在 `key_materials.sign_status`，无对应的 activity 级筛选端点 | 需后端 `GET /activities?needs_sign=true` |
+| GovLiaison | 今日已登记(N) | 这是统计数字，不是列表筛选维度；已作为卡片在 P2 HomePage 展示 | 无（已降级为 HomePage 卡片） |
+| Admin | 待确认变更(N) | AdminStaff→AdminManager 二次确认流程尚未实现 | 需后端强制变更审批工作流 |
+
 ### 信息架构图
 
 #### 当前页面树（v0.18）
