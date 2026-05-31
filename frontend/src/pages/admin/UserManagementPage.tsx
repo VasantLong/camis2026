@@ -118,8 +118,13 @@ export default function UserManagementPage() {
       key: "status",
       render: (_: unknown, record: UserListItem) => (
         <Space size={4}>
-          {record.is_active ? <Tag color="green">正常</Tag> : <Tag color="red">已禁用</Tag>}
-          {record.is_archived && <Tag color="default">已归档</Tag>}
+          {record.is_archived ? (
+            <Tag color="default">已归档</Tag>
+          ) : record.is_active ? (
+            <Tag color="green">正常</Tag>
+          ) : (
+            <Tag color="red">已禁用</Tag>
+          )}
         </Space>
       ),
     },
@@ -137,7 +142,8 @@ export default function UserManagementPage() {
           <Button
             size="small"
             icon={<EditOutlined />}
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               setEditingUser(record);
               setSelectedRoleIds(
                 roles
@@ -155,7 +161,7 @@ export default function UserManagementPage() {
                 statusMutation.mutate({ id: record.id, active: false })
               }
             >
-              <Button size="small" icon={<StopOutlined />} danger>
+              <Button size="small" icon={<StopOutlined />} danger onClick={(e) => e.stopPropagation()}>
                 禁用
               </Button>
             </Popconfirm>
@@ -166,7 +172,7 @@ export default function UserManagementPage() {
                 statusMutation.mutate({ id: record.id, active: true })
               }
             >
-              <Button size="small" icon={<CheckOutlined />} type="primary">
+              <Button size="small" icon={<CheckOutlined />} type="primary" onClick={(e) => e.stopPropagation()}>
                 启用
               </Button>
             </Popconfirm>
@@ -176,7 +182,7 @@ export default function UserManagementPage() {
               title="确认取消归档该用户？"
               onConfirm={() => unarchiveMutation.mutate(record.id)}
             >
-              <Button size="small" icon={<UndoOutlined />}>
+              <Button size="small" icon={<UndoOutlined />} onClick={(e) => e.stopPropagation()}>
                 取消归档
               </Button>
             </Popconfirm>
@@ -185,7 +191,7 @@ export default function UserManagementPage() {
               title="确认归档该用户？归档后该用户将无法登录"
               onConfirm={() => archiveMutation.mutate(record.id)}
             >
-              <Button size="small" icon={<LockOutlined />} danger>
+              <Button size="small" icon={<LockOutlined />} danger onClick={(e) => e.stopPropagation()}>
                 归档
               </Button>
             </Popconfirm>
@@ -239,10 +245,13 @@ export default function UserManagementPage() {
               <Descriptions.Item label="显示名称">{overview.display_name}</Descriptions.Item>
               <Descriptions.Item label="状态">
                 <Space size={4}>
-                  <Tag color={overview.is_active ? "green" : "red"}>
-                    {overview.is_active ? "正常" : "已禁用"}
-                  </Tag>
-                  {overview.is_archived && <Tag color="default">已归档</Tag>}
+                  {overview.is_archived ? (
+                    <Tag color="default">已归档</Tag>
+                  ) : overview.is_active ? (
+                    <Tag color="green">正常</Tag>
+                  ) : (
+                    <Tag color="red">已禁用</Tag>
+                  )}
                 </Space>
               </Descriptions.Item>
               <Descriptions.Item label="角色">
