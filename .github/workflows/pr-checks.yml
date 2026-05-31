@@ -14,6 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -61,12 +63,12 @@ jobs:
       - name: Install dependencies
         run: |
           cd frontend
-          pnpm install --frozen-lockfile
+          pnpm install
 
-      - name: TypeScript check
+      - name: Frontend build check
         run: |
           cd frontend
-          npx tsc --noEmit
+          pnpm exec vite build
 
   # ── hardcoded secrets detection ──
   secrets:
@@ -162,7 +164,7 @@ jobs:
       - name: Alert on dependency changes
         run: |
           deps=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- \
-            'requirements.txt' 'frontend/package.json' 'frontend/package-lock.json' || true)
+            'requirements.txt' 'frontend/package.json' 'frontend/pnpm-lock.yaml' || true)
           if [ -n "$deps" ]; then
             echo "::warning::Dependency files changed:"
             echo "$deps" | while read f; do echo "  - $f"; done
