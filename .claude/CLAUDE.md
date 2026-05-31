@@ -68,6 +68,17 @@ docker exec <name> netstat -tlnp | grep <port>
 - **CDP 模式不覆盖视口/DPR**：用 `browser.contexts[0]` 已有 context，不调 `set_viewport_size` 或 `new_context(viewport=...)`。CDP 截图按实际窗口像素截取，视图模拟不改变截图尺寸。详见 `tests/browser/utils.py` 和 `docs/browser-tests.md#cdp-视口与截图`
 - **备案打包依赖 seed 材料**：打包测试需已有 key_materials 的活动（如 `社区志愿服务日`），不能从空活动开始
 
+## PR 提交规范
+
+- **提交 PR 前必须跑 pr-check**：参照 `.github/workflows/pr-checks.yml` 的 6 项检查，逐项验证：
+  1. 分支命名：`feat|fix|test|docs|chore|refactor[/-]...`
+  2. Python 语法：`python -m py_compile <changed.py>`
+  3. 密钥扫描：`git diff main...HEAD` 检查无硬编码凭据
+  4. SQL 迁移安全：无 `DROP` 不加 `IF EXISTS`、无破坏性 `ALTER`
+  5. 依赖变更审查：`requirements.txt` / `package.json` 变更需人工确认
+  6. 前端构建：`cd frontend && pnpm exec vite build`
+- 全部通过后再 `git push` + `gh pr create`
+
 ## 文档同步
 
 - 功能完成后同步 `docs/` 下相关文件
