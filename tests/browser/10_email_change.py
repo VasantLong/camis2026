@@ -2,17 +2,11 @@ from pathlib import Path
 """Email change verification: user clicks email → types new → checks inbox → clicks link."""
 import uuid, json, re, urllib.request
 from playwright.sync_api import sync_playwright
-from utils import CDP, BASE, create_page, setup_logging, start_recording
+from utils import (CDP, BASE, API, create_page, setup_logging, start_recording,
+                   check, get_failed)
 
 MAILPIT = "http://localhost:18025/api/v1"
-API = "http://localhost:8000"
 OUT = Path(__file__).parent / "screenshots"
-failed = 0
-
-def check(cond, msg):
-    global failed
-    if cond: print(f"  OK: {msg}")
-    else: failed += 1; print(f"  FAIL: {msg}")
 
 def mailpit_find(subject_contains):
     msgs = json.loads(urllib.request.urlopen(
@@ -189,6 +183,7 @@ with sync_playwright() as p:
         if "[error]" in e or "PAGE_ERROR" in e:
             print(f"  {e}")
 
+    failed = get_failed()
     print(f"\nFailed: {failed}")
     if failed > 0:
         raise SystemExit(1)

@@ -1,40 +1,11 @@
 """用户归档：归档后无法登录，取消归档后恢复访问。"""
 from pathlib import Path
-import json, uuid, urllib.request
+import uuid
 from playwright.sync_api import sync_playwright
-from utils import CDP, BASE, create_page, setup_logging, start_recording
+from utils import (CDP, BASE, API, create_page, setup_logging, start_recording,
+                   check, get_failed, login_as, api_post, api_patch, api_get, login_api)
 
-API = "http://localhost:8000"
 OUT = Path(__file__).parent / "screenshots"
-failed = 0
-
-def check(cond, msg):
-    global failed
-    if cond: print(f"  OK: {msg}")
-    else: failed += 1; print(f"  FAIL: {msg}")
-
-# --- API helpers ---
-def api_post(path, body, token):
-    data = json.dumps(body).encode()
-    hdrs = {"Content-Type": "application/json"}
-    if token: hdrs["Authorization"] = f"Bearer {token}"
-    req = urllib.request.Request(f"{API}{path}", data=data, headers=hdrs)
-    return json.loads(urllib.request.urlopen(req).read())
-
-def api_patch(path, body, token):
-    data = json.dumps(body).encode()
-    req = urllib.request.Request(f"{API}{path}", data=data, method="PATCH",
-        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
-    return json.loads(urllib.request.urlopen(req).read())
-
-def api_get(path, token):
-    req = urllib.request.Request(f"{API}{path}",
-        headers={"Authorization": f"Bearer {token}"})
-    return json.loads(urllib.request.urlopen(req).read())
-
-def login_api(email, password):
-    resp = api_post("/auth/login", {"email": email, "password": password}, None)
-    return resp["access_token"]
 
 # --- Register dynamic user to avoid rate-limit ---
 uname = f"archive_test_{uuid.uuid4().hex[:8]}"
@@ -43,7 +14,7 @@ password = "pass123"
 api_post("/auth/register", {"email": email, "password": password, "display_name": uname}, None)
 print(f"已注册: {email}")
 
-sa_token = login_api("superadmin@test.com", "pass123")
+sa_token, _ = login_api("superadmin@test.com", "pass123")
 users = api_get("/admin/users", sa_token)
 test_user = next((u for u in users if u["email"] == email), None)
 check(test_user is not None, f"找到新用户: {email}")
@@ -67,12 +38,7 @@ with sync_playwright() as p:
 
     # === Step 1: 归档用户无法登录 ===
     print("\n1. 归档用户登录被拦截")
-    page.goto(f"{BASE}/login")
-    page.wait_for_load_state("networkidle")
-    page.fill('input[placeholder="邮箱"]', email)
-    page.fill('input[type="password"]', password)
-    page.click('button[type="submit"]')
-    page.wait_for_timeout(1000)
+    login_as(page, email, password)
     still_login = "/login" in page.url
     check(still_login, f"归档用户停留在 /login (got {page.url})")
     check("该账号已被归档" in page.content(), "归档错误提示可见")
@@ -88,14 +54,7 @@ with sync_playwright() as p:
 
     # === Step 3: 取消归档后可正常登录 ===
     print("\n3. 取消归档后登录成功")
-    page.context.clear_cookies()
-    page.goto(f"{BASE}/login")
-    page.wait_for_load_state("networkidle")
-    page.fill('input[placeholder="邮箱"]', email)
-    page.fill('input[type="password"]', password)
-    page.click('button[type="submit"]')
-    page.wait_for_timeout(3000)
-    page.wait_for_load_state("networkidle")
+    login_as(page, email, password)
     check("/profile" in page.url, f"取消归档后登录到 /profile (got {page.url})")
 
     page.screenshot(path=f"{OUT / '14_user_archive_final.png'}", full_page=True)
@@ -111,6 +70,7 @@ with sync_playwright() as p:
     else:
         print("  (none)")
 
+    failed = get_failed()
     print(f"\nFailed: {failed}")
     if failed > 0:
         raise SystemExit(1)

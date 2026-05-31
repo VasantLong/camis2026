@@ -2,16 +2,11 @@ from pathlib import Path
 """Filing pack & handover: sign materials → pack → handover for 待备案申请 activity.
 Uses seed activity '社区志愿服务日' which has 4 materials pre-created."""
 from playwright.sync_api import sync_playwright
-from utils import CDP, BASE, create_page, setup_logging, start_recording
+from utils import (CDP, BASE, create_page, setup_logging, start_recording,
+                   check, get_failed)
 
 OUT = Path(__file__).parent / "screenshots"
 ACTIVITY_NAME = "社区志愿服务日"
-failed = 0
-
-def check(cond, msg):
-    global failed
-    if cond: print(f"  OK: {msg}")
-    else: failed += 1; print(f"  FAIL: {msg}")
 
 
 with sync_playwright() as p:
@@ -128,6 +123,7 @@ with sync_playwright() as p:
         if "[error]" in e or "PAGE_ERROR" in e:
             print(f"  {e}")
 
+    failed = get_failed()
     print(f"\nFailed: {failed}")
     if failed > 0:
         raise SystemExit(1)

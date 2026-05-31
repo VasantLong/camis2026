@@ -2,15 +2,10 @@ from pathlib import Path
 """Admin role approval: review pending request → approve → verify user gains role."""
 import uuid
 from playwright.sync_api import sync_playwright
-from utils import CDP, BASE, create_page, setup_logging, start_recording
+from utils import (CDP, BASE, create_page, setup_logging, start_recording,
+                   check, get_failed)
 
 OUT = Path(__file__).parent / "screenshots"
-failed = 0
-
-def check(cond, msg):
-    global failed
-    if cond: print(f"  OK: {msg}")
-    else: failed += 1; print(f"  FAIL: {msg}")
 
 with sync_playwright() as p:
     browser = p.chromium.connect_over_cdp(CDP)
@@ -119,6 +114,7 @@ with sync_playwright() as p:
         if "[error]" in e or "PAGE_ERROR" in e:
             print(f"  {e}")
 
+    failed = get_failed()
     print(f"\nFailed: {failed}")
     if failed > 0:
         raise SystemExit(1)

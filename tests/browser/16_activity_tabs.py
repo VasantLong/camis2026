@@ -1,57 +1,16 @@
 """活动列表分类：待操作 / 已完成 Tab。"""
 from pathlib import Path
-import json, uuid, urllib.request
+import uuid
 from playwright.sync_api import sync_playwright
-from utils import CDP, BASE, create_page, setup_logging, start_recording
+from utils import (CDP, BASE, API, create_page, setup_logging, start_recording,
+                   check, get_failed, login_as, sidebar_nav, api_post, api_get, login_api)
 
-API = "http://localhost:8000"
 OUT = Path(__file__).parent / "screenshots"
-failed = 0
-
-def check(cond, msg):
-    global failed
-    if cond: print(f"  OK: {msg}")
-    else: failed += 1; print(f"  FAIL: {msg}")
-
-def api_post(path, body, token):
-    data = json.dumps(body).encode()
-    hdrs = {"Content-Type": "application/json"}
-    if token: hdrs["Authorization"] = f"Bearer {token}"
-    req = urllib.request.Request(f"{API}{path}", data=data, headers=hdrs)
-    return json.loads(urllib.request.urlopen(req).read())
-
-def api_get(path, token):
-    req = urllib.request.Request(f"{API}{path}",
-        headers={"Authorization": f"Bearer {token}"})
-    return json.loads(urllib.request.urlopen(req).read())
-
-def login_api(email, password):
-    resp = api_post("/auth/login", {"email": email, "password": password}, None)
-    return resp["access_token"]
-
-def login_as(page, email, password):
-    page.goto(f"{BASE}/login")
-    page.wait_for_load_state("networkidle")
-    page.fill('input[placeholder="邮箱"]', email)
-    page.fill('input[type="password"]', password)
-    page.click('button[type="submit"]')
-    page.wait_for_timeout(3000)
-    page.wait_for_load_state("networkidle")
-
-def sidebar_nav(page, text):
-    sub = page.locator('.ant-menu-submenu-title:has-text("活动管理")')
-    if sub.count() > 0 and sub.first.get_attribute("aria-expanded") != "true":
-        sub.first.click()
-        page.wait_for_timeout(400)
-    it = page.locator(f'.ant-menu-item:has-text("{text}")').first
-    if it.count() > 0:
-        it.click()
-        page.wait_for_timeout(1500)
-        page.wait_for_load_state("networkidle")
 
 # --- Create activity as promoter ---
-p_token = login_api("promoter@test.com", "pass123")
-me = api_get("/auth/me", p_token)
+p_token, me = login_api("promoter@test.com", "pass123")
+# We need the full user object for designer_id
+me_full = api_get("/auth/me", p_token)
 uname = f"tab_{uuid.uuid4().hex[:6]}"
 aid = api_post("/activities", {
     "name": uname, "type": "大型活动",
@@ -59,7 +18,7 @@ aid = api_post("/activities", {
     "location": f"Tab测试广场_{uname}", "sponsor": "测试主办方",
     "sponsor_contact": "张三", "sponsor_phone": "13800138000",
     "deadline": "2026-08-01T18:00:00+08:00",
-    "designer_id": me["id"],
+    "designer_id": me_full["id"],
 }, p_token)["id"]
 print(f"API created: {uname} (待设计方案)")
 
@@ -93,7 +52,7 @@ with sync_playwright() as p:
 
     # === Step 3: Move to terminal state via force cancel ===
     print("\n3. Force cancel activity → completed tab")
-    sa_token = login_api("superadmin@test.com", "pass123")
+    sa_token, _ = login_api("superadmin@test.com", "pass123")
     api_post(f"/activities/{aid}/force-cancel", {"reason": "测试完成"}, sa_token)
 
     # Navigate back to activities via sidebar, then switch to completed tab
@@ -128,6 +87,7 @@ with sync_playwright() as p:
     else:
         print("  (none)")
 
+    failed = get_failed()
     print(f"\nFailed: {failed}")
     if failed > 0:
         raise SystemExit(1)

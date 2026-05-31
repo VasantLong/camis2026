@@ -2,29 +2,16 @@ from pathlib import Path
 """Document upload: navigate to activity → documents tab → upload file → verify in list."""
 import uuid, json, urllib.request
 from playwright.sync_api import sync_playwright
-from utils import CDP, BASE, create_page, setup_logging, start_recording
+from utils import (CDP, BASE, API, create_page, setup_logging, start_recording,
+                   check, get_failed, api_post, login_as)
 
-API = "http://localhost:8000"
 OUT = Path(__file__).parent / "screenshots"
-failed = 0
-
-def check(cond, msg):
-    global failed
-    if cond: print(f"  OK: {msg}")
-    else: failed += 1; print(f"  FAIL: {msg}")
 
 # Create a small test file (must be allowed type: pdf/jpg/png/doc/docx)
 test_file = Path("/tmp/camis_test_upload.jpg")
 test_file.write_text(f"CAMIS test upload {uuid.uuid4().hex[:8]}")
 
 # ── API: create activity for testing ──
-def api_post(path, body, token):
-    data = json.dumps(body).encode()
-    req = urllib.request.Request(f"{API}{path}", data=data,
-        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
-    return json.loads(urllib.request.urlopen(req).read())
-
-# Get token as devtest
 token = api_post("/auth/login",
     {"email": "devtest@test.com", "password": "pass123"}, None)["access_token"]
 
@@ -59,13 +46,7 @@ with sync_playwright() as p:
 
     # ── Step 1: Login ──
     print("1. 登录")
-    page.goto(f"{BASE}/login")
-    page.wait_for_load_state("networkidle")
-    page.fill('input[placeholder="邮箱"]', "devtest@test.com")
-    page.fill('input[type="password"]', "pass123")
-    page.click('button[type="submit"]')
-    page.wait_for_timeout(3000)
-    page.wait_for_load_state("networkidle")
+    login_as(page, "devtest@test.com", "pass123")
     check("/login" not in page.url, "登录成功")
 
     # ── Step 2: Navigate to activity detail ──
@@ -96,7 +77,6 @@ with sync_playwright() as p:
 
     # ── Step 4: Upload file ──
     print("4. 上传文件")
-    # Click the upload button inside the Upload component
     upload_btn = page.locator('button:has-text("选择文件上传")').first
     check(upload_btn.count() > 0, "上传按钮存在")
     if upload_btn.count() > 0:
@@ -110,7 +90,6 @@ with sync_playwright() as p:
     # ── Step 5: Verify file appears in list ──
     print("5. 验证文件出现在列表中")
     page.wait_for_timeout(2000)
-    # Debug: check what's displayed in the document tab
     doc_content = page.locator('.ant-tabs-tabpane-active').first.inner_text()[:500]
     print(f"  doc tab content: {doc_content[:200]}")
     found = test_file.name in doc_content
@@ -129,6 +108,7 @@ with sync_playwright() as p:
         if "[error]" in e or "PAGE_ERROR" in e:
             print(f"  {e}")
 
+    failed = get_failed()
     print(f"\nFailed: {failed}")
     if failed > 0:
         raise SystemExit(1)

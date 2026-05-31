@@ -2,16 +2,11 @@ from pathlib import Path
 """Email verification: register → check Mailpit captured welcome email."""
 import uuid, json, urllib.request
 from playwright.sync_api import sync_playwright
-from utils import CDP, BASE, create_page, setup_logging, start_recording
+from utils import (CDP, BASE, create_page, setup_logging, start_recording,
+                   check, get_failed)
 
 MAILPIT_API = "http://localhost:18025/api/v1"
 OUT = Path(__file__).parent / "screenshots"
-failed = 0
-
-def check(cond, msg):
-    global failed
-    if cond: print(f"  OK: {msg}")
-    else: failed += 1; print(f"  FAIL: {msg}")
 
 
 with sync_playwright() as p:
@@ -104,6 +99,7 @@ with sync_playwright() as p:
     if not error_msgs:
         print("  (none)")
 
+    failed = get_failed()
     print(f"\nFailed: {failed}")
     if failed > 0:
         raise SystemExit(1)

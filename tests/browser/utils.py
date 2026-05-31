@@ -1,16 +1,107 @@
 import base64
+import json
 import os
 import subprocess
 import sys
 import threading
+import urllib.request
 from pathlib import Path
 
 from playwright.sync_api import Browser, Page
 
 CDP = "http://127.0.0.1:9222"
 BASE = "http://localhost:5173"
+API = "http://localhost:8000"
 RECORDINGS = Path(__file__).parent / "recordings"
 LOGS = Path(__file__).parent / "logs"
+
+# ── shared test helpers ──
+
+_failed = 0
+
+
+def check(cond: bool, msg: str) -> None:
+    global _failed
+    if cond:
+        print(f"  OK: {msg}")
+    else:
+        _failed += 1
+        print(f"  FAIL: {msg}")
+
+
+def get_failed() -> int:
+    return _failed
+
+
+def login_as(page: Page, email: str, password: str) -> None:
+    page.context.clear_cookies()
+    page.goto(f"{BASE}/login")
+    page.wait_for_load_state("networkidle")
+    page.fill('input[placeholder="邮箱"]', email)
+    page.fill('input[type="password"]', password)
+    page.click('button[type="submit"]')
+    page.wait_for_timeout(3000)
+    page.wait_for_load_state("networkidle")
+
+
+def sidebar_nav(page: Page, text: str, submenu: str = "活动管理") -> None:
+    sub = page.locator(f'.ant-menu-submenu-title:has-text("{submenu}")')
+    if sub.count() > 0 and sub.first.get_attribute("aria-expanded") != "true":
+        sub.first.click()
+        page.wait_for_timeout(400)
+    it = page.locator(f'.ant-menu-item:has-text("{text}")').first
+    if it.count() > 0:
+        it.click()
+        page.wait_for_timeout(1500)
+        page.wait_for_load_state("networkidle")
+
+
+def navigate_to_activity(page: Page, name: str) -> None:
+    """Sidebar → 全部活动 → click activity link by name."""
+    sidebar_nav(page, "全部活动")
+    page.wait_for_timeout(1000)
+    page.wait_for_selector(".ant-table-tbody tr", timeout=5000)
+    page.wait_for_timeout(500)
+    link = page.locator(f'a:has-text("{name}")').first
+    link.click()
+    page.wait_for_timeout(2000)
+    page.wait_for_load_state("networkidle")
+
+
+def api_post(path: str, body: dict, token: str | None) -> dict:
+    data = json.dumps(body).encode()
+    hdrs = {"Content-Type": "application/json"}
+    if token:
+        hdrs["Authorization"] = f"Bearer {token}"
+    req = urllib.request.Request(f"{API}{path}", data=data, headers=hdrs)
+    return json.loads(urllib.request.urlopen(req).read())
+
+
+def api_get(path: str, token: str) -> dict:
+    req = urllib.request.Request(f"{API}{path}",
+        headers={"Authorization": f"Bearer {token}"})
+    return json.loads(urllib.request.urlopen(req).read())
+
+
+def api_patch(path: str, body: dict, token: str) -> dict:
+    data = json.dumps(body).encode()
+    req = urllib.request.Request(f"{API}{path}", data=data, method="PATCH",
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
+    return json.loads(urllib.request.urlopen(req).read())
+
+
+def api_put(path: str, body: dict, token: str) -> dict:
+    data = json.dumps(body).encode()
+    req = urllib.request.Request(f"{API}{path}", data=data, method="PUT",
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
+    return json.loads(urllib.request.urlopen(req).read())
+
+
+def login_api(email: str, password: str) -> tuple[str, str]:
+    resp = api_post("/auth/login", {"email": email, "password": password}, None)
+    token = resp["access_token"]
+    user = api_get("/auth/me", token)
+    return token, user["id"]
 
 
 class _TeeWriter:
