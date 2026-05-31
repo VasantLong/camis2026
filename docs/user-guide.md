@@ -111,35 +111,39 @@ curl http://localhost:8000/health
 用以下脚本创建测试帐号（幂等，可重复执行）：
 
 ```bash
-python scripts/seed_test_activities.py   # 创建 promoter / security / liaison + 种子活动
-python scripts/create_devtest_user.py    # 创建 devtest（全角色全能用户）
+python scripts/seed_test_users.py       # 创建 8 个单角色测试用户
+python scripts/seed_test_activities.py  # 创建 23 个种子活动（含 promoter/security/liaison 用户）
+python scripts/create_devtest_user.py   # 创建 devtest（全角色全能用户）
 ```
 
 | 邮箱 | 密码 | 角色 | 可访问页面 |
 |------|------|------|-----------|
 | `devtest@test.com` | `pass123` | 全部 7 角色 | 所有页面 |
-| `promoter@test.com` | `pass123` | Promoter | 活动管理、方案上传 |
-| `security@test.com` | `pass123` | SecurityOfficer + SecurityManager | 安保方案、签署材料、审批流转 |
-| `liaison@test.com` | `pass123` | GovLiaison | 审查材料、批文上传 |
+| `promoter@test.com` | `pass123` | Promoter | 工作台、新建立项、我的活动 |
+| `security@test.com` | `pass123` | SecurityOfficer | 待编制安保方案、待打包备案 |
+| `security_mgr@test.com` | `pass123` | SecurityManager | 待签署确认、备案申请 |
+| `liaison@test.com` | `pass123` | GovLiaison | 待审查材料、审批记录 |
+| `admin@test.com` | `pass123` | AdminStaff | 工作台、活动面板、全部活动 |
+| `admin_mgr@test.com` | `pass123` | AdminManager | 工作台、活动面板、角色审批 |
 
 ## 种子活动
 
-用 `python scripts/seed_test_activities.py` 创建 12 个测试活动，覆盖全状态：
+用 `python scripts/seed_test_activities.py` 创建 23 个测试活动，覆盖全状态：
 
-| 活动 | 状态 |
-|------|------|
-| 2026 校园文化节 | 待设计方案 |
-| 安全生产月启动仪式 | 待安保方案设计 |
-| 社区志愿服务日 | 待备案申请 |
-| 年度总结表彰大会 | 备案材料已交接 |
-| 网络安全培训讲座 | 审批通过 |
-| 职工运动会 | 审批通过-待举办 |
-| 春节联欢晚会 | 举办中 |
-| 科普进社区活动 | 已结束 |
-| 法治宣传周活动 | 待补充备案材料 |
-| 青年创新创业大赛 | 不通过/已终止 |
-| 绿色环保公益行 | 已取消 |
-| 全民读书月活动 | 已延期 |
+| 状态 | 活动示例 |
+|------|---------|
+| 待设计方案 | 2026 校园文化节、国际音乐节筹备 |
+| 待安保方案设计 | 安全生产月启动仪式、消防应急演练、非遗手工艺展 |
+| 待备案申请 | 社区志愿服务日、农产品展销会、元宵灯会 |
+| 备案材料已交接 | 年度总结表彰大会、科技周开幕式 |
+| 审批通过 | 网络安全培训讲座 |
+| 审批通过-待举办 | 职工运动会、端午龙舟赛 |
+| 举办中 | 春节联欢晚会 |
+| 已结束 | 科普进社区活动、中秋游园会 |
+| 待补充备案材料 | 法治宣传周活动 |
+| 不通过/已终止 | 青年创新创业大赛、马拉松赛事报批 |
+| 已取消 | 绿色环保公益行、庙会活动 |
+| 已延期 | 全民读书月活动、行业博览会 |
 
 每个活动附有对应的方案文件（PDF）、安保方案（PDF）、政府批文（PDF）、备案清单（XLSX）、工作安排（CSV）等附件。
 
@@ -158,45 +162,42 @@ python scripts/create_devtest_user.py    # 创建 devtest（全角色全能用�
 
 ### 场景 A：宣策部（Promoter）— 立项 + 方案上传
 
-1. 用 `devtest@test.com / pass123` 登录（或 `promoter@test.com`）
-2. 进入「活动管理 → 创建新活动」
-3. 填写活动信息并提交 → 跳转详情页，状态为「待设计方案」
-4. 在文档 tab 上传方案文件（PDF/JPG/PNG/DOC，≤50MB）
-5. 返回活动列表验证新建的活动出现在列表中
-6. 按状态筛选、关键词搜索验证筛选功能
+1. 用 `promoter@test.com / pass123` 登录 → 进入工作台首页（`/index`）
+2. 查看「待设计方案」和「我的活动」计数卡片
+3. 点击「新建立项」→ 填写活动信息并提交 → 跳转详情页，状态为「待设计方案」
+4. 通过侧边栏「我的活动」返回列表，验证新活动出现
+5. 点击活动进入详情，在文档 tab 上传方案文件（PDF/JPG/PNG/DOC，≤50MB）
 
 ### 场景 B：安保部（SecurityOfficer + SecurityManager）— 审批流转
 
 1. 用 `promoter@test.com` 登录，打开「待设计方案」活动，点击「提交到安保方案设计」
-2. 用 `security@test.com` (SecurityOfficer) 登录，打开该活动 → 点击「签署完成—提交备案」
-3. 如需驳回，用 `security_mgr@test.com` (SecurityManager) 登录 → 点击「驳回（内部循环）」
-4. 在「备案」tab 中依次操作：校验材料 → 打包 → 纸质交接
+2. 用 `security@test.com` (SecurityOfficer) 登录，侧边栏「待编制安保方案」出现该活动
+3. 编制完成后点击「签署完成—提交备案」→ 状态变为「待备案申请」
+4. 如需驳回，用 `security_mgr@test.com` (SecurityManager) 登录 → 点击「驳回」
 
 ### 场景 C：政府对接（GovLiaison）— 批文上传
 
-用 `liaison@test.com / pass123` 登录（已预设 GovLiaison 角色），活动需处于「备案材料已交接」状态。
+用 `liaison@test.com / pass123` 登录，侧边栏「待审查材料」显示待处理数量。
 
-1. 打开活动详情
-2. 点击「审批通过」→ 状态变为「审批通过」
-3. 或点击「需补充材料」→ 状态变为「待补充备案材料」
-4. 或点击「驳回—不通过」→ 状态变为「不通过/已终止」
+1. 从工作台或侧边栏进入审查列表
+2. 打开活动详情 → 逐条审查关键材料（合格/不合格）
+3. 全部合格后上传批文 → 标注「审批通过」
+4. 或标注「需补充材料」→ 状态变为「待补充备案材料」
 
 ### 场景 D：行政部（AdminStaff）— 仪表盘 + 强制操作
 
-> 需用户拥有 AdminStaff 或 AdminManager 角色（当前仅 devtest 拥有全部角色，后续补充独立角色用户）
+用 `admin@test.com / pass123` 登录。
 
-1. 从侧边栏进入「活动面板」
-2. 查看统计卡片（总数/合规率/已取消/已延期）
-3. 查看状态分布和最近异常列表
-4. 导出月报 → 提示"报表生成中"
-5. 在任意非终态活动详情中点击「强制取消」或「强制延期」
-6. 确认勾选框 + 填写原因 → 活动进入终态，锁定后续操作
+1. 工作台展示总活动数、审批通过率、本月新增
+2. 点击「进入仪表盘」→ 查看统计卡片、状态分布、异常列表
+3. 导出月报 → 提示"报表生成中"
+4. 在任意非终态活动详情中点击「强制取消」或「强制延期」
 
 ### 场景 E：权限边界
 
-1. 注册新用户（无角色）→ 落在 `/profile`
-2. 尝试直接访问 `/activities` → 重定向到 `/login`（无 `view_owned_activity` 权限）
-3. 在 `/profile` 页面提交角色申请，等待管理员审批
+1. 注册新用户（无角色）→ 工作台显示引导页，提示前往个人中心申请角色
+2. 点击「前往个人中心申请角色」→ 在 `/profile` 提交角色申请
+3. 用 SuperAdmin 登录 → 侧边栏「角色审批(N)」→ 批准申请
 
 ---
 

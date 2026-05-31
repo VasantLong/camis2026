@@ -1,6 +1,6 @@
 # CAMIS — 活动合规审批管理系统
 
-> **v0.18.0** — 企业部门活动合规审批 MIS。技术栈：**Python (FastAPI)** + **React SPA** + **PostgreSQL 17** + **MinIO** + **Redis 7.4**，Docker Compose 本地编排，模块化单体架构。
+> **v0.19.0** — 企业部门活动合规审批 MIS。技术栈：**Python (FastAPI)** + **React SPA** + **PostgreSQL 17** + **MinIO** + **Redis 7.4**，Docker Compose 本地编排，模块化单体架构。
 
 ## 快速启动
 
@@ -64,7 +64,7 @@ camis2026/
 │   └── 12-user-archive-reason.sql    # 归档原因 + 归档时间
 ├── scripts/
 │   ├── seed_test_users.py          # 单角色测试用户 (8 users)
-│   ├── seed_test_activities.py     # 12 种子活动 + seed 用户
+│   ├── seed_test_activities.py     # 23 种子活动 + seed 用户
 │   └── create_devtest_user.py      # 全能测试用户 (devtest)
 ├── app/                            # FastAPI 后端
 │   ├── main.py                     # 入口, lifespan, CORS
@@ -91,7 +91,8 @@ camis2026/
 | `CONTEXT.md`             | 领域术语表（7 角色、12 状态）         |
 | `docs/api-routes.md`     | REST 端点契约                         |
 | `docs/state-machine.md`  | 活动 12 状态生命周期                  |
-| `docs/frontend.md`       | 前端实现文档                          |
+| `docs/frontend.md`       | 前端实现 + 导航设计              |
+| `docs/ui-design-report.md` | 界面设计报告（用户分析+线框图+原型） |
 | `docs/browser-tests.md`  | Playwright 浏览器测试手册 |
 | `docs/user-guide.md`     | 用户操作手册                          |
 | `docs/rbac.md`           | 权限配置                              |
