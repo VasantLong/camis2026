@@ -187,7 +187,9 @@ async def seed():
         # ── ensure users ──
         promoter = await _ensure_user(db, "promoter@test.com", "promoter", ["Promoter"])
         security = await _ensure_user(db, "security@test.com", "security",
-                                       ["SecurityOfficer", "SecurityManager"])
+                                       ["SecurityOfficer"])
+        security_mgr = await _ensure_user(db, "security_mgr@test.com", "security_mgr",
+                                          ["SecurityManager"])
         liaison = await _ensure_user(db, "liaison@test.com", "liaison", ["GovLiaison"])
 
         # ── check existing ──
@@ -209,6 +211,8 @@ async def seed():
                 estimated_time=estimated,
                 location=location,
                 sponsor=sponsor,
+                sponsor_contact="测试联系人",
+                sponsor_phone="13800138000",
                 deadline=deadline,
                 status="待设计方案",
                 owner_id=promoter.id,
@@ -254,7 +258,7 @@ async def seed():
                     activity_id=activity.id,
                     risk_level=risk,
                     audit_status="已审核",
-                    manager_id=security.id,
+                    manager_id=security_mgr.id,
                     sign_time=now,
                 ))
                 await db.flush()
@@ -367,7 +371,7 @@ async def seed():
 
             path = PATH[target]
             for to_status in path:
-                await wf.transition(activity.id, to_status, security)
+                await wf.transition(activity.id, to_status, security_mgr)
 
             # ── FilingDoc for filing-ready activities ──
             if target in ("备案材料已交接", "审批通过", "审批通过-待举办",
@@ -431,12 +435,12 @@ async def seed():
                     activity_id=activity.id,
                     from_status="待设计方案",
                     to_status=target,
-                    operator_id=security.id,
+                    operator_id=security_mgr.id,
                     comment="测试强制变更",
                 ))
                 db.add(ImplementationRecord(
                     activity_id=activity.id,
-                    admin_id=security.id,
+                    admin_id=security_mgr.id,
                     change_status=target,
                     change_reason="测试强制变更",
                     archived_at=now,

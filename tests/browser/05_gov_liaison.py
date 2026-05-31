@@ -54,6 +54,7 @@ for prefix in ["gov_approve", "gov_supplement", "gov_reject"]:
         "name": name, "type": "大型活动",
         "estimated_time": "2026-06-15T09:00:00+08:00",
         "location": f"测试广场_{prefix}_{uuid.uuid4().hex[:4]}", "sponsor": "测试主办方",
+        "sponsor_contact": "张三", "sponsor_phone": "13800138000",
         "deadline": "2026-06-01T18:00:00+08:00",
         "designer_id": user_id,
     }, token)
@@ -78,7 +79,8 @@ with sync_playwright() as p:
     page.on("console", lambda m: errors.append(f"[{m.type}] {m.text}"))
     page.on("pageerror", lambda e: errors.append(f"PAGE_ERROR: {e}"))
 
-    # Login as GovLiaison
+    # Login as GovLiaison — 登录后通过侧边栏导航到活动列表
+    print("\n0. Login")
     page.goto(f"{BASE}/login")
     page.wait_for_load_state("networkidle")
     page.fill('input[placeholder="邮箱"]', "liaison@test.com")
@@ -86,7 +88,10 @@ with sync_playwright() as p:
     page.click('button[type="submit"]')
     page.wait_for_timeout(3000)
     page.wait_for_load_state("networkidle")
-    check("/activities" in page.url, "logged in")
+    check("/login" not in page.url, "logged in")
+
+    sidebar_nav(page, "全部活动")
+    check("/activities" in page.url, "navigated to activity list")
 
     # 1. Approve: 审批通过
     print("\n1. Approve (审批通过)")

@@ -71,6 +71,7 @@ aid = api_post("/activities", {
     "name": wf_name, "type": "大型活动",
     "estimated_time": "2026-06-15T09:00:00+08:00",
     "location": f"测试广场_{wf_name}", "sponsor": "测试主办方",
+    "sponsor_contact": "张三", "sponsor_phone": "13800138000",
     "deadline": "2026-06-01T18:00:00+08:00",
     "designer_id": p_user_id,
 }, p_token)["id"]
@@ -126,6 +127,15 @@ with sync_playwright() as p:
         bell.first.click()
         page.wait_for_timeout(800)
     check("需进行安保方案设计" in page.content() or wf_name in page.content(), "notification content visible")
+
+    # Click notification item → navigate to activity detail
+    item = page.locator(f'.ant-dropdown-menu-item:has-text("{wf_name}")').first
+    if item.count() > 0:
+        item.click()
+        page.wait_for_timeout(2000)
+        page.wait_for_load_state("networkidle")
+    check(f"/activities/{aid}" in page.url, f"notification click navigated to activity detail (got {page.url})")
+    check(wf_name in page.content(), "activity name visible after notification click")
 
     # === Step 2: SecurityManager rejects ===
     print("\n2. SecurityManager: reject")

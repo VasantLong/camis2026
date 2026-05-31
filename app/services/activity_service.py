@@ -104,7 +104,8 @@ class ActivityService:
         return ActivityResponse.model_validate(activity)
 
     async def list(self, params: ActivityListParams, user_id: UUID | None = None,
-                   allowed_statuses: set[str] | None = None) -> tuple[list[ActivityResponse], int]:
+                   allowed_statuses: set[str] | None = None,
+                   include_terminal: bool = False) -> tuple[list[ActivityResponse], int]:
         query = select(Activity)
         count_query = select(func.count(Activity.id))
         if user_id:
@@ -114,10 +115,11 @@ class ActivityService:
             query = query.where(Activity.status.in_(allowed_statuses))
             count_query = count_query.where(Activity.status.in_(allowed_statuses))
         else:
-            # Roles that see all statuses: exclude terminal from pending tab
-            from app.services.workflow_service import TERMINAL_STATUSES
-            query = query.where(Activity.status.not_in(TERMINAL_STATUSES))
-            count_query = count_query.where(Activity.status.not_in(TERMINAL_STATUSES))
+            if not include_terminal:
+                # Roles that see all statuses: exclude terminal from pending tab
+                from app.services.workflow_service import TERMINAL_STATUSES
+                query = query.where(Activity.status.not_in(TERMINAL_STATUSES))
+                count_query = count_query.where(Activity.status.not_in(TERMINAL_STATUSES))
 
         if params.status:
             query = query.where(Activity.status == params.status)

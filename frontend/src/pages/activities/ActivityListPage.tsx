@@ -7,13 +7,16 @@ import ActivityTable from "@/components/activities/ActivityTable";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
 
+const OPERATIONAL_PERMS = ["create_activity", "manage_security", "audit_material", "submit_plan", "pack_filing"];
+
 export default function ActivityListPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const userPermissions = useAuthStore((s) => s.user?.permissions);
   const permissions = userPermissions ?? [];
 
-  const tab = searchParams.get("tab") || "pending";
+  const hasOperational = permissions.some((p) => OPERATIONAL_PERMS.includes(p));
+  const tab = hasOperational ? (searchParams.get("tab") || "pending") : "all";
   const params = {
     status: searchParams.get("status") || undefined,
     keyword: searchParams.get("keyword") || undefined,
@@ -58,14 +61,16 @@ export default function ActivityListPage() {
           </Button>
         )}
       </div>
-      <Tabs
-        activeKey={tab}
-        onChange={setTab}
-        items={[
-          { key: "pending", label: "待操作" },
-          { key: "completed", label: "已完成" },
-        ]}
-      />
+      {hasOperational && (
+        <Tabs
+          activeKey={tab}
+          onChange={setTab}
+          items={[
+            { key: "pending", label: "待操作" },
+            { key: "completed", label: "已完成" },
+          ]}
+        />
+      )}
       <ActivityFilters />
       <ActivityTable data={data} total={total} loading={isLoading} />
     </div>

@@ -28,7 +28,7 @@ roles ──< role_permissions >── permissions
 |------|------|------|--------|
 | **SuperAdmin** | 系统 | 全权限（用户管理、系统配置） | 全部 |
 | **AdminManager** | 行政部 | 审批角色申请、强制变更、Dashboard | 7 |
-| **SecurityManager** | 安保部 | 审核安保方案、状态流转、确认审批、驳回 | 8 |
+| **SecurityManager** | 安保部 | 审核安保方案、状态流转、确认审批、驳回 | 7 |
 | **AdminStaff** | 行政部 | 监控活动面板、强制变更状态、Dashboard | 5 |
 | **SecurityOfficer** | 安保部 | 上传材料、电子签署、打包备案、状态流转 | 5 |
 | **Promoter** | 宣策部 | 创建立项、编制活动方案、提交安保审核 (submit_plan) | 4 |

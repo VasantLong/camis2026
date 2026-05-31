@@ -258,6 +258,7 @@ export default function ProfilePage() {
                   角色权限：
                 </Typography.Text>
                 <Table
+                  rowKey="role"
                   size="small"
                   pagination={false}
                   dataSource={Object.entries(user.role_permissions).map(

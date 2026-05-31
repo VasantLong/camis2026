@@ -853,23 +853,27 @@ classDiagram
 
 ## 实体-表映射
 
-| 实体                 | 表名                     | 状态                         |
-| -------------------- | ------------------------ | ---------------------------- |
-| Activity             | `activities`             | ❌                           |
-| ActivityPlan         | `activity_plans`         | ❌                           |
-| SecurityPlan         | `security_plans`         | ❌                           |
-| FilingDoc            | `filing_docs`            | ❌                           |
-| ApprovalRecord       | `approval_records`       | ❌                           |
-| ImplementationRecord | `implementation_records` | ❌                           |
-| KeyMaterial          | `key_materials`          | ❌                           |
-| ActivityRule         | `activity_rules`         | ❌                           |
-| User                 | `users`                  | ✅                           |
-| Document             | `documents`              | ✅                           |
-| Project              | `projects`               | ✅ 骨架，待改造为 activities |
-| Role                 | `roles`                  | ❌                           |
-| Permission           | `permissions`            | ❌                           |
-| UserRole             | `user_roles`             | ❌                           |
-| RolePermission       | `role_permissions`       | ❌                           |
+| 实体                 | 表名                     | 状态 |
+| -------------------- | ------------------------ | ---- |
+| Activity             | `activities`             | ✅   |
+| ActivityPlan         | `activity_plans`         | ✅   |
+| SecurityPlan         | `security_plans`         | ✅   |
+| FilingDoc            | `filing_docs`            | ✅   |
+| ApprovalRecord       | `approval_records`       | ✅   |
+| ImplementationRecord | `implementation_records` | ✅   |
+| KeyMaterial          | `key_materials`          | ✅   |
+| ActivityRule         | `activity_rules`         | ✅   |
+| User                 | `users`                  | ✅   |
+| Document             | `documents`              | ✅   |
+| Role                 | `roles`                  | ✅   |
+| Permission           | `permissions`            | ✅   |
+| UserRole             | `user_roles`             | ✅   |
+| RolePermission       | `role_permissions`       | ✅   |
+| MaterialAudit        | `material_audits`        | ✅   |
+| RoleRequest          | `role_requests`          | ✅   |
+| ActivityStatusLog    | `activity_status_log`    | ✅   |
+| Notification         | `notifications`          | ✅   |
+| RefreshToken         | `refresh_tokens`         | ✅   |
 
 ---
 

@@ -16,10 +16,10 @@ INSERT INTO roles (name, description) VALUES
     ('SecurityManager', '安保部负责人 — 编制安保方案、审核签署、确认审批结果')
 ON CONFLICT (name) DO NOTHING;
 
--- SuperAdmin ← manage_users + administer_users
+-- SuperAdmin ← 全部权限 (via CROSS JOIN)
 INSERT INTO role_permissions (role_id, permission_id)
-SELECT r.id, p.id FROM roles r, permissions p
-WHERE r.name = 'SuperAdmin' AND p.name IN ('manage_users', 'administer_users')
+SELECT r.id, p.id FROM roles r CROSS JOIN permissions p
+WHERE r.name = 'SuperAdmin'
 ON CONFLICT DO NOTHING;
 
 -- AdminManager ← AdminStaff 全部权限 + manage_users

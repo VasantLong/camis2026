@@ -65,6 +65,46 @@ with sync_playwright() as p:
     create_item = page.locator('.ant-menu-item:has-text("创建新活动")')
     check(create_item.count() > 0, "create activity menu item visible")
 
+    # 5. SecurityOfficer-only: sees sign button, NOT reject/confirm_approval
+    print("5. SecurityOfficer restricted buttons")
+    page.context.clear_cookies()
+    login_as(page, "security@test.com", "pass123")
+    check("/login" not in page.url, "security officer logged in")
+    sidebar_text3 = page.locator('.ant-layout-sider').inner_text()
+    check("活动管理" in sidebar_text3, "security officer sees 活动管理")
+    # Navigate to first activity in list to check buttons
+    page.wait_for_selector('.ant-table-tbody tr', timeout=10000)
+    page.wait_for_timeout(500)
+    first_link = page.locator('.ant-table-tbody tr a').first
+    if first_link.count() > 0:
+        first_link.click()
+        page.wait_for_timeout(2000)
+        page.wait_for_load_state("networkidle")
+    has_reject = page.locator('button:has-text("驳回")').count() > 0
+    has_confirm = page.locator('button:has-text("确认审批")').count() > 0
+    has_sign = page.locator('button:has-text("签署")').count() > 0
+    check(not has_reject, "security officer does NOT see reject button")
+    check(not has_confirm, "security officer does NOT see confirm_approval button")
+    check(has_sign, "security officer sees sign-related button")
+
+    # 6. SecurityManager: sees reject/confirm_approval buttons
+    print("6. SecurityManager elevated buttons")
+    page.context.clear_cookies()
+    login_as(page, "security_mgr@test.com", "pass123")
+    check("/login" not in page.url, "security manager logged in")
+    page.wait_for_selector('.ant-table-tbody tr', timeout=10000)
+    page.wait_for_timeout(500)
+    first_link2 = page.locator('.ant-table-tbody tr a').first
+    if first_link2.count() > 0:
+        first_link2.click()
+        page.wait_for_timeout(2000)
+        page.wait_for_load_state("networkidle")
+    has_reject2 = page.locator('button:has-text("驳回")').count() > 0
+    has_confirm2 = page.locator('button:has-text("确认审批")').count() > 0
+    # SecurityManager gets both reject_approval + confirm_approval
+    # (visible only if activity is in applicable status)
+    print(f"  (reject button visible: {has_reject2}, confirm_approval visible: {has_confirm2})")
+
     page.screenshot(path=f'{OUT / '04_permissions_final.png'}', full_page=True)
     if recorder:
         recorder.stop()
