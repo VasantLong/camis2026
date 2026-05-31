@@ -234,6 +234,24 @@ export default function UserManagementPage() {
           <Spin />
         ) : overview ? (
           <>
+            {overview.is_archived && (
+              <div style={{
+                background: "#fff2f0",
+                border: "1px solid #ffccc7",
+                borderRadius: 8,
+                padding: "12px 16px",
+                marginBottom: 16,
+              }}>
+                <Typography.Text strong style={{ color: "#ff4d4f", fontSize: 14 }}>
+                  此用户已于 {overview.archived_at ? new Date(overview.archived_at).toLocaleString("zh-CN") : "—"} 归档封存
+                </Typography.Text>
+                {overview.archive_reason && (
+                  <Typography.Paragraph style={{ marginTop: 8, marginBottom: 0 }}>
+                    归档凭证：{overview.archive_reason}
+                  </Typography.Paragraph>
+                )}
+              </div>
+            )}
             <Descriptions column={1} bordered size="small" style={{ marginBottom: 16 }}>
               <Descriptions.Item label="UUID">
                 <Typography.Text code style={{ fontSize: 11 }}>
@@ -258,16 +276,6 @@ export default function UserManagementPage() {
                   <Tag key={r} color="blue">{ROLE_LABEL_MAP[r] || r}</Tag>
                 ))}
               </Descriptions.Item>
-              {overview.is_archived && overview.archive_reason && (
-                <Descriptions.Item label="归档原因">
-                  {overview.archive_reason}
-                </Descriptions.Item>
-              )}
-              {overview.is_archived && overview.archived_at && (
-                <Descriptions.Item label="归档时间">
-                  {new Date(overview.archived_at).toLocaleString("zh-CN")}
-                </Descriptions.Item>
-              )}
               <Descriptions.Item label="注册时间">
                 {new Date(overview.created_at).toLocaleString("zh-CN")}
               </Descriptions.Item>
