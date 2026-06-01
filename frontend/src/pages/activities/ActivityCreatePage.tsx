@@ -32,7 +32,7 @@ export default function ActivityCreatePage() {
       {!contactPhone && (
         <Alert
           type="warning"
-          message="请先补充联系方式"
+          title="请先补充联系方式"
           description="您需要填写联系方式后才能新建活动。"
           showIcon
           closable
