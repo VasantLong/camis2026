@@ -507,3 +507,4 @@ DELETE FROM refresh_tokens WHERE expires_at < NOW() - INTERVAL '7 days' AND revo
 | 14 | 配置日志告警规则（Redis 故障、DB 连接池耗尽） | §12.2 |
 | 15 | 建立 L3 数据清理 cron job（notifications/login_attempts/refresh_tokens） | §12.4 |
 | 16 | 建立季度恢复验证流程 | §11.3 |
+| 17 | Dockerfile 加 entrypoint（`alembic upgrade head` → gunicorn） | Alembic 引入时同步改 |
