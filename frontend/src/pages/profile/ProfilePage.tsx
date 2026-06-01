@@ -80,6 +80,21 @@ export default function ProfilePage() {
     },
   });
 
+  const PHONE_PATTERN = /^1[3-9]\d{9}$/;
+
+  const handleSavePhone = () => {
+    const raw = phoneValue.trim();
+    if (raw === (user?.contact_phone || "")) {
+      setEditingPhone(false);
+      return;
+    }
+    if (raw && !PHONE_PATTERN.test(raw)) {
+      message.error("请输入正确的11位手机号");
+      return;
+    }
+    savePhoneMutation.mutate(raw);
+  };
+
   const emailChangeMutation = useMutation({
     mutationFn: (new_email: string) => authApi.requestEmailChange(new_email),
     onSuccess: () => {
@@ -197,21 +212,14 @@ export default function ProfilePage() {
                 value={phoneValue}
                 onChange={(e) => setPhoneValue(e.target.value)}
                 onBlur={() => {
-                  if (phoneValue.trim() !== (user.contact_phone || "")) {
-                    savePhoneMutation.mutate(phoneValue.trim());
-                  } else {
-                    setEditingPhone(false);
-                  }
+                  handleSavePhone();
                 }}
                 onPressEnter={() => {
-                  if (phoneValue.trim() !== (user.contact_phone || "")) {
-                    savePhoneMutation.mutate(phoneValue.trim());
-                  } else {
-                    setEditingPhone(false);
-                  }
+                  handleSavePhone();
                 }}
                 autoFocus
                 placeholder="如：13800138000"
+                maxLength={11}
                 style={{ width: 200 }}
               />
             ) : (

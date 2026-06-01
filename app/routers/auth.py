@@ -1,6 +1,6 @@
 from fastapi import APIRouter, BackgroundTasks, Cookie, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 from app.auth import check_login_blocked, record_login_failure, record_login_attempt
 from app.database import get_db
@@ -58,7 +58,7 @@ class UserResponse(BaseModel):
 
 class UpdateProfileRequest(BaseModel):
     display_name: str
-    contact_phone: str | None = None
+    contact_phone: str | None = Field(default=None, pattern=r"^1[3-9]\d{9}$", max_length=11)
 
 
 class EmailChangeRequest(BaseModel):
