@@ -15,6 +15,8 @@ async def test_create_activity(client, promoter_token):
         "estimated_time": "2026-12-31T10:00:00+08:00",
         "location": "测试场地A",
         "sponsor": "测试主办方",
+        "sponsor_contact": "张三",
+        "sponsor_phone": "13800138000",
         "deadline": "2026-11-01T18:00:00+08:00",
         "designer_id": uid,
     })
@@ -36,6 +38,8 @@ async def test_create_activity_past_deadline(client, promoter_token):
         "estimated_time": "2026-12-31T10:00:00+08:00",
         "location": "场地B",
         "sponsor": "主办方",
+        "sponsor_contact": "李四",
+        "sponsor_phone": "13900139000",
         "deadline": "2020-01-01T00:00:00+08:00",
         "designer_id": uid,
     })
@@ -84,6 +88,7 @@ async def test_no_role_user_forbidden(client, auth_token):
         "name": "x", "type": "x",
         "estimated_time": "2026-12-31T10:00:00+08:00",
         "location": "x", "sponsor": "x",
+        "sponsor_contact": "x", "sponsor_phone": "x",
         "deadline": "2026-11-01T18:00:00+08:00",
         "designer_id": uid,
     })
