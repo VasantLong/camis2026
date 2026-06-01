@@ -61,7 +61,53 @@
 | `activity_rule_targets` | 待补模型 | 同上 |
 | `login_attempts` | **不补** | 审计/安全日志，无 relationship、无 FK 到 users（用 login_id），raw SQL 直接操作 |
 
-## 2. 实体关系
+## 2. 列级设计规范
+
+### 2.1 主键
+
+全部使用 UUID v4（`uuid_generate_v4()`），通过 SQLAlchemy `UUID(as_uuid=True)` 映射为 Python `uuid.UUID`。
+
+选型理由：API 暴露的主键不可预测（防枚举攻击），适合 MinIO 路径中嵌入（全局唯一，无碰撞）。
+
+### 2.2 时间戳
+
+全部使用 `TIMESTAMPTZ`（`DateTime(timezone=True)`），统一存储 UTC，前端按用户时区展示。`created_at` 使用 `server_default=func.now()`，由 DB 填充，不依赖应用时钟。
+
+### 2.3 字符串长度分级
+
+| 级别 | 长度 | 用途 | 列示例 |
+|------|------|------|--------|
+| 状态码 | VARCHAR(32-64) | 枚举值 | `status`, `sign_status`, `action`, `channel` |
+| 名称/标识 | VARCHAR(128-255) | 实体名称、邮箱 | `name`, `email`, `display_name` |
+| 路径/URL | VARCHAR(2048) | MinIO object path | `minio_path`, `attachment_url` |
+| 文件名 | VARCHAR(1024) | 含路径的文件名 | `filename` |
+| 电话 | VARCHAR(64) | 含国际前缀 | `contact_phone`, `sponsor_phone` |
+| 中间文本 | VARCHAR(1024) | 有界自由文本 | `archive_reason`, `role_request.comment` |
+| 无界文本 | TEXT | 用户自由输入 | `content`, `opinion`, `message`, `change_reason` |
+
+**长度不收紧**：PostgreSQL 的 VARCHAR(N) 不预分配空间，存多长占多长。当前长度值偏宽松是刻意为之——优先保证不因字符数限制阻断合法业务输入，DB 层提供的是上限兜底而非精确校验。精确校验归属 Pydantic schema 层。
+
+### 2.4 布尔列
+
+所有布尔列使用 `Boolean` + 显式 `default`，禁止隐式 NULL 当作 False。`is_active`、`is_archived`、`is_qualified`、`is_read` 均遵循此规则。
+
+### 2.5 字符编码
+
+PostgreSQL 默认 UTF-8（postgres:17 镜像），asyncpg 客户端默认 UTF-8。未显式声明但无问题——中文字段值在 VARCHAR(64) 中占 21 bytes（7 个中文字 × 3），远低于 64 字符限制（UTF-8 下 VARCHAR(64) 可存 64 个中文字 = 192 bytes）。
+
+### 2.6 SQL 注入防护
+
+全部 5 处 raw SQL 使用参数化查询（`:param` 语法），零字符串拼接。其余查询走 SQLAlchemy ORM（select/insert/update——参数化由框架保证）。用户输入的 keyword 搜索使用 ORM `ilike()`，参数自动转义。结论：**当前无 SQL 注入风险**。
+
+### 2.7 已知 Model-DDL Drift
+
+| 列 | 模型 | DDL | 影响 |
+|----|------|-----|------|
+| `key_materials.sign_status` | `String(32), nullable=False`，无 default | `VARCHAR(32) NOT NULL DEFAULT 'unsigned'` | 模型缺 `server_default='unsigned'`。当前代码创建 KeyMaterial 时显式设值，未触发 bug。Alembic 引入后 autogenerate 会检测到此差异 |
+
+---
+
+## 3. 实体关系
 
 ```
 activities ──< activity_plans              (1:N, CASCADE)
@@ -85,9 +131,9 @@ key_materials  ──< material_audits         (1:N, CASCADE, 审计记录)
 - 通过 `activity_id` FK 直达所属活动（高频查询"活动的所有材料"无需 UNION join 表）
 - 两条路径各有用途：join 表保留引用语义，FK 提供查询便利
 
-## 3. 索引策略
+## 4. 索引策略
 
-### 3.1 现有索引（18 个）
+### 4.1 现有索引（18 个）
 
 | 索引 | 覆盖查询 |
 |------|---------|
@@ -112,7 +158,7 @@ key_materials  ──< material_audits         (1:N, CASCADE, 审计记录)
 
 复合主键（自动索引覆盖）：`user_roles(user_id, role_id)` → `WHERE user_id=...` 走主键扫描；`role_permissions(role_id, permission_id)` 同理。
 
-### 3.2 待新增索引
+### 4.2 待新增索引
 
 | 索引 | 覆盖查询 | 优先级 |
 |------|---------|--------|
@@ -122,16 +168,16 @@ key_materials  ──< material_audits         (1:N, CASCADE, 审计记录)
 | `idx_material_audits_user_time` (user_id, created_at) | admin 查看用户活跃记录 | 低（低频页面） |
 | `idx_notifications_user_time` (user_id, created_at) | 消息列表排序 | 低（数据量小） |
 
-### 3.3 索引决策原则
+### 4.3 索引决策原则
 
 - 所有 FK 列必建索引（已满足）
 - 高频 WHERE + ORDER BY 组合考虑复合索引
 - 低基数列（status, boolean）单独建 B-tree 收益有限——但 `activities(status)` 已建，因为几乎所有列表都按状态筛选
 - 新加索引通过 Alembic migration 脚本管理，不在 init-scripts 重复
 
-## 4. 数据访问模式
+## 5. 数据访问模式
 
-### 4.1 依赖注入链
+### 5.1 依赖注入链
 
 ```
 Route → get_current_user (JWT → User ORM)
@@ -142,7 +188,7 @@ Route → get_current_user (JWT → User ORM)
 
 权限校验在路由层完成，服务层不做角色判断。
 
-### 4.2 查询模式分布
+### 5.2 查询模式分布
 
 | 模式 | 使用场景 |
 |------|---------|
@@ -151,7 +197,7 @@ Route → get_current_user (JWT → User ORM)
 | ORM update + commit | WorkflowService.transition（乐观锁） |
 | raw SQL (`text()`) | FilingService.validate_materials（UNION join 表），admin login_attempts 查询 |
 
-### 4.3 事务规则
+### 5.3 事务规则
 
 - **隔离级别**: PostgreSQL 默认 `READ COMMITTED`
 - **跨服务同一事务**: FilingService 传 `self.db` 给 WorkflowService，共享同一 AsyncSession（同一 PostgreSQL 事务）
@@ -161,7 +207,7 @@ Route → get_current_user (JWT → User ORM)
 - **并发保护**: `filing_docs(activity_id)` UNIQUE 防重；`user_roles` / `role_permissions` 复合 PK 兜底
 - **已知 TOCTOU**: 场地冲突检测（SELECT → INSERT）无 DB 级保护。两个 Promoter 同时在同一场地立项可能都通过。概率极低，可接受
 
-### 4.4 服务-路由对应关系
+### 5.4 服务-路由对应关系
 
 | Service | 对应 Router | 状态 |
 |---------|-----------|------|
@@ -174,12 +220,12 @@ Route → get_current_user (JWT → User ORM)
 | **AuthService**（待建） | auth.py | ❌ Router 直操 DB |
 | **AdminService**（待建） | admin.py | ❌ Router 直操 DB |
 
-### 4.5 Service 层设计规则
+### 5.5 Service 层设计规则
 
 - 不引入 Repository 层：Service 直接使用 SQLAlchemy ORM。模块化单体 + SOA 下，Repository 只增加转发层，不承载业务逻辑
 - Service 方法签名对应 `docs/service-design.md` 中已声明的契约；存在旁路的 router 端点应逐步收敛到 Service
 
-## 5. Pydantic Schema 组织规则
+## 6. Pydantic Schema 组织规则
 
 | 位置 | 放什么 | 示例 |
 |------|--------|------|
@@ -188,9 +234,9 @@ Route → get_current_user (JWT → User ORM)
 
 **规则**: 谁使用，谁定义。service 用的放在 schemas/，router 专用的内联。同一实体在不同模块的不同视图（如 `UserResponse` vs `UserDetail`）不由单一 schema 强行统一，避免耦合。
 
-## 6. 缓存策略（Redis）
+## 7. 缓存策略（Redis）
 
-### 6.1 缓存点
+### 7.1 缓存点
 
 | 缓存键 | TTL | 写入 | 失效 | 依赖类型 |
 |--------|-----|------|------|---------|
@@ -198,7 +244,7 @@ Route → get_current_user (JWT → User ORM)
 | `doc:{id}` | 30min | `documents.py` GET miss | 无（文档元数据不可变） | 软 |
 | `login_lockout:{email}` | 15min | `auth.py` login 失败 | 登录成功 → DEL | **硬** |
 
-### 6.2 缓存规则
+### 7.2 缓存规则
 
 - **Cache-Aside**: 读时回源 SET，写时主动 DEL
 - **TTL**: 按数据变更频率设定（活动文档 5min，文档元数据 30min）
@@ -207,7 +253,7 @@ Route → get_current_user (JWT → User ORM)
 - **健康检查**: `get_redis()` 加入 `PING`，连接中断时自动重连
 - **新增缓存点 MUST 同时实装失效逻辑**: DEL 必须在所有 mutation 端点中调用
 
-## 7. 数据生命周期（软删除策略）
+## 8. 数据生命周期（软删除策略）
 
 三级分类：
 
@@ -217,13 +263,13 @@ Route → get_current_user (JWT → User ORM)
 | L2 — 软删除 | 操作主体，可归档不可硬删 | users | `is_archived` 标记 |
 | L3 — 定期清理 | 临时/辅助数据，过期无价值 | notifications, login_attempts, refresh_tokens | 定时 DELETE |
 
-### 7.1 L1 规则
+### 8.1 L1 规则
 
 - 通过业务终态表达"不再活跃"（`已取消`/`已延期`/`不通过已终止`）
 - FK 从 L2/L3 → L1 用 `ON DELETE RESTRICT`，防止误删
 - 已取消/已延期的活动所有后续写操作锁定
 
-### 7.2 L3 清理 TTL
+### 8.2 L3 清理 TTL
 
 | 表 | TTL | 理由 |
 |---|-----|------|
@@ -233,9 +279,9 @@ Route → get_current_user (JWT → User ORM)
 
 执行方式：`scripts/cleanup_orphans.py` 或应用层 cron job，`DELETE FROM ... WHERE created_at < NOW() - INTERVAL`。
 
-## 8. 连接管理
+## 9. 连接管理
 
-### 8.1 PostgreSQL
+### 9.1 PostgreSQL
 
 ```python
 create_async_engine(url, pool_pre_ping=True, pool_size=10)
@@ -247,21 +293,21 @@ create_async_engine(url, pool_pre_ping=True, pool_size=10)
 | 当前（Docker Compose, ~20 用户） | pool_size=10 足够 |
 | 生产环境云数据库（RDS/Supabase） | 加 `pool_recycle=3600` 防止 idle timeout 断连 |
 
-### 8.2 Redis
+### 9.2 Redis
 
 - 模块级全局单例（`redis_client.py`）
 - 连接池由 aioredis 默认管理，无需额外配置
 - `get_redis()` 含 `PING` 健康检查，失败自动重连
 
-### 8.3 MinIO
+### 9.3 MinIO
 
 - 通过 `minio_client.py` 操作，每次调用独立连接
 - 上传文件与 DB 写入不在同一事务中 → 极低概率产生孤儿对象
 - 孤儿对象由 `scripts/cleanup_orphans.py` 定期扫描清理
 
-## 9. 迁移策略
+## 10. 迁移策略
 
-### 9.1 从 init-scripts 迁移到 Alembic
+### 10.1 从 init-scripts 迁移到 Alembic
 
 当前 `init-scripts/` 下有 14 个 SQL 脚本（编号 01-12，含两个 `12-*` 重号），历史问题：
 - 编号重复（两个 12）
@@ -276,13 +322,13 @@ create_async_engine(url, pool_pre_ping=True, pool_size=10)
 5. `init-scripts/` 归档到 `docs/init-scripts-archive/`，标注已被 Alembic 替代
 6. 后续改 schema 一律通过 `alembic revision --autogenerate -m "description"` + `alembic upgrade head`
 
-### 9.2 迁移命名约定
+### 10.2 迁移命名约定
 
 ```
 <seq>_<description>.sql → alembic <hash>_<description>.py
 ```
 
-## 10. 已知权衡与 Gap
+## 11. 已知权衡与 Gap
 
 | 项 | 内容 | 状态 |
 |----|------|------|
@@ -292,7 +338,7 @@ create_async_engine(url, pool_pre_ping=True, pool_size=10)
 | KeyMaterial 冗余字段 | is_qualified + opinion 是 material_audits 的快照冗余 | 故意反范式，用于查询性能 |
 | `docs/frontend.md` 有未提交修改 | — | 不影响此文档 |
 
-## 11. 后续行动清单
+## 12. 后续行动清单
 
 | # | 内容 | 来源 |
 |---|------|------|
