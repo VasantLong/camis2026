@@ -8,6 +8,17 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.models.user import Base
 
 
+class FilingDocMaterial(Base):
+    __tablename__ = "filing_doc_materials"
+
+    filing_doc_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("filing_docs.id", ondelete="CASCADE"), primary_key=True
+    )
+    material_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("key_materials.id", ondelete="CASCADE"), primary_key=True
+    )
+
+
 class FilingDoc(Base):
     __tablename__ = "filing_docs"
 
