@@ -1,16 +1,16 @@
 import { useState } from "react";
-import { Card, DatePicker, Button, message } from "antd";
+import { Button, Card, DatePicker, Space, message } from "antd";
+import dayjs from "dayjs";
 import { dashboardApi } from "@/api/dashboard";
 
+const THIS_MONTH = dayjs().format("YYYY-MM");
+const LAST_MONTH = dayjs().subtract(1, "month").format("YYYY-MM");
+
 export default function ReportExport() {
-  const [month, setMonth] = useState<string | null>(null);
+  const [month, setMonth] = useState<string>(THIS_MONTH);
   const [loading, setLoading] = useState(false);
 
   const handleExport = async () => {
-    if (!month) {
-      message.warning("请选择月份");
-      return;
-    }
     setLoading(true);
     try {
       const { data } = await dashboardApi.exportMonthlyReport(month);
@@ -25,16 +25,24 @@ export default function ReportExport() {
 
   return (
     <Card title="月报导出">
-      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+      <Space size={12} wrap>
+        <Button onClick={() => setMonth(THIS_MONTH)} type={month === THIS_MONTH ? "primary" : "default"}>
+          本月 ({THIS_MONTH})
+        </Button>
+        <Button onClick={() => setMonth(LAST_MONTH)} type={month === LAST_MONTH ? "primary" : "default"}>
+          上月 ({LAST_MONTH})
+        </Button>
         <DatePicker
           picker="month"
-          onChange={(d) => setMonth(d ? d.format("YYYY-MM") : null)}
-          placeholder="选择月份"
+          value={dayjs(month)}
+          onChange={(d) => setMonth(d ? d.format("YYYY-MM") : THIS_MONTH)}
+          disabledDate={(d) => d && d.isAfter(dayjs().endOf("month"))}
+          allowClear={false}
         />
         <Button type="primary" loading={loading} onClick={handleExport}>
           导出月报
         </Button>
-      </div>
+      </Space>
     </Card>
   );
 }

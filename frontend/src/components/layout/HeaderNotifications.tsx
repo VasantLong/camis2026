@@ -41,8 +41,9 @@ export default function HeaderNotifications() {
 
   const handleClick = (item: NotificationItem) => {
     setOpen(false);
-    if (item.reference_type === "report" && item.reference_id) {
-      window.open(`/api/dashboard/reports/${item.reference_id}`, "_blank");
+    if (item.reference_type === "report") {
+      const m = item.message.match(/(\d{4}-\d{2})/);
+      if (m) window.open(`/api/dashboard/reports/${m[1]}`, "_blank");
     } else if (item.reference_type === "activity" && item.reference_id) {
       navigate(`/activities/${item.reference_id}`);
     } else {
