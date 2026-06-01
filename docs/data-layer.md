@@ -107,7 +107,51 @@ PostgreSQL 默认 UTF-8（postgres:17 镜像），asyncpg 客户端默认 UTF-8�
 
 ---
 
-## 3. 实体关系
+## 3. 概念模型（ER 图）
+
+### 3.1 核心业务域
+
+```mermaid
+erDiagram
+    activities ||--o{ activity_plans : "1:N"
+    activities ||--o{ security_plans : "1:N"
+    activities ||--o{ filing_docs : "1:N"
+    activities ||--o{ approval_records : "1:N"
+    activities ||--o{ implementation_records : "1:N"
+    activities ||--o{ activity_status_log : "1:N 追加式"
+    activities ||--o{ documents : "1:N FK SET NULL"
+    activities ||--o{ key_materials : "1:N FK activity_id"
+    activities }|--o{ activity_rule_targets : "M:N"
+    activity_rules }|--o{ activity_rule_targets : "M:N"
+    security_plans }|--o{ security_plan_materials : "M:N"
+    filing_docs }|--o{ filing_doc_materials : "M:N"
+    key_materials }|--o{ security_plan_materials : "M:N"
+    key_materials }|--o{ filing_doc_materials : "M:N"
+    key_materials ||--o{ material_audits : "1:N CASCADE"
+```
+
+### 3.2 RBAC 权限体系
+
+```mermaid
+erDiagram
+    users ||--o{ user_roles : "1:N"
+    roles ||--o{ user_roles : "1:N"
+    roles ||--o{ role_permissions : "1:N"
+    permissions ||--o{ role_permissions : "1:N"
+    users ||--o{ role_requests : "1:N"
+    roles ||--o{ role_requests : "1:N"
+```
+
+### 3.3 基础设施
+
+```mermaid
+erDiagram
+    users ||--o{ notifications : "1:N"
+    users ||--o{ refresh_tokens : "1:N CASCADE"
+    users ||--o{ login_attempts : "1:N login_id 间接关联"
+```
+
+### 3.4 实体关系表
 
 ```
 activities ──< activity_plans              (1:N, CASCADE)
@@ -130,6 +174,19 @@ key_materials  ──< material_audits         (1:N, CASCADE, 审计记录)
 - 通过 `security_plan_materials` / `filing_doc_materials` join 表关联到具体上下文
 - 通过 `activity_id` FK 直达所属活动（高频查询"活动的所有材料"无需 UNION join 表）
 - 两条路径各有用途：join 表保留引用语义，FK 提供查询便利
+
+### 3.5 范式分析
+
+整体满足 **第三范式（3NF）**。存在两处**故意的反范式化**：
+
+| 位置 | 字段 | 范式违反 | 原因 |
+|------|------|---------|------|
+| `key_materials` | `is_qualified`, `opinion` | 3NF — 可从 `material_audits`（最新审核记录）推导 | 查询性能：列表展示材料的合规状态无需每次 JOIN audit 表取最新记录 |
+| `activity_plans` | `is_overdue` | 3NF — 可由 `deadline` 与当前时间比较得出 | 索引/过滤便利：允许 `WHERE is_overdue = true` 直接筛选逾期方案 |
+
+**其余表结构**：单 UUID 主键、非主属性完全函数依赖主键、所有 M:N 关系通过 join 表正确拆出、无多值依赖（满足 4NF 隐含条件）——全部满足 3NF。
+
+> **原则**：3NF 是 OLTP 系统的基准。在此基础上的反范式化必须有文档记录、有性能收益，并且对应的数据冗余有明确的更新/同步策略（KeyMaterial 冗余在每次 audit_material 写入时同步刷新）。
 
 ## 4. 索引策略
 
@@ -328,7 +385,98 @@ create_async_engine(url, pool_pre_ping=True, pool_size=10)
 <seq>_<description>.sql → alembic <hash>_<description>.py
 ```
 
-## 11. 已知权衡与 Gap
+## 11. 备份与恢复
+
+### 11.1 备份对象
+
+| 数据 | 位置 | 备份方式 | 频率 | 保留 |
+|------|------|---------|------|------|
+| PostgreSQL 业务数据 | Docker volume `pg_data` | `pg_dump -Fc` 自定义格式压缩 | 每日（cron 凌晨 3 点） | 30 天本地 + 90 天异地 |
+| MinIO 文件对象 | Docker volume `minio_data` | MinIO Client `mc mirror` 同步到备份 bucket | 每日 | 30 天 |
+| Redis 数据 | Docker volume `redis_data` | **不备份** — 全量缓存/临时数据，重建零成本 | — | — |
+
+### 11.2 备份命令
+
+```bash
+# PostgreSQL 逻辑备份（可 PITR，不锁表）
+docker exec doc_postgres pg_dump -U docapp -d doc_metadata -Fc \
+  -f /tmp/backup_$(date +%Y%m%d).dump
+docker cp doc_postgres:/tmp/backup_$(date +%Y%m%d).dump ./backups/
+
+# MinIO 同步（增量）
+mc mirror local/doc-company-docs backup/doc-company-docs-$(date +%Y%m%d)
+```
+
+### 11.3 恢复验证
+
+每季度从最近一次备份恢复到一个临时 PostgreSQL 实例，验证数据完整性：
+
+```bash
+# 1. 启动临时 PG
+docker run -d --name pg_restore_test -e POSTGRES_DB=doc_metadata postgres:17
+# 2. 恢复
+docker exec -i pg_restore_test pg_restore -U postgres -d doc_metadata < backup_XXXX.dump
+# 3. 校验
+docker exec pg_restore_test psql -U postgres -d doc_metadata -c "
+  SELECT 'activities' AS tbl, count(*) FROM activities
+  UNION ALL SELECT 'users', count(*) FROM users
+  UNION ALL SELECT 'documents', count(*) FROM documents;
+"
+# 4. 清理
+docker rm -f pg_restore_test
+```
+
+### 11.4 备份原则
+
+- **不备份可重建数据**：Redis 全量缓存、L3 临时数据（login_attempts, refresh_tokens）
+- **备份文件与 DB 元数据的一致性**：MinIO 备份和 PostgreSQL 备份在同一时间窗口内完成（相差 <5 分钟），孤儿对象由 `cleanup_orphans.py` 兜底
+- **异地存储**：生产环境备份文件应同步到 S3/MinIO remote bucket，不依赖本地磁盘
+
+---
+
+## 12. 运维监控
+
+### 12.1 健康检查端点
+
+| 端点 | 检查内容 | 用途 |
+|------|---------|------|
+| `GET /health` | PostgreSQL `SELECT 1` | 负载均衡器存活检测 |
+| `GET /health` 扩展 | PostgreSQL + Redis PING + MinIO bucket exists | 运维面板就绪检测 |
+
+当前 `/health` 端点（`app/routers/health.py`）仅检查 PostgreSQL。建议扩展为完整三组件检查。
+
+### 12.2 关键日志告警规则
+
+| 触发条件 | 日志关键字 | 严重级别 | 通知 |
+|---------|-----------|---------|------|
+| Redis 连接失败 | `redis ... WARNING` | P2 | 5 分钟内 >10 条 → 飞书/邮件 |
+| DB 连接池耗尽 | `QueuePool.*timeout` | P1 | 立即 |
+| 孤儿文件清理结果 | `orphan.*deleted` | P3 | 每日汇总 |
+| 乐观锁冲突 | `已被他人修改` | P3 | 仅记录，不告警（正常业务现象） |
+| MinIO 连接失败 | `minio.*error` | P1 | 立即 |
+
+### 12.3 日常巡检
+
+| 检查项 | 频率 | 方式 |
+|--------|------|------|
+| 连接池状态 | 每周 | `SELECT count(*) FROM pg_stat_activity WHERE datname='doc_metadata'` |
+| 磁盘使用率 | 每周 | `df -h` on Docker volumes |
+| 孤儿文件数量 | 每月 | `python scripts/cleanup_orphans.py --dry-run` |
+| 慢查询 | 每月 | PostgreSQL `pg_stat_statements`（需启用扩展） |
+| Tomestone 清理 | 每月 | L3 TTL DELETE 执行 `NOTIFICATIONS` / `login_attempts` / `refresh_tokens` |
+
+### 12.4 L3 清理脚本
+
+```sql
+-- 月度 cron job
+DELETE FROM notifications WHERE created_at < NOW() - INTERVAL '12 months';
+DELETE FROM login_attempts WHERE created_at < NOW() - INTERVAL '90 days';
+DELETE FROM refresh_tokens WHERE expires_at < NOW() - INTERVAL '7 days' AND revoked = true;
+```
+
+---
+
+## 13. 已知权衡与 Gap
 
 | 项 | 内容 | 状态 |
 |----|------|------|
@@ -338,7 +486,7 @@ create_async_engine(url, pool_pre_ping=True, pool_size=10)
 | KeyMaterial 冗余字段 | is_qualified + opinion 是 material_audits 的快照冗余 | 故意反范式，用于查询性能 |
 | `docs/frontend.md` 有未提交修改 | — | 不影响此文档 |
 
-## 12. 后续行动清单
+## 14. 后续行动清单
 
 | # | 内容 | 来源 |
 |---|------|------|
@@ -351,5 +499,11 @@ create_async_engine(url, pool_pre_ping=True, pool_size=10)
 | 7 | 删除 4 个未使用权限，合并为 upload_document，路由挂权限 | 决策 #11 |
 | 8 | Redis PING 健康检查 + login_lockout fail-open logging | 决策 #14 |
 | 9 | notifications FK CASCADE → RESTRICT | 决策 #10 |
-| 10 | 新增 `scripts/cleanup_orphans.py` | 决策 #16 |
-| 11 | 文档化 Schema 组织规则、缓存规则、软删除策略、隔离级别 | 本文 |
+| 10 | 新增 `scripts/cleanup_orphans.py` | ✅ 已完成 |
+| 11 | 文档化完整数据层设计 | ✅ 本文 |
+| — | — | — |
+| 12 | 建立 PostgreSQL + MinIO 备份脚本（cron 每日） | §11 |
+| 13 | 扩展 `/health` 端点增加 Redis + MinIO 检查 | §12.1 |
+| 14 | 配置日志告警规则（Redis 故障、DB 连接池耗尽） | §12.2 |
+| 15 | 建立 L3 数据清理 cron job（notifications/login_attempts/refresh_tokens） | §12.4 |
+| 16 | 建立季度恢复验证流程 | §11.3 |
