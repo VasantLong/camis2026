@@ -14,7 +14,7 @@ mamba 环境 `camis2026`，`pip install -r requirements.txt`。
 | Redis 7.4 | 6379 | `secret_redis_pwd` | 缓存、Session、队列 |
 | Mailpit | 11025 (SMTP), 18025 (Web) | 无 | 开发邮件捕获 |
 
-开发环境：`docker compose up -d postgres minio redis mailpit minio-init`
+开发环境：`docker compose up -d postgres minio redis mailpit minio-init && alembic upgrade head`
 
 ## Docker 端口问题排查
 
@@ -82,7 +82,7 @@ docker exec <name> netstat -tlnp | grep <port>
   1. 分支命名：`feat|fix|test|docs|chore|refactor[/-]...`
   2. Python 语法：`python -m py_compile <changed.py>`
   3. 密钥扫描：`git diff main...HEAD` 检查无硬编码凭据
-  4. SQL 迁移安全：无 `DROP` 不加 `IF EXISTS`、无破坏性 `ALTER`
+  4. 数据库迁移安全：检查 Alembic migration 无不可逆操作（`op.drop_table`/`op.drop_column` 必须有对应 downgrade）
   5. 依赖变更审查：`requirements.txt` / `package.json` 变更需人工确认
   6. 前端构建：`cd frontend && pnpm exec vite build`
 - 全部通过后再 `git push` + `gh pr create`

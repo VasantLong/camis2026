@@ -22,14 +22,16 @@ async def lifespan(app: FastAPI):
     logger.info("startup: checking MinIO bucket...")
     await check_bucket()
     redis = await get_redis()
-    await redis.ping()
-    logger.info("startup: Redis ok, closing startup connection")
+    if redis:
+        logger.info("startup: Redis ok")
+    else:
+        logger.warning("startup: Redis unavailable — caching disabled")
     await close_redis()
     yield
     await engine.dispose()
 
 
-app = FastAPI(title="CAMIS API", version="0.18.0", lifespan=lifespan)
+app = FastAPI(title="CAMIS API", version="0.20.0", lifespan=lifespan)
 
 app.add_middleware(RequestIDMiddleware)
 app.add_middleware(

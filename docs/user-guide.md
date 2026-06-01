@@ -30,6 +30,7 @@ docker compose up -d postgres minio redis mailpit
 # 终端 2：后端 API（热重载，改代码自动重启）
 cd /home/vasant/projects/work/camis2026
 mamba activate camis2026
+alembic upgrade head    # 创建/更新数据库表（Alembic 替代了原来的 init-scripts）
 uvicorn app.main:app --reload --port 8000
 
 # 终端 3：前端开发服务器
@@ -96,6 +97,9 @@ docker compose up -d
 # 激活 Python 环境并安装依赖
 mamba activate camis2026
 pip install -r requirements.txt
+
+# 创建/更新数据库表
+alembic upgrade head
 
 # 启动后端 (确认 Docker 服务已运行)
 uvicorn app.main:app --reload --port 8000
@@ -268,7 +272,7 @@ grep "5d9c44477528" logs/camis.log
 
 | 终端 | 运行内容                                    | 看什么                                |
 | ---- | ------------------------------------------- | ------------------------------------- |
-| 1    | `uvicorn app.main:app --reload --port 8000` | HTTP + SQL + Redis + MinIO 全链路日志 |
+| 1    | `alembic upgrade head && uvicorn app.main:app --reload --port 8000` | 迁移 + HTTP/SQL/Redis/MinIO 全链路日志 |
 | 2    | `cd frontend && pnpm dev`                   | 前端编译热更新                        |
 
 浏览器 DevTools (F12) → Network 面板查看 API 请求详情。

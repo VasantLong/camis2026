@@ -1,6 +1,6 @@
 # CAMIS — 活动合规审批管理系统
 
-> **v0.19.0** — 企业部门活动合规审批 MIS。技术栈：**Python (FastAPI)** + **React SPA** + **PostgreSQL 17** + **MinIO** + **Redis 7.4**，Docker Compose 本地编排，模块化单体架构。
+> **v0.20.0** — 企业部门活动合规审批 MIS。技术栈：**Python (FastAPI)** + **React SPA** + **PostgreSQL 17** + **MinIO** + **Redis 7.4**，Docker Compose 本地编排，模块化单体架构。
 
 ## 快速启动
 
@@ -8,7 +8,8 @@
 # 1. 仅启动基础设施 (PostgreSQL + MinIO + Redis + Mailpit)
 docker compose up -d postgres minio redis mailpit minio-init
 
-# 2. 初始化测试数据
+# 2. 数据库迁移 + 测试数据
+alembic upgrade head
 python scripts/seed_test_users.py
 python scripts/seed_test_activities.py
 python scripts/create_devtest_user.py
@@ -48,20 +49,11 @@ camis2026/
 ├── requirements.txt                # Python 依赖
 ├── pyproject.toml                  # pytest 配置
 ├── CONTEXT.md                      # 领域术语表
-├── init-scripts/                   # PostgreSQL 初始化 DDL
-│   ├── 01-init-tables.sql          # users, projects, documents
-│   ├── 02-activity-tables.sql      # 活动域 13 表
-│   ├── 03-rbac-tables.sql          # RBAC 权限 + 种子数据
-│   ├── 04-documents-migration.sql
-│   ├── 05-notifications.sql
-│   ├── 06-refresh-tokens.sql       # refresh token + login_attempts
-│   ├── 07-superadmin.sql           # SuperAdmin + 角色申请表
-│   ├── 08-filing-workflow.sql      # 备案材料 seed
-│   ├── 09-user-archive.sql          # 用户归档 (is_archived)
-│   ├── 10-notification-reference.sql # 通知关联引用 (reference_id/type)
-│   ├── 11-activity-sponsor-fields.sql # 主办方联系人/联系方式
-│   ├── 12-user-contact.sql           # 用户联系方式
-│   └── 12-user-archive-reason.sql    # 归档原因 + 归档时间
+├── migrations/                     # Alembic 数据库迁移
+├── migrations/                     # Alembic 数据库迁移（Python）
+├── init-scripts/                   # PostgreSQL 扩展（仅 uuid-ossp）
+│   └── 00-extensions.sql
+├── docs/init-scripts-archive/      # 历史 DDL（已由 Alembic 替代）
 ├── scripts/
 │   ├── seed_test_users.py          # 单角色测试用户 (8 users)
 │   ├── seed_test_activities.py     # 23 种子活动 + seed 用户

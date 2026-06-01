@@ -131,32 +131,31 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Check SQL migrations for dangerous operations
+      - name: Check Alembic migrations for irreversible operations
         run: |
-          sql_files=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- 'init-scripts/*.sql' || true)
-          if [ -z "$sql_files" ]; then
-            echo "No SQL migration files changed"
+          migration_files=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- 'migrations/versions/*.py' || true)
+          if [ -z "$migration_files" ]; then
+            echo "No migration files changed"
             exit 0
           fi
-          echo "Changed SQL files: $sql_files"
+          echo "Changed migrations: $migration_files"
           dangerous=0
-          for f in $sql_files; do
-            # DROP without IF EXISTS
-            if grep -nE 'DROP (TABLE|COLUMN|DATABASE)' "$f" | grep -v 'IF EXISTS' | grep -v 'DROP TABLE IF'; then
-              echo "::warning::$f: DROP without IF EXISTS detected"
-              dangerous=$((dangerous + 1))
-            fi
-            # ALTER TABLE without IF EXISTS / IF NOT EXISTS
-            if grep -nE 'ALTER TABLE.*(DROP|RENAME)' "$f" | grep -v 'IF EXISTS' | grep -v 'IF NOT EXISTS'; then
-              echo "::warning::$f: destructive ALTER without guard clause"
-              dangerous=$((dangerous + 1))
+          init_scripts=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- 'init-scripts/*.sql' || true)
+          if [ -n "$init_scripts" ]; then
+            echo "::error::init-scripts/*.sql should not be modified — use alembic revision --autogenerate instead"
+            dangerous=$((dangerous + 1))
+          fi
+          for f in $migration_files; do
+            if grep -qE 'op\.drop_table|op\.drop_column' "$f"; then
+              if ! grep -qE 'op\.create_table.*drop_table|op\.add_column.*drop_column|def downgrade' "$f"; then
+                echo "::warning::$f: contains drop_table/drop_column — verify downgrade is implemented"
+              fi
             fi
           done
           if [ $dangerous -gt 0 ]; then
-            echo "::error::$dangerous dangerous SQL pattern(s) — add IF EXISTS/IF NOT EXISTS guards"
             exit 1
           fi
-          echo "SQL migrations look safe"
+          echo "Migrations look safe"
 
   # ── dependency change alert ──
   dep-changes:

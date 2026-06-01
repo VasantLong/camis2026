@@ -484,7 +484,7 @@ DELETE FROM refresh_tokens WHERE expires_at < NOW() - INTERVAL '7 days' AND revo
 | 场地冲突 TOCTOU | SELECT 检查 → INSERT activity，无 DB 级唯一约束 | 可接受，概率极低 |
 | notifications FK CASCADE | 当前为 CASCADE，应为 RESTRICT | 引入 Alembic 时修正 |
 | KeyMaterial 冗余字段 | is_qualified + opinion 是 material_audits 的快照冗余 | 故意反范式，用于查询性能 |
-| `docs/frontend.md` 有未提交修改 | — | 不影响此文档 |
+| `init-scripts/` 归档为历史记录 | 已迁移至 Alembic | 不再作为 schema 变更入口 |
 
 ## 14. 后续行动清单
 
