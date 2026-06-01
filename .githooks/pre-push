@@ -1,0 +1,55 @@
+#!/bin/sh
+# Pre-push: check that model changes have corresponding alembic migrations.
+# Activated via: git config core.hooksPath .githooks
+
+set -e
+
+# Get the remote and the ref being pushed
+remote="$1"
+url="$2"
+
+# Only check pushes to origin/main or origin/master
+case "$remote" in
+    origin) ;;
+    *) exit 0 ;;
+esac
+
+# Find the base branch
+while read local_ref local_sha remote_ref remote_sha; do
+    case "$remote_ref" in
+        refs/heads/main|refs/heads/master)
+            range="$remote_sha..$local_sha"
+            ;;
+        *)
+            # For new branches, diff against origin/main
+            range="origin/main..$local_sha" 2>/dev/null || exit 0
+            ;;
+    esac
+
+    CHANGED=$(git diff --name-only "$range" -- app/models/ | grep '\.py$' || true)
+
+    if [ -z "$CHANGED" ]; then
+        exit 0
+    fi
+
+    MIGRATIONS=$(git diff --name-only "$range" -- migrations/versions/ | grep '\.py$' || true)
+
+    if [ -z "$MIGRATIONS" ]; then
+        echo ""
+        echo "================================================================"
+        echo "  ERROR: Model files changed but no alembic migration found."
+        echo "================================================================"
+        echo ""
+        echo "  Changed models:"
+        echo "$CHANGED" | sed 's/^/    /'
+        echo ""
+        echo "  Run: alembic revision --autogenerate -m 'description'"
+        echo "================================================================"
+        echo ""
+        exit 1
+    fi
+
+    echo ""
+    echo "Alembic migration check OK ($(echo "$MIGRATIONS" | wc -l) migration(s))"
+    echo ""
+done
