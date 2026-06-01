@@ -24,7 +24,7 @@ class FilingDoc(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     activity_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("activities.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True), ForeignKey("activities.id", ondelete="CASCADE"), nullable=False, unique=True
     )
     is_qualified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     handover_status: Mapped[str] = mapped_column(String(64), default="未交接", nullable=False)

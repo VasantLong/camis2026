@@ -6,9 +6,11 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 COPY app/ ./app/
+COPY migrations/ ./migrations/
+COPY alembic.ini .
 
 COPY gunicorn.conf.py .
 
 EXPOSE 8000
 
-CMD ["gunicorn", "app.main:app", "-c", "gunicorn.conf.py"]
+CMD ["sh", "-c", "alembic upgrade head && gunicorn app.main:app -c gunicorn.conf.py"]

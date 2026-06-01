@@ -17,9 +17,10 @@ class KeyMaterial(Base):
     opinion: Mapped[str | None] = mapped_column(Text)
     upload_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     sign_status: Mapped[str] = mapped_column(String(32), nullable=False, server_default="unsigned")
-
-    # activity_id will be added later — see Alembic migration
     audit_round: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    activity_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("activities.id"), nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
