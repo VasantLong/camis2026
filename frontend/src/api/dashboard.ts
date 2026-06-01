@@ -12,4 +12,16 @@ export const dashboardApi = {
       "/dashboard/reports/monthly",
       { month }
     ),
+
+  downloadReport: async (month: string) => {
+    const res = await client.get(`/dashboard/reports/${month}`, {
+      responseType: "blob",
+    });
+    const url = URL.createObjectURL(res.data);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `月报_${month}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
 };

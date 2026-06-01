@@ -4,6 +4,7 @@ import { BellOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { notificationsApi, type NotificationItem } from "@/api/notifications";
+import { dashboardApi } from "@/api/dashboard";
 
 export default function HeaderNotifications() {
   const [open, setOpen] = useState(false);
@@ -43,7 +44,7 @@ export default function HeaderNotifications() {
     setOpen(false);
     if (item.reference_type === "report") {
       const m = item.message.match(/(\d{4}-\d{2})/);
-      if (m) window.open(`/api/dashboard/reports/${m[1]}`, "_blank");
+      if (m) dashboardApi.downloadReport(m[1]);
     } else if (item.reference_type === "activity" && item.reference_id) {
       navigate(`/activities/${item.reference_id}`);
     } else {
