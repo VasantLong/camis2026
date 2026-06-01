@@ -90,18 +90,26 @@ async def revoke_user_tokens(db: AsyncSession, user_id: str) -> None:
 
 
 async def check_login_blocked(login_id: str) -> bool:
+    import logging
     from app.services.redis_client import get_redis
 
     redis = await get_redis()
+    if redis is None:
+        logging.getLogger("camis.redis").warning("login_lockout unavailable, allowing login")
+        return False
     key = f"login_attempts:{login_id}"
     count = await redis.get(key)
     return int(count or 0) >= MAX_LOGIN_ATTEMPTS
 
 
 async def record_login_failure(login_id: str) -> None:
+    import logging
     from app.services.redis_client import get_redis
 
     redis = await get_redis()
+    if redis is None:
+        logging.getLogger("camis.redis").warning("login_lockout unavailable, skipping failure record")
+        return
     key = f"login_attempts:{login_id}"
     count = await redis.incr(key)
     if count == 1:
