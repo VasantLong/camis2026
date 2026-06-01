@@ -4,7 +4,12 @@
       {
         "matcher": "Edit|Write",
         "if_path_matches": "app/models/.*\\.py",
-        "command": ".claude/hooks/check-alembic.sh"
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/check-alembic.sh"
+          }
+        ]
       }
     ]
   }
