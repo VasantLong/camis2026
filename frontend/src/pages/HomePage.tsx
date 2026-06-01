@@ -94,7 +94,7 @@ export default function HomePage() {
 
       {counts && <CardGrid role={role} counts={counts} onNavigate={navigate} />}
 
-      <div style={{ marginTop: 24 }}>{renderQuickActions(role, navigate)}</div>
+      <div style={{ marginTop: 24 }}>{renderQuickActions(role, navigate, !contactPhone)}</div>
 
       {showRecentActivities && <RecentActivities />}
     </div>
@@ -206,10 +206,12 @@ function CardGrid({
   );
 }
 
-function renderQuickActions(role: string, navigate: (path: string) => void) {
+function renderQuickActions(role: string, navigate: (path: string) => void, noPhone?: boolean) {
   if (role === "Promoter") {
     return (
-      <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate("/activities/new")}>
+      <Button type="primary" icon={<PlusOutlined />}
+              disabled={noPhone}
+              onClick={() => navigate("/activities/new")}>
         新建立项
       </Button>
     );
