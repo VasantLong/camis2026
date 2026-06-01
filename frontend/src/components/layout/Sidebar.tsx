@@ -52,6 +52,7 @@ export default function Sidebar() {
         key: "/activities/new",
         label: "新建立项",
         icon: <PlusOutlined />,
+        disabled: !user?.contact_phone,
       });
     }
     items.push({
