@@ -53,11 +53,9 @@ export default function HeaderNotifications() {
 
   const items = notifications.map((n) => ({
     key: n.id,
+    onClick: () => handleClick(n),
     label: (
-      <div
-        style={{ maxWidth: 300, whiteSpace: "normal", padding: "4px 0", cursor: "pointer" }}
-        onClick={() => handleClick(n)}
-      >
+      <div style={{ maxWidth: 300, whiteSpace: "normal", padding: "4px 0" }}>
         {n.reference_name && (
           <Typography.Text strong style={{ display: "block" }}>{n.reference_name}</Typography.Text>
         )}

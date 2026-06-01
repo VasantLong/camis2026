@@ -92,7 +92,15 @@ class NotificationService:
         )
         rows = result.all()
         return [
-            {**n.__dict__, "reference_name": reference_name}
+            {
+                "id": n.id,
+                "message": n.message,
+                "is_read": n.is_read,
+                "created_at": n.created_at,
+                "reference_id": n.reference_id,
+                "reference_type": n.reference_type,
+                "reference_name": reference_name,
+            }
             for n, reference_name in rows
         ]
 
