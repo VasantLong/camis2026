@@ -56,6 +56,12 @@ class ActivityService:
         if conflict.scalar_one_or_none():
             raise ValueError("资源冲突：该场地涉及时段已被占用")
 
+        if data.designer_id:
+            from app.models.user import User
+            designer = await self.db.get(User, data.designer_id)
+            if designer and not designer.contact_phone:
+                raise ValueError("编制人的联系方式为空，请先在个人中心补充联系方式")
+
         activity = Activity(
             name=data.name,
             type=data.type,

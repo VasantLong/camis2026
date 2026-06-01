@@ -1,4 +1,4 @@
-import { Card, Statistic, Table, Tag, Typography, Button, Space, Spin } from "antd";
+import { Alert, Card, Statistic, Table, Tag, Typography, Button, Space, Spin } from "antd";
 import {
   PlusOutlined,
   SearchOutlined,
@@ -69,6 +69,7 @@ export default function HomePage() {
     );
   }
 
+  const contactPhone = useAuthStore((s) => s.user?.contact_phone);
   const showRecentActivities = ["Promoter", "SecurityOfficer", "SecurityManager", "GovLiaison"].includes(role);
 
   return (
@@ -79,6 +80,17 @@ export default function HomePage() {
         </Title>
         <Text type="secondary">{displayName} · {roleLabel}</Text>
       </div>
+
+      {!contactPhone && (
+        <Alert
+          type="warning"
+          message="请补充联系方式"
+          description="您的联系方式尚未填写，请前往个人中心补充联系方式，以便后续活动流转。"
+          action={<Button size="small" onClick={() => navigate("/profile")}>前往个人中心</Button>}
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+      )}
 
       {counts && <CardGrid role={role} counts={counts} onNavigate={navigate} />}
 
