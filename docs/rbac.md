@@ -32,11 +32,11 @@ roles ──< role_permissions >── permissions
 | **AdminStaff** | 行政部 | 监控活动面板、强制变更状态、Dashboard | 5 |
 | **SecurityOfficer** | 安保部 | 上传材料、电子签署、打包备案、状态流转 | 5 |
 | **Promoter** | 宣策部 | 创建立项、编制活动方案、提交安保审核 (submit_plan) | 4 |
-| **GovLiaison** | 政府对接 | 上传批文、审查材料合规性、标注审批结果 | 4 |
+| **GovLiaison** | 政府对接 | 上传批文、审查材料合规性 | 3 |
 
 ---
 
-## 权限全量（21 项）
+## 权限全量（18 项）
 
 ### SuperAdmin（全部权限）
 
@@ -48,7 +48,7 @@ roles ──< role_permissions >── permissions
 |--------|------|------|---------|
 | `create_activity` | activities | create | 创建活动 |
 | `submit_plan` | activities | submit_plan | 提交到安保方案设计 |
-| `upload_plan` | activities | upload_plan | 上传活动方案文件 |
+| `upload_document` | documents | upload | 上传文件 |
 | `view_owned_activity` | activities | view_owned | 查看自己创建的活动列表和详情 |
 
 ### SecurityManager（7 项）
@@ -62,7 +62,7 @@ roles ──< role_permissions >── permissions
 | `review_security_plan` | activities | review_security_plan | 审核安保方案（通过/打回） |
 | `confirm_approval` | activities | confirm_approval | 确认政府审批结果 |
 | `reject_approval` | activities | reject_approval | 驳回审批结果 |
-| `upload_security_material` | documents | upload | 上传安保材料 |
+| `upload_document` | documents | upload | 上传文件 |
 | `pack_filing` | filing | pack | 校验材料、打包、纸质交接 |
 
 ### SecurityOfficer（5 项）
@@ -71,7 +71,7 @@ roles ──< role_permissions >── permissions
 |--------|------|------|---------|
 | `view_owned_activity` | activities | view_owned | 查看活动列表和详情 |
 | `manage_security` | activities | manage_security | 状态流转（签署完成） |
-| `upload_security_material` | documents | upload | 上传安保材料 |
+| `upload_document` | documents | upload | 上传文件 |
 | `sign_document` | documents | sign | 对上传的材料电子签署 |
 | `pack_filing` | filing | pack | 校验材料、打包、纸质交接 |
 
@@ -104,8 +104,7 @@ roles ──< role_permissions >── permissions
 |--------|------|------|---------|
 | `view_owned_activity` | activities | view_owned | 查看备案材料已交接的活动 |
 | `audit_material` | materials | audit | 审查关键材料合规性 |
-| `upload_approval` | documents | upload_approval | 上传政府批文 |
-| `update_approval_status` | activities | update_approval_status | 标记审批结果（通过/需补充/不通过） |
+| `upload_document` | documents | upload | 上传批文 |
 
 ---
 
@@ -178,7 +177,7 @@ get_user_permissions (app/rbac.py:13)
     JOIN role_permissions ON role_permissions.permission_id = permissions.id
     JOIN user_roles ON user_roles.role_id = role_permissions.role_id
   WHERE user_roles.user_id = :user_id
-  → 返回 {"create_activity", "upload_plan", ...}
+  → 返回 {"create_activity", "upload_document", ...}
   │
   ▼
 require_permission("create_activity") (app/rbac.py:26)
@@ -215,13 +214,6 @@ SuperAdmin / AdminStaff:
 
 ## 已知 Gap
 
-### 定义了但未使用的权限（4 项）
-
-| 权限 | 角色 |
-|------|------|
-| `upload_plan` | Promoter |
-| `upload_security_material` | SecurityOfficer |
-| `upload_approval` | GovLiaison |
-| `update_approval_status` | GovLiaison |
-
-> `sign_document` 已在 filings router 中激活。
+> 2026-06 已清理：4 个未使用权限已删除，合并为 `upload_document`（18 项权限）。`sign_document` 已在 filings router 中激活。已挂载到 `/documents/upload` 端点。
+>
+> `update_approval_status` 的审批标注逻辑已由 `PUT /activities/{id}/status` + `audit_material` 权限处理。

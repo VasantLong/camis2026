@@ -39,6 +39,14 @@ docker exec <name> netstat -tlnp | grep <port>
 - 宿主机端口冲突：换一个宿主机端口（如 `18025:8025`），同步更新 `app/config.py`、浏览器测试脚本和文档中的端口引用
 - 重建容器：`docker compose stop <svc> && docker compose rm -f <svc> && docker compose up -d <svc>`
 
+## Schema 迁移
+
+- **改模型 = 必须生成 Alembic migration**：修改 `app/models/*.py` 中的列/表/约束后，必须 `alembic revision --autogenerate`，审查后提交
+- `init-scripts/` 已归档至 `docs/init-scripts-archive/`，仅保留 `00-extensions.sql`（uuid-ossp + update_updated_at 函数）
+- Docker 启动自动执行 `alembic upgrade head`
+- 服务层现有 8 个 Service：ActivityService, WorkflowService, DocumentService, FilingService, NotificationService, DashboardService, **AuthService**, **AdminService**
+- 新加 Service 命名 `XxxService`，构造函数 `def __init__(self, db: AsyncSession)`
+
 ## 数据存储三原则（红线）
 
 1. PostgreSQL 只存元数据，不存文件内容
