@@ -28,21 +28,10 @@ class FilingStatus(BaseModel):
 async def get_filing_status(
     activity_id: UUID,
     current_user: User = Depends(get_current_user),
-    db=Depends(get_db),
+    svc: FilingService = Depends(_service),
 ):
-    from app.models.filing import FilingDoc
-    from sqlalchemy import select as sa_select
-    result = await db.execute(
-        sa_select(FilingDoc).where(FilingDoc.activity_id == activity_id)
-    )
-    fd = result.scalar_one_or_none()
-    if fd is None:
-        return FilingStatus()
-    return FilingStatus(
-        packed=fd.generated_at is not None and fd.is_qualified,
-        handed_over=fd.handover_status == "已交接",
-        generated_at=fd.generated_at.isoformat() if fd.generated_at else None,
-    )
+    result = await svc.get_filing_status(activity_id)
+    return FilingStatus(**result)
 
 
 @router.get("/{activity_id}/filing/validate", response_model=list[MaterialValidation])
@@ -126,27 +115,10 @@ class MaterialWithStatus(BaseModel):
 async def list_materials(
     activity_id: UUID,
     current_user: User = Depends(get_current_user),
-    db=Depends(get_db),
+    svc: FilingService = Depends(_service),
 ):
-    from sqlalchemy import text
-    result = await db.execute(text("""
-        SELECT km.id, km.name, km.is_qualified, km.sign_status,
-               km.audit_round, km.opinion, km.upload_time
-        FROM key_materials km
-        JOIN security_plan_materials spm ON spm.material_id = km.id
-        JOIN security_plans sp ON sp.id = spm.security_plan_id
-        WHERE sp.activity_id = :aid
-        ORDER BY km.created_at
-    """), {"aid": activity_id})
-    rows = result.fetchall()
-    return [
-        MaterialWithStatus(
-            id=str(r[0]), name=r[1], is_qualified=r[2], sign_status=r[3],
-            audit_round=r[4], opinion=r[5],
-            upload_time=r[6].isoformat() if r[6] else "",
-        )
-        for r in rows
-    ]
+    rows = await svc.list_materials(activity_id)
+    return [MaterialWithStatus(**r) for r in rows]
 
 
 @router.post("/{activity_id}/materials/{material_id}/sign")
@@ -187,40 +159,7 @@ async def audit_material(
 async def get_audit_history(
     activity_id: UUID,
     current_user: User = Depends(get_current_user),
-    db=Depends(get_db),
+    svc: FilingService = Depends(_service),
 ):
-    from app.models.material import MaterialAudit, KeyMaterial
-    from sqlalchemy import select as sa_select, text
-    # Get material IDs linked to this activity via security_plan_materials
-    sp_result = await db.execute(text("""
-        SELECT spm.material_id FROM security_plan_materials spm
-        JOIN security_plans sp ON sp.id = spm.security_plan_id
-        WHERE sp.activity_id = :aid
-        UNION
-        SELECT fdm.material_id FROM filing_doc_materials fdm
-        JOIN filing_docs fd ON fd.id = fdm.filing_doc_id
-        WHERE fd.activity_id = :aid
-    """), {"aid": activity_id})
-    material_ids = [row[0] for row in sp_result.all()]
-    if not material_ids:
-        return []
-
-    result = await db.execute(
-        sa_select(MaterialAudit, User.display_name, KeyMaterial.name)
-        .join(User, User.id == MaterialAudit.user_id)
-        .join(KeyMaterial, KeyMaterial.id == MaterialAudit.material_id)
-        .where(MaterialAudit.material_id.in_(material_ids))
-        .order_by(MaterialAudit.created_at.desc())
-    )
-    rows = result.all()
-    return [
-        AuditHistoryItem(
-            id=str(ma.id),
-            action=ma.action,
-            user_name=user_name,
-            conclusion=ma.conclusion,
-            opinion=ma.opinion,
-            created_at=ma.created_at.isoformat(),
-        )
-        for ma, user_name, mat_name in rows
-    ]
+    rows = await svc.get_audit_history(activity_id)
+    return [AuditHistoryItem(**r) for r in rows]

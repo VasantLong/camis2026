@@ -119,6 +119,8 @@ async def test_activity(client, promoter_token):
         "estimated_time": "2026-12-31T10:00:00+08:00",
         "location": f"loc_{uuid.uuid4().hex[:6]}",
         "sponsor": "测试主办方",
+        "sponsor_contact": "张三",
+        "sponsor_phone": "13800138000",
         "deadline": "2026-11-01T18:00:00+08:00",
         "designer_id": user_id,
     })

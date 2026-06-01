@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "if_path_matches": "app/models/.*\\.py",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/check-alembic.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

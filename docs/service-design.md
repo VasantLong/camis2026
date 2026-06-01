@@ -356,6 +356,122 @@ class DashboardService:
         ...
 ```
 
+## 7. AuthService — 认证与用户管理
+
+**职责**: 用户注册、登录、Session 管理、个人资料、邮箱变更、角色申请。
+
+**关联表**: `users`, `refresh_tokens`, `role_requests`
+
+**依赖**: `app.auth` 密码/令牌工具函数、`app.services.redis_client`（登录锁）
+
+### 方法签名
+
+```python
+class AuthService:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+    async def register_user(self, email, password, display_name, contact_phone) -> User:
+        """注册新用户。邮箱唯一性检查 → INSERT。"""
+        ...
+
+    async def authenticate_user(self, email, password) -> User:
+        """验证凭据。检查密码、is_active、is_archived。"""
+        ...
+
+    async def create_session(self, user) -> tuple[str, str]:
+        """创建 access + refresh token 对。"""
+        ...
+
+    async def refresh_session(self, refresh_token_raw) -> tuple[User, str, str]:
+        """验证 refresh token → 撤销旧 token → 签发新 token 对。"""
+        ...
+
+    async def revoke_session(self, user_id) -> None:
+        """撤销用户全部 refresh token（登出）。"""
+        ...
+
+    async def get_user_profile(self, user) -> dict:
+        """获取用户资料（角色、权限、待审批申请）。"""
+        ...
+
+    async def update_profile(self, user, display_name, contact_phone) -> User:
+        """更新个人资料。"""
+        ...
+
+    async def request_email_change(self, current_user, new_email) -> str:
+        """发起邮箱变更，返回验证 token。"""
+        ...
+
+    async def verify_and_apply_email_change(self, token_str) -> User:
+        """验证 token 并执行邮箱变更。"""
+        ...
+
+    async def list_available_roles(self) -> list[Role]:
+        """列出非 SuperAdmin 的角色。"""
+        ...
+
+    async def submit_role_request(self, user_id, role_id) -> RoleRequest:
+        """提交角色申请。检查待审批冲突 + 禁止申请 SuperAdmin。"""
+        ...
+```
+
+## 8. AdminService — 用户与角色管理
+
+**职责**: 角色申请审批、用户 CRUD、用户活跃概览。
+
+**关联表**: `users`, `user_roles`, `role_requests`, `login_attempts` (raw SQL), `material_audits`, `activity_status_log`
+
+**依赖**: 无（独立管理服务）
+
+### 方法签名
+
+```python
+class AdminService:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+    async def list_role_requests(self) -> list[dict]:
+        """待审批的角色申请列表。"""
+        ...
+
+    async def approve_role_request(self, request_id, reviewer_id) -> dict:
+        """批准角色申请 → INSERT user_roles。"""
+        ...
+
+    async def reject_role_request(self, request_id, reviewer_id, comment) -> dict:
+        """驳回角色申请。"""
+        ...
+
+    async def list_users(self, keyword, sort_order, role, status) -> list[dict]:
+        """用户列表（支持关键词/角色/状态筛选）。"""
+        ...
+
+    async def get_user_detail(self, user_id) -> dict:
+        """用户详情（角色 + 权限）。"""
+        ...
+
+    async def get_user_overview(self, user_id) -> dict:
+        """用户活跃概览（登录历史 + 近期操作）。"""
+        ...
+
+    async def update_user_roles(self, user_id, role_ids) -> dict:
+        """替换用户所有角色。"""
+        ...
+
+    async def update_user_status(self, user_id, is_active) -> dict:
+        """启用/禁用用户。"""
+        ...
+
+    async def archive_user(self, user_id, reason) -> None:
+        """归档用户。"""
+        ...
+
+    async def unarchive_user(self, user_id) -> None:
+        """取消归档。"""
+        ...
+```
+
 ---
 
 ## 服务依赖图
@@ -368,6 +484,8 @@ flowchart TD
         DR[DocumentRouter]
         FR[FilingRouter]
         DBR[DashboardRouter]
+        AuthR[AuthRouter]
+        AdminR[AdminRouter]
     end
 
     subgraph 服务层
@@ -377,6 +495,8 @@ flowchart TD
         FS[FilingService]
         NS[NotificationService]
         DBS[DashboardService]
+        AuthS[AuthService]
+        AdminS[AdminService]
     end
 
     subgraph 外部
@@ -394,10 +514,13 @@ flowchart TD
     WS --> NS
     WS --> AS
 
+    AuthR --> AuthS --> DB
+    AdminR --> AdminS --> DB
+
     DBR --> DBS --> DB
 ```
 
-> **注**：`WorkflowService` 是枢纽——它依赖 `NotificationService`（发通知）和 `ActivityService`（查状态）。其他服务间无直接依赖。
+> **注**：`WorkflowService` 是枢纽——它依赖 `NotificationService`（发通知）和 `ActivityService`（查状态）。`AuthService` 和 `AdminService` 为独立服务，无跨服务依赖。
 
 ---
 
@@ -411,3 +534,5 @@ flowchart TD
 | FilingService       |      ✅       |    ✅    |    ✅    |                ✅                |
 | NotificationService |      ✅       |    ✅    |    ✅    |               ✅                |
 | DashboardService    |      ✅       |    ✅    |    ✅    |                ✅                |
+| AuthService         |      ✅       |    ✅    |    ✅    |                ✅                |
+| AdminService        |      ✅       |    ✅    |    ✅    |                ✅                |

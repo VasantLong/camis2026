@@ -199,3 +199,73 @@ class FilingService:
             "is_qualified": mat.is_qualified,
             "audit_round": mat.audit_round,
         }
+
+    async def get_filing_status(self, activity_id: UUID) -> dict:
+        from app.models.filing import FilingDoc
+        result = await self.db.execute(
+            select(FilingDoc).where(FilingDoc.activity_id == activity_id)
+        )
+        fd = result.scalar_one_or_none()
+        if fd is None:
+            return {"packed": False, "handed_over": False, "generated_at": None}
+        return {
+            "packed": fd.generated_at is not None and fd.is_qualified,
+            "handed_over": fd.handover_status == "已交接",
+            "generated_at": fd.generated_at.isoformat() if fd.generated_at else None,
+        }
+
+    async def list_materials(self, activity_id: UUID) -> list[dict]:
+        result = await self.db.execute(
+            text("""
+                SELECT km.id, km.name, km.is_qualified, km.sign_status,
+                       km.audit_round, km.opinion, km.upload_time
+                FROM key_materials km
+                JOIN security_plan_materials spm ON spm.material_id = km.id
+                JOIN security_plans sp ON sp.id = spm.security_plan_id
+                WHERE sp.activity_id = :aid
+                ORDER BY km.created_at
+            """), {"aid": activity_id})
+        rows = result.fetchall()
+        return [
+            {
+                "id": str(r[0]), "name": r[1], "is_qualified": r[2],
+                "sign_status": r[3], "audit_round": r[4], "opinion": r[5],
+                "upload_time": r[6].isoformat() if r[6] else "",
+            }
+            for r in rows
+        ]
+
+    async def get_audit_history(self, activity_id: UUID) -> list[dict]:
+        from app.models.material import KeyMaterial as KM, MaterialAudit
+        from app.models.user import User
+
+        result = await self.db.execute(text("""
+            SELECT spm.material_id FROM security_plan_materials spm
+            JOIN security_plans sp ON sp.id = spm.security_plan_id
+            WHERE sp.activity_id = :aid
+            UNION
+            SELECT fdm.material_id FROM filing_doc_materials fdm
+            JOIN filing_docs fd ON fd.id = fdm.filing_doc_id
+            WHERE fd.activity_id = :aid
+        """), {"aid": activity_id})
+        material_ids = [row[0] for row in result.all()]
+        if not material_ids:
+            return []
+
+        rows = await self.db.execute(
+            select(MaterialAudit, User.display_name, KM.name)
+            .join(User, User.id == MaterialAudit.user_id)
+            .join(KM, KM.id == MaterialAudit.material_id)
+            .where(MaterialAudit.material_id.in_(material_ids))
+            .order_by(MaterialAudit.created_at.desc())
+        )
+        result_rows = rows.all()
+        return [
+            {
+                "id": str(ma.id), "action": ma.action,
+                "user_name": user_name, "conclusion": ma.conclusion,
+                "opinion": ma.opinion, "material_name": mat_name,
+                "created_at": ma.created_at.isoformat(),
+            }
+            for ma, user_name, mat_name in result_rows
+        ]

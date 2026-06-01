@@ -218,3 +218,26 @@ class ActivityService:
             )
             for r, operator_name in rows
         ]
+
+    async def get_security_plan(self, activity_id: UUID) -> dict | None:
+        from app.models.activity import SecurityPlan
+        from app.models.user import User
+
+        result = await self.db.execute(
+            select(SecurityPlan).where(SecurityPlan.activity_id == activity_id)
+        )
+        sp = result.scalar_one_or_none()
+        if sp is None:
+            return None
+
+        manager_name = None
+        if sp.manager_id:
+            mgr = await self.db.get(User, sp.manager_id)
+            manager_name = mgr.display_name if mgr else None
+
+        return {
+            "risk_level": sp.risk_level,
+            "audit_status": sp.audit_status,
+            "manager_name": manager_name,
+            "sign_time": sp.sign_time.isoformat() if sp.sign_time else None,
+        }

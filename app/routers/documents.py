@@ -11,6 +11,7 @@ from app.database import get_db
 from app.deps import get_current_user
 from app.models.activity import Activity
 from app.models.user import User
+from app.rbac import require_permission
 from app.services.document_service import DocumentService
 from app.services.redis_client import get_redis
 
@@ -53,6 +54,7 @@ async def upload_document(
     current_user: User = Depends(get_current_user),
     svc: DocumentService = Depends(_service),
     db=Depends(get_db),
+    _perm: None = require_permission("upload_document"),
 ):
     activity = await db.get(Activity, activity_id)
     if activity is None:
@@ -70,8 +72,9 @@ async def upload_document(
     )
 
     redis = await get_redis()
-    logger.info("redis DEL key=activity:%s:docs", activity_id)
-    await redis.delete(f"activity:{activity_id}:docs")
+    if redis:
+        logger.info("redis DEL key=activity:%s:docs", activity_id)
+        await redis.delete(f"activity:{activity_id}:docs")
 
     return _to_response(doc)
 
@@ -107,11 +110,13 @@ async def download_document(
     from app.models.document import Document as DocModel
 
     redis = await get_redis()
-    cached = await redis.get(f"doc:{doc_id}")
-    logger.info("redis GET key=doc:%s hit=%s", doc_id, cached is not None)
-    if cached:
-        meta = json.loads(cached)
-    else:
+    meta = None
+    if redis:
+        cached = await redis.get(f"doc:{doc_id}")
+        logger.info("redis GET key=doc:%s hit=%s", doc_id, cached is not None)
+        if cached:
+            meta = json.loads(cached)
+    if meta is None:
         d = await svc.db.get(DocModel, doc_id)
         if d is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
@@ -121,8 +126,9 @@ async def download_document(
             "filename": d.filename,
             "minio_path": d.minio_path,
         }
-        logger.info("redis SET key=doc:%s ex=1800", doc_id)
-        await redis.set(f"doc:{doc_id}", json.dumps(meta), ex=1800)
+        if redis:
+            logger.info("redis SET key=doc:%s ex=1800", doc_id)
+            await redis.set(f"doc:{doc_id}", json.dumps(meta), ex=1800)
 
     url = await svc.get_presigned_download_url(doc_id)
     return RedirectResponse(url=url, status_code=status.HTTP_302_FOUND)

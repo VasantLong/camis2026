@@ -4,17 +4,21 @@ from app.models.activity import (
     Activity, ActivityPlan, ActivityStatusLog, ApprovalRecord,
     ImplementationRecord, SecurityPlan,
 )
-from app.models.filing import FilingDoc
-from app.models.material import KeyMaterial
-from app.models.rule import ActivityRule
+from app.models.auth import RefreshToken
+from app.models.filing import FilingDoc, FilingDocMaterial
+from app.models.material import KeyMaterial, MaterialAudit, SecurityPlanMaterial
+from app.models.rule import ActivityRule, ActivityRuleTarget
 from app.models.notification import Notification
-from app.models.rbac import Permission, Role, RolePermission, UserRole
+from app.models.rbac import Permission, Role, RolePermission, RoleRequest, UserRole
 
 __all__ = [
     "Base", "User", "Document",
     "Activity", "ActivityPlan", "ActivityStatusLog", "ApprovalRecord",
     "ImplementationRecord", "SecurityPlan",
-    "FilingDoc", "KeyMaterial", "ActivityRule",
-    "Role", "Permission", "UserRole", "RolePermission",
+    "RefreshToken",
+    "FilingDoc", "FilingDocMaterial", "KeyMaterial", "MaterialAudit",
+    "SecurityPlanMaterial",
+    "ActivityRule", "ActivityRuleTarget",
+    "Role", "Permission", "UserRole", "RolePermission", "RoleRequest",
     "Notification",
 ]

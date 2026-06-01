@@ -284,17 +284,17 @@ async def list_activity_documents(
     db=Depends(get_db),
     _perm: None = require_permission("view_owned_activity"),
 ):
+    from app.services.document_service import DocumentService
+
     redis = await get_redis()
     cache_key = f"activity:{activity_id}:docs"
-    cached = await redis.get(cache_key)
-    logger.info("redis GET key=%s hit=%s", cache_key, cached is not None)
-    if cached:
-        return json.loads(cached)
+    if redis:
+        cached = await redis.get(cache_key)
+        logger.info("redis GET key=%s hit=%s", cache_key, cached is not None)
+        if cached:
+            return json.loads(cached)
 
-    result = await db.execute(
-        select(Document).where(Document.activity_id == activity_id).order_by(Document.created_at.desc())
-    )
-    docs = result.scalars().all()
+    docs = await DocumentService(db).list_by_activity(activity_id)
     items = [
         {
             "id": str(d.id),
@@ -308,8 +308,9 @@ async def list_activity_documents(
         }
         for d in docs
     ]
-    logger.info("redis SET key=%s ex=300", cache_key)
-    await redis.set(cache_key, json.dumps(items), ex=300)
+    if redis:
+        logger.info("redis SET key=%s ex=300", cache_key)
+        await redis.set(cache_key, json.dumps(items), ex=300)
     return items
 
 
@@ -324,24 +325,10 @@ class SecurityPlanResponse(BaseModel):
 async def get_security_plan(
     activity_id: UUID,
     current_user: User = Depends(get_current_user),
-    db=Depends(get_db),
+    svc: ActivityService = Depends(_service),
     _perm: None = require_permission("view_owned_activity"),
 ):
-    result = await db.execute(
-        select(SecurityPlan).where(SecurityPlan.activity_id == activity_id)
-    )
-    sp = result.scalar_one_or_none()
-    if sp is None:
+    result = await svc.get_security_plan(activity_id)
+    if result is None:
         return SecurityPlanResponse()
-
-    manager_name = None
-    if sp.manager_id:
-        mgr = await db.get(User, sp.manager_id)
-        manager_name = mgr.display_name if mgr else None
-
-    return SecurityPlanResponse(
-        risk_level=sp.risk_level,
-        audit_status=sp.audit_status,
-        manager_name=manager_name,
-        sign_time=sp.sign_time.isoformat() if sp.sign_time else None,
-    )
+    return SecurityPlanResponse(**result)
