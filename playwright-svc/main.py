@@ -37,7 +37,7 @@ def render_pdf(req: RenderRequest):
         try:
             page = browser.new_page(viewport=VIEWPORT)
             page.goto(url, wait_until="networkidle", timeout=30_000)
-            page.wait_for_selector(".chart-ready", timeout=20_000)
+            page.wait_for_selector(".chart-ready", state="attached", timeout=20_000)
             page.wait_for_timeout(1500)
             pdf_bytes = page.pdf(format="A4", print_background=True)
             return _pdf_response(pdf_bytes)
