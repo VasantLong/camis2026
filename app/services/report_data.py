@@ -64,7 +64,13 @@ class ReportDataService:
             Activity.created_at < end,
             Activity.status.in_({"审批通过-待举办", "审批通过"}),
         )
-        compliance_rate = approved / total if total else 0.0
+        concluded = approved + await self._count(
+            Activity.id,
+            Activity.created_at >= start,
+            Activity.created_at < end,
+            Activity.status.in_({"不通过/已终止", "已取消", "已延期"}),
+        )
+        compliance_rate = approved / concluded if concluded else 0.0
 
         anomaly_rows = (await self.db.execute(
             select(Activity.id, Activity.name, Activity.status, ImplementationRecord.change_reason,

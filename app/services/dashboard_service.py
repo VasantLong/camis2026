@@ -35,7 +35,13 @@ class DashboardService:
             )
         )
         approved = approved_result.scalar() or 0
-        compliance_rate = approved / total if total > 0 else 0.0
+        rejected_result = await self.db.execute(
+            select(func.count(Activity.id)).where(
+                Activity.status.in_(["不通过/已终止", "已取消", "已延期"])
+            )
+        )
+        concluded = approved + (rejected_result.scalar() or 0)
+        compliance_rate = approved / concluded if concluded > 0 else 0.0
 
         anomaly_rows = (await self.db.execute(
             select(Activity).where(Activity.status.in_(["已取消", "已延期"])).order_by(
