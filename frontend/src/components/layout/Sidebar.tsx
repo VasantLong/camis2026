@@ -57,7 +57,7 @@ export default function Sidebar() {
     }
     items.push({
       key: "/activities",
-      label: <>我的活动{badge(c?.my_activities)}</>,
+      label: <>我的活动{badge(c?.pending_plan)}</>,
       icon: <UnorderedListOutlined />,
     });
   } else if (role === "SecurityOfficer") {
@@ -96,7 +96,7 @@ export default function Sidebar() {
   } else if (role === "AdminStaff" || role === "AdminManager") {
     items.push({
       key: "/dashboard",
-      label: <>活动面板{badge(c?.total)}</>,
+      label: "活动面板",
       icon: <DashboardOutlined />,
     });
     items.push({
