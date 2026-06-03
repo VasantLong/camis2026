@@ -81,6 +81,9 @@ class WorkflowService:
             comment=comment,
         )
         self.db.add(log)
+
+        await self._update_security_plan(activity_id, from_status, to_status, operator)
+
         await self.db.commit()
         await self.db.refresh(log)
 
@@ -92,6 +95,47 @@ class WorkflowService:
                     reference_id=activity_id, reference_type="activity")
 
         return log
+
+    async def _update_security_plan(self, activity_id: UUID, from_status: str,
+                                    to_status: str, operator: User) -> None:
+        """Sync SecurityPlan.audit_status with workflow transitions."""
+        if from_status == "待设计方案" and to_status == "待安保方案设计":
+            from app.models.activity import SecurityPlan
+            existing = await self.db.execute(
+                select(SecurityPlan).where(SecurityPlan.activity_id == activity_id)
+            )
+            if not existing.scalar_one_or_none():
+                self.db.add(SecurityPlan(
+                    activity_id=activity_id,
+                    audit_status="待编制",
+                    risk_level="中/一般",
+                ))
+            return
+
+        if from_status != "待安保方案设计":
+            return
+
+        from app.models.activity import SecurityPlan
+        from app.models.rbac import Role, UserRole
+        sp = await self.db.get(SecurityPlan, activity_id)
+        if sp is None:
+            return
+
+        role_rows = await self.db.execute(
+            select(Role.name).join(UserRole, UserRole.role_id == Role.id)
+            .where(UserRole.user_id == operator.id)
+        )
+        roles = {row[0] for row in role_rows.all()}
+
+        if to_status == "待安保方案设计":
+            sp.audit_status = "待编制"
+        elif to_status == "待备案申请":
+            if "SecurityManager" in roles:
+                sp.audit_status = "已签署"
+                sp.manager_id = operator.id
+                sp.sign_time = datetime.now(timezone.utc)
+            else:
+                sp.audit_status = "待签署"
 
     async def reject(
         self, activity_id: UUID, operator: User, reason: str,
