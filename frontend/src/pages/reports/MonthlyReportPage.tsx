@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { Button, Card, Col, Row, Statistic, Table, Typography, Spin, Empty, Result, Space } from "antd";
+import { Button, Card, Col, Row, Statistic, Table, Tag, Typography, Spin, Empty, Result, Space } from "antd";
 import { DownloadOutlined } from "@ant-design/icons";
 import { Pie, Column, Line } from "@ant-design/charts";
 import { useAuthStore } from "@/stores/authStore";
 import { dashboardApi } from "@/api/dashboard";
+import { STATUS_COLOR_MAP } from "@/utils/constants";
 import client from "@/api/client";
 
 const { Title, Text } = Typography;
@@ -17,6 +18,7 @@ interface ReportData {
   by_type: Record<string, number>;
   daily_creation: { date: string; count: number }[];
   compliance_rate: number;
+  by_audit_status: Record<string, number>;
   anomalies: { id: string; name: string; status: string; reason: string | null; changed_at: string }[];
 }
 
@@ -108,9 +110,15 @@ export default function MonthlyReportPage() {
     count: d.count,
   }));
 
+  const auditStatusData = Object.entries(data.by_audit_status).map(([status, value]) => ({
+    status,
+    value,
+  }));
+
   const anomalyColumns = [
     { title: "活动名称", dataIndex: "name", key: "name", ellipsis: true },
-    { title: "变更状态", dataIndex: "status", key: "status", width: 120 },
+    { title: "变更状态", dataIndex: "status", key: "status", width: 120,
+      render: (s: string) => <Tag color={STATUS_COLOR_MAP[s] || "default"}>{s}</Tag> },
     { title: "变更原因", dataIndex: "reason", key: "reason", width: 200, ellipsis: true,
       render: (v: string | null) => v || "-" },
     { title: "变更时间", dataIndex: "changed_at", key: "changed_at", width: 170,
@@ -227,6 +235,25 @@ export default function MonthlyReportPage() {
               />
             ) : (
               <Empty description="暂无数据" />
+            )}
+          </Card>
+        </Col>
+      </Row>
+
+      <Row style={{ marginTop: 24 }}>
+        <Col span={24}>
+          <Card title="安保方案审核状态">
+            {auditStatusData.length > 0 ? (
+              <Column
+                data={auditStatusData}
+                xField="status"
+                yField="value"
+                height={250}
+                label={{ position: "top" }}
+                color={["#1677ff", "#52c41a"]}
+              />
+            ) : (
+              <Empty description="暂无安保方案数据" />
             )}
           </Card>
         </Col>

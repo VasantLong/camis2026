@@ -7,7 +7,7 @@ from uuid import UUID
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.activity import Activity, ActivityStatusLog, ImplementationRecord
+from app.models.activity import Activity, ActivityStatusLog, ImplementationRecord, SecurityPlan
 from app.services.workflow_service import TERMINAL_STATUSES
 
 
@@ -20,6 +20,7 @@ class MonthlyReportData:
     by_type: dict[str, int]
     daily_creation: list[dict]
     compliance_rate: float
+    by_audit_status: dict[str, int]
     anomalies: list[dict]
 
 
@@ -72,6 +73,14 @@ class ReportDataService:
         )
         compliance_rate = approved / concluded if concluded else 0.0
 
+        audit_rows = (await self.db.execute(
+            select(SecurityPlan.audit_status, func.count(SecurityPlan.id))
+            .join(Activity, Activity.id == SecurityPlan.activity_id)
+            .where(Activity.created_at >= start, Activity.created_at < end)
+            .group_by(SecurityPlan.audit_status)
+        )).all()
+        by_audit_status = {row[0]: row[1] for row in audit_rows}
+
         anomaly_rows = (await self.db.execute(
             select(Activity.id, Activity.name, Activity.status, ImplementationRecord.change_reason,
                    ImplementationRecord.archived_at)
@@ -92,6 +101,7 @@ class ReportDataService:
             by_type=by_type,
             daily_creation=daily_creation,
             compliance_rate=round(compliance_rate, 3),
+            by_audit_status=by_audit_status,
             anomalies=anomalies,
         )
 
