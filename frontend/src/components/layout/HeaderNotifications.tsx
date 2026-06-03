@@ -4,6 +4,7 @@ import { BellOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { notificationsApi, type NotificationItem } from "@/api/notifications";
+import { dashboardApi } from "@/api/dashboard";
 
 export default function HeaderNotifications() {
   const [open, setOpen] = useState(false);
@@ -41,8 +42,9 @@ export default function HeaderNotifications() {
 
   const handleClick = (item: NotificationItem) => {
     setOpen(false);
-    if (item.reference_type === "report" && item.reference_id) {
-      window.open(`/api/dashboard/reports/${item.reference_id}`, "_blank");
+    if (item.reference_type === "report") {
+      const m = item.message.match(/(\d{4}-\d{2})/);
+      if (m) dashboardApi.downloadReport(m[1]);
     } else if (item.reference_type === "activity" && item.reference_id) {
       navigate(`/activities/${item.reference_id}`);
     } else {
@@ -52,11 +54,9 @@ export default function HeaderNotifications() {
 
   const items = notifications.map((n) => ({
     key: n.id,
+    onClick: () => handleClick(n),
     label: (
-      <div
-        style={{ maxWidth: 300, whiteSpace: "normal", padding: "4px 0", cursor: "pointer" }}
-        onClick={() => handleClick(n)}
-      >
+      <div style={{ maxWidth: 300, whiteSpace: "normal", padding: "4px 0" }}>
         {n.reference_name && (
           <Typography.Text strong style={{ display: "block" }}>{n.reference_name}</Typography.Text>
         )}

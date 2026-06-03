@@ -14,7 +14,7 @@ import {
 } from "@ant-design/icons";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
-import { useActivityCounts } from "@/hooks/useActivityQueries";
+import { useActivityCounts, useUnreadCount } from "@/hooks/useActivityQueries";
 
 type MenuItem = {
   key: string;
@@ -35,6 +35,7 @@ export default function Sidebar() {
   const roles: string[] = user?.roles ?? [];
   const role = roles[0];
   const { data: c } = useActivityCounts();
+  const { data: unread } = useUnreadCount();
 
   const items: MenuItem[] = [];
 
@@ -52,11 +53,12 @@ export default function Sidebar() {
         key: "/activities/new",
         label: "新建立项",
         icon: <PlusOutlined />,
+        disabled: !user?.contact_phone,
       });
     }
     items.push({
       key: "/activities",
-      label: <>我的活动{badge(c?.my_activities)}</>,
+      label: <>我的活动{badge(c?.pending_plan)}</>,
       icon: <UnorderedListOutlined />,
     });
   } else if (role === "SecurityOfficer") {
@@ -95,7 +97,7 @@ export default function Sidebar() {
   } else if (role === "AdminStaff" || role === "AdminManager") {
     items.push({
       key: "/dashboard",
-      label: <>活动面板{badge(c?.total)}</>,
+      label: "活动面板",
       icon: <DashboardOutlined />,
     });
     items.push({
@@ -140,7 +142,7 @@ export default function Sidebar() {
   // ── 消息中心 ──
   items.push({
     key: "/notifications",
-    label: "消息中心",
+    label: <>消息中心{badge(unread)}</>,
     icon: <BellOutlined />,
   });
 

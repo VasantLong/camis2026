@@ -1,4 +1,4 @@
-import { Card, Statistic, Table, Tag, Typography, Button, Space, Spin } from "antd";
+import { Alert, Card, Statistic, Table, Tag, Typography, Button, Space, Spin } from "antd";
 import {
   PlusOutlined,
   SearchOutlined,
@@ -21,6 +21,7 @@ export default function HomePage() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const { data: counts, isLoading } = useActivityCounts();
+  const contactPhone = useAuthStore((s) => s.user?.contact_phone);
 
   if (!user) return null;
 
@@ -80,9 +81,20 @@ export default function HomePage() {
         <Text type="secondary">{displayName} · {roleLabel}</Text>
       </div>
 
+      {!contactPhone && (
+        <Alert
+          type="warning"
+          title="请补充联系方式"
+          description="您的联系方式尚未填写，请前往个人中心补充联系方式，以便后续活动流转。"
+          action={<Button size="small" onClick={() => navigate("/profile")}>前往个人中心</Button>}
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+      )}
+
       {counts && <CardGrid role={role} counts={counts} onNavigate={navigate} />}
 
-      <div style={{ marginTop: 24 }}>{renderQuickActions(role, navigate)}</div>
+      <div style={{ marginTop: 24 }}>{renderQuickActions(role, navigate, !contactPhone)}</div>
 
       {showRecentActivities && <RecentActivities />}
     </div>
@@ -194,10 +206,12 @@ function CardGrid({
   );
 }
 
-function renderQuickActions(role: string, navigate: (path: string) => void) {
+function renderQuickActions(role: string, navigate: (path: string) => void, noPhone?: boolean) {
   if (role === "Promoter") {
     return (
-      <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate("/activities/new")}>
+      <Button type="primary" icon={<PlusOutlined />}
+              disabled={noPhone}
+              onClick={() => navigate("/activities/new")}>
         新建立项
       </Button>
     );

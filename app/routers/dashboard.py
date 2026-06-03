@@ -64,7 +64,6 @@ async def export_monthly_report(
                 await notif_svc.send_reminder(
                     user_id,
                     f"月度报告 {month} 已生成，点击下载",
-                    reference_id=month,
                     reference_type="report",
                 )
                 logger.info("report generated month=%s user=%s url=%s", month, user_id, url)

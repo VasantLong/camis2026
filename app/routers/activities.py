@@ -29,7 +29,7 @@ def _service(db=Depends(get_db)) -> ActivityService:
 
 
 PROMOTER_STATUSES = {"待设计方案"}
-SECURITY_OFFICER_STATUSES = {"待安保方案设计"}
+SECURITY_OFFICER_STATUSES = {"待安保方案设计", "待备案申请"}
 SECURITY_MANAGER_STATUSES = {
     "待安保方案设计", "待备案申请", "备案材料已交接",
     "审批通过", "待补充备案材料",
@@ -195,8 +195,16 @@ async def get_counts(
         pending_draft = await db.scalar(
             select(func.count(Activity.id)).where(Activity.status == "待安保方案设计")
         )
+        handled_subq = (
+            select(ActivityStatusLog.activity_id.distinct())
+            .where(ActivityStatusLog.operator_id == current_user.id)
+            .subquery()
+        )
         pending_pack = await db.scalar(
-            select(func.count(Activity.id)).where(Activity.status == "待备案申请")
+            select(func.count(Activity.id)).where(
+                Activity.status == "待备案申请",
+                Activity.id.in_(handled_subq),
+            )
         )
         counts["pending_draft"] = pending_draft or 0
         counts["pending_pack"] = pending_pack or 0

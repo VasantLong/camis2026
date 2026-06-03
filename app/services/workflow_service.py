@@ -55,6 +55,11 @@ class WorkflowService:
         if activity.status in TERMINAL_STATUSES:
             raise ValueError("活动已处于终态，无法变更状态")
 
+        if activity.status == "待设计方案" and activity.designer_id:
+            designer = await self.db.get(User, activity.designer_id)
+            if designer and not designer.contact_phone:
+                raise ValueError("编制人的联系方式为空，请先补充联系方式后再提交")
+
         if not self.can_transition(activity.status, to_status):
             raise ValueError(f"不允许从 {activity.status} 转换到 {to_status}")
 

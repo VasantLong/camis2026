@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { activitiesApi } from "@/api/activities";
+import { notificationsApi } from "@/api/notifications";
 import type { ActivityCreate, ActivityListParams } from "@/types/activity";
 
 export function useActivities(params: ActivityListParams) {
@@ -50,6 +51,15 @@ export function useActivityCounts() {
     queryKey: ["activities", "counts"],
     queryFn: () => activitiesApi.fetchCounts().then((r) => r.data),
     refetchInterval: 30_000,
+    staleTime: 0,
+  });
+}
+
+export function useUnreadCount() {
+  return useQuery({
+    queryKey: ["notifications", "unread-count"],
+    queryFn: () => notificationsApi.unreadCount().then((r) => r.data.count),
+    refetchInterval: 2_000,
     staleTime: 0,
   });
 }
