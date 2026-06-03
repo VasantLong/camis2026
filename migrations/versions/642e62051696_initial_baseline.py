@@ -277,6 +277,113 @@ def upgrade() -> None:
     )
     # ### end Alembic commands ###
 
+    # ── tables not managed by SQLAlchemy models ──
+    op.execute("""
+        CREATE TABLE IF NOT EXISTS login_attempts (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            login_id VARCHAR(255) NOT NULL,
+            ip_address VARCHAR(64),
+            success BOOLEAN NOT NULL DEFAULT FALSE,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+    """)
+    op.execute("""
+        CREATE INDEX IF NOT EXISTS idx_login_attempts_login
+        ON login_attempts(login_id, created_at)
+    """)
+
+    # ── seed roles & permissions ──
+    op.execute("""
+        INSERT INTO roles (id, name, description) VALUES
+            (gen_random_uuid(), 'Promoter', '宣策部人员'),
+            (gen_random_uuid(), 'SecurityOfficer', '安保部人员'),
+            (gen_random_uuid(), 'AdminStaff', '行政部人员'),
+            (gen_random_uuid(), 'GovLiaison', '政府对接人员'),
+            (gen_random_uuid(), 'SuperAdmin', '超级管理员'),
+            (gen_random_uuid(), 'AdminManager', '行政部负责人'),
+            (gen_random_uuid(), 'SecurityManager', '安保部负责人')
+        ON CONFLICT (name) DO NOTHING
+    """)
+    op.execute("""
+        INSERT INTO permissions (id, name, resource, action) VALUES
+            (gen_random_uuid(), 'create_activity', 'activities', 'create'),
+            (gen_random_uuid(), 'upload_plan', 'activities', 'upload_plan'),
+            (gen_random_uuid(), 'view_owned_activity', 'activities', 'view_owned'),
+            (gen_random_uuid(), 'submit_plan', 'activities', 'submit_plan'),
+            (gen_random_uuid(), 'manage_security', 'activities', 'manage_security'),
+            (gen_random_uuid(), 'review_security_plan', 'activities', 'review_security_plan'),
+            (gen_random_uuid(), 'upload_security_material', 'documents', 'upload'),
+            (gen_random_uuid(), 'audit_material', 'materials', 'audit'),
+            (gen_random_uuid(), 'sign_document', 'documents', 'sign'),
+            (gen_random_uuid(), 'confirm_approval', 'activities', 'confirm_approval'),
+            (gen_random_uuid(), 'reject_approval', 'activities', 'reject_approval'),
+            (gen_random_uuid(), 'pack_filing', 'filing', 'pack'),
+            (gen_random_uuid(), 'view_dashboard', 'dashboard', 'view'),
+            (gen_random_uuid(), 'force_cancel', 'activities', 'force_cancel'),
+            (gen_random_uuid(), 'force_postpone', 'activities', 'force_postpone'),
+            (gen_random_uuid(), 'export_report', 'dashboard', 'export_report'),
+            (gen_random_uuid(), 'upload_approval', 'documents', 'upload_approval'),
+            (gen_random_uuid(), 'update_approval_status', 'activities', 'update_approval_status'),
+            (gen_random_uuid(), 'manage_users', 'users', 'manage'),
+            (gen_random_uuid(), 'administer_users', 'users', 'administer'),
+            (gen_random_uuid(), 'upload_document', 'documents', 'upload_document')
+        ON CONFLICT (name) DO NOTHING
+    """)
+    op.execute("""
+        INSERT INTO role_permissions (role_id, permission_id)
+        SELECT r.id, p.id FROM roles r, permissions p
+        WHERE r.name = 'Promoter' AND p.name IN (
+            'create_activity', 'upload_plan', 'view_owned_activity', 'submit_plan'
+        ) ON CONFLICT DO NOTHING
+    """)
+    op.execute("""
+        INSERT INTO role_permissions (role_id, permission_id)
+        SELECT r.id, p.id FROM roles r, permissions p
+        WHERE r.name = 'SecurityOfficer' AND p.name IN (
+            'view_owned_activity', 'upload_security_material', 'sign_document',
+            'pack_filing', 'manage_security'
+        ) ON CONFLICT DO NOTHING
+    """)
+    op.execute("""
+        INSERT INTO role_permissions (role_id, permission_id)
+        SELECT r.id, p.id FROM roles r, permissions p
+        WHERE r.name = 'AdminStaff' AND p.name IN (
+            'view_owned_activity', 'view_dashboard', 'force_cancel',
+            'force_postpone', 'export_report'
+        ) ON CONFLICT DO NOTHING
+    """)
+    op.execute("""
+        INSERT INTO role_permissions (role_id, permission_id)
+        SELECT r.id, p.id FROM roles r, permissions p
+        WHERE r.name = 'GovLiaison' AND p.name IN (
+            'view_owned_activity', 'upload_approval', 'update_approval_status',
+            'audit_material'
+        ) ON CONFLICT DO NOTHING
+    """)
+    op.execute("""
+        INSERT INTO role_permissions (role_id, permission_id)
+        SELECT r.id, p.id FROM roles r CROSS JOIN permissions p
+        WHERE r.name = 'SuperAdmin'
+        ON CONFLICT DO NOTHING
+    """)
+    op.execute("""
+        INSERT INTO role_permissions (role_id, permission_id)
+        SELECT r.id, p.id FROM roles r, permissions p
+        WHERE r.name = 'AdminManager' AND p.name IN (
+            'manage_users', 'view_owned_activity', 'view_dashboard',
+            'force_cancel', 'force_postpone', 'export_report'
+        ) ON CONFLICT DO NOTHING
+    """)
+    op.execute("""
+        INSERT INTO role_permissions (role_id, permission_id)
+        SELECT r.id, p.id FROM roles r, permissions p
+        WHERE r.name = 'SecurityManager' AND p.name IN (
+            'view_owned_activity', 'manage_security', 'review_security_plan',
+            'confirm_approval', 'reject_approval', 'upload_security_material',
+            'pack_filing'
+        ) ON CONFLICT DO NOTHING
+    """)
+
 
 def downgrade() -> None:
     """Downgrade schema."""

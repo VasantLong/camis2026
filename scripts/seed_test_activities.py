@@ -447,15 +447,13 @@ async def seed():
                     materials.append(("活动预算明细", False))
                 pre_signed = target not in ("待备案申请", "待补充备案材料", "待安保方案设计")
                 for mat_name, qualified in materials:
+                    mat_id_val = uuid4()
                     await db.execute(sa_text(
-                        "INSERT INTO key_materials (name, is_qualified, sign_status) "
-                        "VALUES (:n, :q, :s)"
-                    ), {"n": mat_name, "q": qualified,
+                        "INSERT INTO key_materials (id, name, is_qualified, sign_status, audit_round) "
+                        "VALUES (:id, :n, :q, :s, 0)"
+                    ), {"id": mat_id_val, "n": mat_name, "q": qualified,
                         "s": "signed" if pre_signed else "unsigned"})
-                    mat_result = await db.execute(sa_text(
-                        "SELECT id FROM key_materials WHERE name=:n ORDER BY created_at DESC LIMIT 1"
-                    ), {"n": mat_name})
-                    mat_id = mat_result.scalar_one()
+                    mat_id = mat_id_val
                     # link to security plan
                     sp_result = await db.execute(
                         select(SecurityPlan).where(SecurityPlan.activity_id == activity.id)
