@@ -250,7 +250,7 @@ export default function MonthlyReportPage() {
                 yField="value"
                 height={250}
                 label={{ position: "top" }}
-                color={["#1677ff", "#52c41a"]}
+                color={["#1677ff", "#faad14", "#52c41a"]}
               />
             ) : (
               <Empty description="暂无安保方案数据" />
