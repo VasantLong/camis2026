@@ -1,14 +1,20 @@
 from __future__ import annotations
 
-from uuid import UUID
+import asyncio
+import json
+from dataclasses import asdict
+from uuid import UUID, uuid4
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth import create_access_token
 from app.models.activity import Activity, ActivityStatusLog
 from app.schemas.activity import ActivityResponse, StatusLogEntry
 from app.schemas.dashboard import ActivityDetail, AnomalyEntry, PanelData
 from app.services.activity_service import ActivityService
+from app.services.report_data import ReportDataService
+from app.services.report_renderer import ReportRenderer
 
 
 class DashboardService:
@@ -62,41 +68,31 @@ class DashboardService:
         history = await activity_svc.get_status_history(activity_id)
         return ActivityDetail(activity=activity, status_history=history)
 
-    async def export_monthly_report(self, month: str) -> str:
-        from datetime import datetime, timezone, timedelta
-        from io import BytesIO
-        from sqlalchemy import text
-        from reportlab.lib.pagesizes import A4
-        from reportlab.pdfgen import canvas
-
-        start = datetime(int(month[:4]), int(month[5:7]), 1, tzinfo=timezone(timedelta(hours=8)))
-        end = datetime(start.year, start.month + 1, 1, tzinfo=start.tzinfo) if start.month < 12 else datetime(start.year + 1, 1, 1, tzinfo=start.tzinfo)
-
-        result = await self.db.execute(
-            text("SELECT count(*) FROM activities WHERE created_at >= :start AND created_at < :end"),
-            {"start": start, "end": end},
-        )
-        count = result.scalar() or 0
-
-        result2 = await self.db.execute(
-            text("SELECT status, count(*) FROM activities WHERE created_at >= :start AND created_at < :end GROUP BY status"),
-            {"start": start, "end": end},
-        )
-
-        buf = BytesIO()
-        c = canvas.Canvas(buf, pagesize=A4)
-        c.setFont("Helvetica-Bold", 16)
-        c.drawString(50, 780, f"月度合规报告 — {month}")
-        c.setFont("Helvetica", 12)
-        c.drawString(50, 740, f"本月新增活动: {count}")
-        y = 710
-        for row in result2.all():
-            c.drawString(50, y, f"  {row[0]}: {row[1]}")
-            y -= 20
-        c.save()
-        pdf_bytes = buf.getvalue()
-
+    async def export_monthly_report(self, month: str, user_id: str, user_email: str) -> str:
         from app.services.minio_client import upload_file
+        from app.services.redis_client import get_redis
+
+        data_svc = ReportDataService(self.db)
+        data = await data_svc.gather(month)
+
+        data_key = str(uuid4())
+        redis = await get_redis()
+        if redis is None:
+            raise RuntimeError("缓存服务不可用")
+        await redis.setex(
+            f"report_data:{data_key}", 300,
+            json.dumps(asdict(data), ensure_ascii=False),
+        )
+
+        token = create_access_token(user_id, user_email)
+
+        renderer = ReportRenderer()
+        loop = asyncio.get_event_loop()
+        pdf_bytes = await loop.run_in_executor(
+            None,
+            lambda: renderer.render_pdf(month, data_key, token),
+        )
+
         path = f"reports/{month}.pdf"
         await upload_file(path, pdf_bytes, "application/pdf")
         return path
