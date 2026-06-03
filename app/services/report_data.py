@@ -58,14 +58,13 @@ class ReportDataService:
         )).all()
         daily_creation = [{"date": str(row[0]), "count": row[1]} for row in daily_rows]
 
-        numerator = total
-        denominator = await self._count(
+        approved = await self._count(
             Activity.id,
             Activity.created_at >= start,
             Activity.created_at < end,
-            Activity.status.in_(TERMINAL_STATUSES | {"审批通过-待举办", "举办中", "备案材料已交接", "审批通过"}),
+            Activity.status.in_({"审批通过-待举办", "举办中", "已结束", "审批通过"}),
         )
-        compliance_rate = numerator / denominator if denominator else 0.0
+        compliance_rate = approved / total if total else 0.0
 
         anomaly_rows = (await self.db.execute(
             select(Activity.id, Activity.name, Activity.status, ImplementationRecord.change_reason,

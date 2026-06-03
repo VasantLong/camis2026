@@ -187,7 +187,7 @@ export default function MonthlyReportPage() {
                 colorField="type"
                 radius={0.8}
                 innerRadius={0.5}
-                label={{ type: "spider", content: "{name}\n{percentage}" }}
+                label={{ text: (d: { type: string; value: number }) => d.type, position: "outside" }}
                 height={280}
                 legend={{ position: "bottom" }}
               />
