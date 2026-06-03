@@ -215,7 +215,7 @@ export default function MonthlyReportPage() {
 
       <Row style={{ marginTop: 24 }}>
         <Col span={24}>
-          <Card title="每日新增趋势">
+          <Card title="每日新增活动">
             {trendData.length > 0 ? (
               <Line
                 data={trendData}

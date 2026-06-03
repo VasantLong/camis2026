@@ -62,7 +62,7 @@ class ReportDataService:
             Activity.id,
             Activity.created_at >= start,
             Activity.created_at < end,
-            Activity.status.in_({"审批通过-待举办", "举办中", "已结束", "审批通过"}),
+            Activity.status.in_({"审批通过-待举办", "审批通过"}),
         )
         compliance_rate = approved / total if total else 0.0
 
