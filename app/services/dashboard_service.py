@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import json
 from dataclasses import asdict
 from uuid import UUID, uuid4
@@ -87,11 +86,7 @@ class DashboardService:
         token = create_access_token(user_id, user_email)
 
         renderer = ReportRenderer()
-        loop = asyncio.get_event_loop()
-        pdf_bytes = await loop.run_in_executor(
-            None,
-            lambda: renderer.render_pdf(month, data_key, token),
-        )
+        pdf_bytes = await renderer.render_pdf(month, data_key, token)
 
         path = f"reports/{month}.pdf"
         await upload_file(path, pdf_bytes, "application/pdf")
