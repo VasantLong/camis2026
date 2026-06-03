@@ -8,7 +8,8 @@ echo "=== 1. dropping all Docker volumes ==="
 docker compose down -v
 
 echo "=== 2. starting core services ==="
-docker compose up -d postgres minio redis
+docker compose build playwright-svc
+docker compose up -d postgres minio redis mailpit playwright-svc
 # wait for PG to be healthy
 until docker compose exec -T postgres pg_isready -U docapp -d doc_metadata >/dev/null 2>&1; do
     sleep 1
