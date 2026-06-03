@@ -14,7 +14,7 @@ import {
 } from "@ant-design/icons";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
-import { useActivityCounts } from "@/hooks/useActivityQueries";
+import { useActivityCounts, useUnreadCount } from "@/hooks/useActivityQueries";
 
 type MenuItem = {
   key: string;
@@ -35,6 +35,7 @@ export default function Sidebar() {
   const roles: string[] = user?.roles ?? [];
   const role = roles[0];
   const { data: c } = useActivityCounts();
+  const { data: unread } = useUnreadCount();
 
   const items: MenuItem[] = [];
 
@@ -141,7 +142,7 @@ export default function Sidebar() {
   // ── 消息中心 ──
   items.push({
     key: "/notifications",
-    label: "消息中心",
+    label: <>消息中心{badge(unread)}</>,
     icon: <BellOutlined />,
   });
 
