@@ -14,18 +14,16 @@ class ReportRenderError(Exception):
 
 
 class ReportRenderer:
-    def __init__(self, frontend_url: str | None = None, svc_url: str | None = None):
-        self.frontend_url = (frontend_url or settings.frontend_url).rstrip("/")
+    def __init__(self, svc_url: str | None = None):
         self.svc_url = (svc_url or settings.playwright_svc_url).rstrip("/")
 
     async def render_pdf(self, month: str, data_key: str, token: str) -> bytes:
-        url = f"{self.frontend_url}/reports/monthly/{month}?token={token}&data_key={data_key}"
-        logger.info("rendering report via playwright-svc url=%s", url)
+        logger.info("rendering report via playwright-svc month=%s data_key=%s", month, data_key)
 
         async with httpx.AsyncClient(timeout=60) as client:
             resp = await client.post(
                 f"{self.svc_url}/render",
-                json={"url": url},
+                json={"month": month, "data_key": data_key, "token": token},
             )
             if resp.status_code != 200:
                 detail = resp.text
