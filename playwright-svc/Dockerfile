@@ -4,7 +4,8 @@ WORKDIR /app
 
 RUN pip install --no-cache-dir fastapi uvicorn playwright -i https://pypi.tuna.tsinghua.edu.cn/simple
 
-RUN playwright install chromium --with-deps
+RUN sed -i 's|http://deb.debian.org|http://mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list.d/debian.sources \
+    && playwright install chromium --with-deps
 
 COPY main.py .
 
