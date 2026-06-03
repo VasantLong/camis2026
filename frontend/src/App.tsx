@@ -17,6 +17,7 @@ import RoleRequestsPage from "@/pages/admin/RoleRequestsPage";
 import UserManagementPage from "@/pages/admin/UserManagementPage";
 import HomePage from "@/pages/HomePage";
 import NotificationsPage from "@/pages/NotificationsPage";
+import MonthlyReportPage from "@/pages/reports/MonthlyReportPage";
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/403" element={<ForbiddenPage />} />
+            <Route path="/reports/monthly/:month" element={<MonthlyReportPage />} />
 
             {/* protected routes — inside AppLayout */}
             <Route element={<AppLayout />}>
