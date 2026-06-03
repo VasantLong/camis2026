@@ -127,7 +127,7 @@ export default function MonthlyReportPage() {
             CAMIS 月度合规报告
           </Title>
           <Text type="secondary">
-            {month} · 生成时间 {data.generated_at?.slice(0, 10)}
+            {month} · 生成时间 {data.generated_at?.slice(0, 19).replace("T", " ")}
           </Text>
         </div>
         {!isPlaywright && (
