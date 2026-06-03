@@ -102,6 +102,7 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-secret_redis_pwd}
       JWT_SECRET: ${JWT_SECRET:-change-me}
       ALLOW_ORIGINS: ${ALLOW_ORIGINS:-http://localhost:5173}
+      PLAYWRIGHT_SVC_URL: ${PLAYWRIGHT_SVC_URL:-http://playwright-svc:3000}
     ports:
       - "8000:8000"
     depends_on:
@@ -111,6 +112,21 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      playwright-svc:
+        condition: service_started
+    networks:
+      - doc_network
+
+  playwright-svc:
+    build: ./playwright-svc
+    container_name: doc_playwright
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      FRONTEND_URL: ${FRONTEND_URL:-http://host.docker.internal:5173}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - doc_network
 

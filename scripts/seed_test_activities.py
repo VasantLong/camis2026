@@ -148,34 +148,61 @@ def _make_jpg() -> bytes:
 
 
 # ── activity definitions ──
-# (name, type, location, sponsor, estimated_days, deadline_days, target_status)
-# days > 0 = future, days < 0 = past, days = 0 = today
+# (name, type, location, sponsor, estimated_days, deadline_days, target_status, created_days_ago)
+# estimated_days/deadline_days: > 0 = future, < 0 = past, 0 = today (relative to created_at)
+# created_days_ago: 0 = today, N = N days ago (optional, defaults to 0)
 ACTIVITIES = [
-    # ── pending / in-progress ──
-    ("2026 校园文化节",     "文艺汇演",     "中心广场", "校团委",  30, 20, "待设计方案"),
-    ("国际音乐节筹备",       "文艺汇演",     "娱乐场所", "市文旅局", 28, 18, "待设计方案"),
-    ("安全生产月启动仪式",  "其他",         "商业区域", "安监局",  25, 15, "待安保方案设计"),
-    ("消防应急演练",         "其他",         "商业区域", "消防支队", 22, 12, "待安保方案设计"),
-    ("非遗手工艺展",         "民俗活动",     "旅游景区", "文化馆",  26, 16, "待安保方案设计"),
-    ("社区志愿服务日",      "商贸活动",     "旅游景区", "街道办",  20, 10, "待备案申请"),
-    ("农产品展销会",         "商贸活动",     "中心广场", "农业局",  18,  9, "待备案申请"),
-    ("元宵灯会",             "民俗活动",     "中心广场", "街道办",  21, 11, "待备案申请"),
-    ("年度总结表彰大会",    "文艺汇演",     "娱乐场所", "总工会",  15,  5, "备案材料已交接"),
-    ("科技周开幕式",         "其他",         "中心广场", "科技局",  16,  6, "备案材料已交接"),
-    ("网络安全培训讲座",    "其他",         "中心广场", "网信办",  14,  7, "审批通过"),
-    ("职工运动会",          "体育赛事",     "旅游景区", "工会",    10,  5, "审批通过-待举办"),
-    ("端午龙舟赛",           "体育赛事",     "旅游景区", "体育局",  11,  6, "审批通过-待举办"),
-    # ── terminal / anomaly ──
-    ("春节联欢晚会",        "文艺汇演",     "娱乐场所", "文化局",   3,  1, "举办中"),
-    ("科普进社区活动",      "民族宗教活动", "商业区域", "科协",     2,  1, "已结束"),
-    ("中秋游园会",           "民俗活动",     "旅游景区", "文化局",   1,  0, "已结束"),
-    ("法治宣传周活动",      "民俗活动",     "中心广场", "司法局",  10,  5, "待补充备案材料"),
-    ("青年创新创业大赛",    "商贸活动",     "商业区域", "人社局",   8,  3, "不通过/已终止"),
-    ("马拉松赛事报批",       "体育赛事",     "中心广场", "体育局",   9,  4, "不通过/已终止"),
-    ("绿色环保公益行",      "体育赛事",     "旅游景区", "环保局",   9,  4, "已取消"),
-    ("庙会活动",             "民族宗教活动", "寺观教堂", "宗教局",  10,  5, "已取消"),
-    ("全民读书月活动",      "民俗活动",     "寺观教堂", "文化局",  12,  6, "已延期"),
-    ("行业博览会",           "商贸活动",     "商业区域", "商务局",  11,  5, "已延期"),
+    # ── pending / in-progress (today) ──
+    ("2026 校园文化节",     "文艺汇演",     "中心广场", "校团委",  30, 20, "待设计方案",        0),
+    ("国际音乐节筹备",       "文艺汇演",     "娱乐场所", "市文旅局", 28, 18, "待设计方案",       0),
+    ("安全生产月启动仪式",  "其他",         "商业区域", "安监局",  25, 15, "待安保方案设计",     0),
+    ("消防应急演练",         "其他",         "商业区域", "消防支队", 22, 12, "待安保方案设计",    0),
+    ("非遗手工艺展",         "民俗活动",     "旅游景区", "文化馆",  26, 16, "待安保方案设计",     0),
+    ("社区志愿服务日",      "商贸活动",     "旅游景区", "街道办",  20, 10, "待备案申请",         0),
+    ("农产品展销会",         "商贸活动",     "中心广场", "农业局",  18,  9, "待备案申请",         0),
+    ("元宵灯会",             "民俗活动",     "中心广场", "街道办",  21, 11, "待备案申请",         0),
+    ("年度总结表彰大会",    "文艺汇演",     "娱乐场所", "总工会",  15,  5, "备案材料已交接",     0),
+    ("科技周开幕式",         "其他",         "中心广场", "科技局",  16,  6, "备案材料已交接",     0),
+    ("网络安全培训讲座",    "其他",         "中心广场", "网信办",  14,  7, "审批通过",           0),
+    ("职工运动会",          "体育赛事",     "旅游景区", "工会",    10,  5, "审批通过-待举办",    0),
+    ("端午龙舟赛",           "体育赛事",     "旅游景区", "体育局",  11,  6, "审批通过-待举办",    0),
+    # ── terminal / anomaly (today) ──
+    ("春节联欢晚会",        "文艺汇演",     "娱乐场所", "文化局",   3,  1, "举办中",              0),
+    ("科普进社区活动",      "民族宗教活动", "商业区域", "科协",     2,  1, "已结束",             0),
+    ("中秋游园会",           "民俗活动",     "旅游景区", "文化局",   1,  0, "已结束",             0),
+    ("法治宣传周活动",      "民俗活动",     "中心广场", "司法局",  10,  5, "待补充备案材料",     0),
+    ("青年创新创业大赛",    "商贸活动",     "商业区域", "人社局",   8,  3, "不通过/已终止",      0),
+    ("马拉松赛事报批",       "体育赛事",     "中心广场", "体育局",   9,  4, "不通过/已终止",      0),
+    ("绿色环保公益行",      "体育赛事",     "旅游景区", "环保局",   9,  4, "已取消",             0),
+    ("庙会活动",             "民族宗教活动", "寺观教堂", "宗教局",  10,  5, "已取消",             0),
+    ("全民读书月活动",      "民俗活动",     "寺观教堂", "文化局",  12,  6, "已延期",             0),
+    ("行业博览会",           "商贸活动",     "商业区域", "商务局",  11,  5, "已延期",             0),
+    # ── historical: 2026-05 (30-60 days ago) ──
+    ("五一劳动节表彰",      "文艺汇演",     "中心广场", "总工会",  35, 25, "已结束",             45),
+    ("春季招聘会",           "商贸活动",     "商业区域", "人社局",  40, 30, "已结束",             50),
+    ("青少年才艺大赛",      "文艺汇演",     "娱乐场所", "教育局",  38, 28, "已结束",             40),
+    ("户外音乐节",           "文艺汇演",     "旅游景区", "文旅局",  42, 32, "举办中",             35),
+    ("社区消防宣传",         "其他",         "商业区域", "消防支队", 36, 26, "审批通过-待举办",   55),
+    ("非遗文化展",           "民俗活动",     "寺观教堂", "文化馆",  44, 34, "审批通过",           60),
+    ("跨境电商论坛",         "商贸活动",     "中心广场", "商务局",  35, 25, "备案材料已交接",     42),
+    ("祭孔大典",             "民族宗教活动", "寺观教堂", "宗教局",  40, 30, "不通过/已终止",      38),
+    ("儿童节嘉年华",         "民俗活动",     "中心广场", "教育局",  32, 22, "已取消",             55),
+    # ── historical: 2026-04 (60-90 days ago) ──
+    ("清明节祭扫活动",      "民族宗教活动", "寺观教堂", "民政局",  65, 55, "已结束",             80),
+    ("樱花节开幕式",         "民俗活动",     "旅游景区", "旅游局",  70, 60, "已结束",             75),
+    ("全民健身运动会",      "体育赛事",     "旅游景区", "体育局",  68, 58, "已结束",             70),
+    ("知识产权宣传周",      "其他",         "中心广场", "科技局",  62, 52, "审批通过-待举办",     85),
+    ("民营企业座谈会",      "商贸活动",     "商业区域", "工商联",  60, 50, "审批通过",           90),
+    ("寺庙开光法会",         "民族宗教活动", "寺观教堂", "宗教局",  66, 56, "不通过/已终止",      68),
+    ("春季马拉松",           "体育赛事",     "旅游景区", "体育局",  58, 48, "已取消",             72),
+    ("茶叶博览会",           "商贸活动",     "中心广场", "农业局",  64, 54, "已延期",             78),
+    # ── historical: 2026-03 (90-120 days ago) ──
+    ("三八妇女节活动",      "文艺汇演",     "中心广场", "妇联",    95, 85, "已结束",            110),
+    ("消费者权益日宣传",    "其他",         "商业区域", "市监局", 100, 90, "已结束",            100),
+    ("春季花卉展",           "民俗活动",     "旅游景区", "园林局",  98, 88, "已结束",             95),
+    ("科技企业路演",         "商贸活动",     "中心广场", "科技局",  92, 82, "审批通过-待举办",   115),
+    ("寺庙祈福活动",         "民族宗教活动", "寺观教堂", "宗教局", 105, 95, "不通过/已终止",     108),
+    ("元宵庙会",             "民俗活动",     "寺观教堂", "文旅局", 110, 100, "已取消",           120),
 ]
 
 # which sub-records each target status needs
@@ -198,12 +225,14 @@ STATUS_NEEDS = {
 async def seed():
     async with async_session() as db:
         # ── ensure users ──
-        promoter = await _ensure_user(db, "promoter@test.com", "promoter", ["Promoter"])
+        promoter = await _ensure_user(db, "promoter@test.com", "promoter",
+                                       ["Promoter"], "13900139001")
         security = await _ensure_user(db, "security@test.com", "security",
-                                       ["SecurityOfficer"])
+                                       ["SecurityOfficer"], "13900139002")
         security_mgr = await _ensure_user(db, "security_mgr@test.com", "security_mgr",
-                                          ["SecurityManager"])
-        liaison = await _ensure_user(db, "liaison@test.com", "liaison", ["GovLiaison"])
+                                          ["SecurityManager"], "13900139003")
+        liaison = await _ensure_user(db, "liaison@test.com", "liaison",
+                                      ["GovLiaison"], "13900139004")
 
         # ── check existing ──
         names = [a[0] for a in ACTIVITIES]
@@ -214,9 +243,12 @@ async def seed():
 
         now = datetime.now(timezone.utc)
 
-        for name, atype, location, sponsor, est_days, dl_days, target in ACTIVITIES:
-            estimated = now + timedelta(days=est_days)
-            deadline = now + timedelta(days=dl_days)
+        for row in ACTIVITIES:
+            name, atype, location, sponsor, est_days, dl_days, target = row[:7]
+            created_days_ago = row[7] if len(row) > 7 else 0
+            created_at = now - timedelta(days=created_days_ago)
+            estimated = created_at + timedelta(days=est_days)
+            deadline = created_at + timedelta(days=dl_days)
 
             activity = Activity(
                 name=name,
@@ -230,6 +262,8 @@ async def seed():
                 status="待设计方案",
                 owner_id=promoter.id,
                 designer_id=promoter.id,
+                created_at=created_at,
+                updated_at=created_at,
             )
             db.add(activity)
             await db.flush()
@@ -267,10 +301,11 @@ async def seed():
                          len(sec_bytes), "application/pdf", ["安保"])
 
                 risk = {"社区志愿服务日": "低", "职工运动会": "高"}.get(name, "一般")
+                audited = target in ("审批通过", "审批通过-待举办", "举办中", "已结束")
                 db.add(SecurityPlan(
                     activity_id=activity.id,
                     risk_level=risk,
-                    audit_status="已审核",
+                    audit_status="已审核" if audited else "已签署",
                     manager_id=security_mgr.id,
                     sign_time=now,
                 ))
@@ -412,15 +447,13 @@ async def seed():
                     materials.append(("活动预算明细", False))
                 pre_signed = target not in ("待备案申请", "待补充备案材料", "待安保方案设计")
                 for mat_name, qualified in materials:
+                    mat_id_val = uuid4()
                     await db.execute(sa_text(
-                        "INSERT INTO key_materials (name, is_qualified, sign_status) "
-                        "VALUES (:n, :q, :s)"
-                    ), {"n": mat_name, "q": qualified,
+                        "INSERT INTO key_materials (id, name, is_qualified, sign_status, audit_round) "
+                        "VALUES (:id, :n, :q, :s, 0)"
+                    ), {"id": mat_id_val, "n": mat_name, "q": qualified,
                         "s": "signed" if pre_signed else "unsigned"})
-                    mat_result = await db.execute(sa_text(
-                        "SELECT id FROM key_materials WHERE name=:n ORDER BY created_at DESC LIMIT 1"
-                    ), {"n": mat_name})
-                    mat_id = mat_result.scalar_one()
+                    mat_id = mat_id_val
                     # link to security plan
                     sp_result = await db.execute(
                         select(SecurityPlan).where(SecurityPlan.activity_id == activity.id)
@@ -478,10 +511,13 @@ def _add_doc(db, activity_id, uploader_id, filename, minio_path, file_size, cont
     ))
 
 
-async def _ensure_user(db, email, display_name, role_names):
+async def _ensure_user(db, email, display_name, role_names, phone=""):
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
     if user:
+        if phone and not user.contact_phone:
+            user.contact_phone = phone
+            await db.commit()
         return user
     role_result = await db.execute(select(Role).where(Role.name.in_(role_names)))
     roles = role_result.scalars().all()
@@ -489,6 +525,7 @@ async def _ensure_user(db, email, display_name, role_names):
         email=email,
         password_hash=hash_password("pass123"),
         display_name=display_name,
+        contact_phone=phone,
     )
     db.add(user)
     await db.flush()

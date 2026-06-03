@@ -56,5 +56,11 @@ class Settings(BaseSettings):
     # CORS
     allow_origins: str = "http://localhost:5173"
 
+    # Frontend URL for Playwright PDF rendering
+    frontend_url: str = "http://localhost:5173"
+
+    # Playwright render service
+    playwright_svc_url: str = "http://localhost:3000"
+
 
 settings = Settings()
