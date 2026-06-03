@@ -267,10 +267,11 @@ async def seed():
                          len(sec_bytes), "application/pdf", ["安保"])
 
                 risk = {"社区志愿服务日": "低", "职工运动会": "高"}.get(name, "一般")
+                audited = target in ("审批通过", "审批通过-待举办", "举办中", "已结束")
                 db.add(SecurityPlan(
                     activity_id=activity.id,
                     risk_level=risk,
-                    audit_status="已审核",
+                    audit_status="已审核" if audited else "已签署",
                     manager_id=security_mgr.id,
                     sign_time=now,
                 ))

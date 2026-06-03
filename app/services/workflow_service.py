@@ -112,30 +112,31 @@ class WorkflowService:
                 ))
             return
 
-        if from_status != "待安保方案设计":
-            return
-
         from app.models.activity import SecurityPlan
-        from app.models.rbac import Role, UserRole
         sp = await self.db.get(SecurityPlan, activity_id)
         if sp is None:
             return
 
-        role_rows = await self.db.execute(
-            select(Role.name).join(UserRole, UserRole.role_id == Role.id)
-            .where(UserRole.user_id == operator.id)
-        )
-        roles = {row[0] for row in role_rows.all()}
+        if from_status == "待安保方案设计":
+            from app.models.rbac import Role, UserRole
+            role_rows = await self.db.execute(
+                select(Role.name).join(UserRole, UserRole.role_id == Role.id)
+                .where(UserRole.user_id == operator.id)
+            )
+            roles = {row[0] for row in role_rows.all()}
 
-        if to_status == "待安保方案设计":
-            sp.audit_status = "待编制"
-        elif to_status == "待备案申请":
-            if "SecurityManager" in roles:
-                sp.audit_status = "已签署"
-                sp.manager_id = operator.id
-                sp.sign_time = datetime.now(timezone.utc)
-            else:
-                sp.audit_status = "待签署"
+            if to_status == "待安保方案设计":
+                sp.audit_status = "待编制"
+            elif to_status == "待备案申请":
+                if "SecurityManager" in roles:
+                    sp.audit_status = "已签署"
+                    sp.manager_id = operator.id
+                    sp.sign_time = datetime.now(timezone.utc)
+                else:
+                    sp.audit_status = "待签署"
+
+        elif to_status == "审批通过":
+            sp.audit_status = "已审核"
 
     async def reject(
         self, activity_id: UUID, operator: User, reason: str,
