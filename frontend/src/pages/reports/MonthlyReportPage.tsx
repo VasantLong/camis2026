@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { Card, Col, Row, Statistic, Table, Typography, Spin, Empty, Result } from "antd";
+import { Button, Card, Col, Row, Statistic, Table, Typography, Spin, Empty, Result, Space } from "antd";
+import { DownloadOutlined } from "@ant-design/icons";
 import { Pie, Column, Line } from "@ant-design/charts";
 import { useAuthStore } from "@/stores/authStore";
+import { dashboardApi } from "@/api/dashboard";
 import client from "@/api/client";
 
 const { Title, Text } = Typography;
@@ -24,31 +26,38 @@ export default function MonthlyReportPage() {
   const token = searchParams.get("token");
   const dataKey = searchParams.get("data_key");
   const setAccessToken = useAuthStore((s) => s.setAccessToken);
+  const isPlaywright = !!(token && dataKey);
 
   const [data, setData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [chartsReady, setChartsReady] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
-    if (!token || !dataKey || !month) {
+    if (!month) {
       setError("缺少必要参数");
       setLoading(false);
       return;
     }
-    setAccessToken(token);
-    client
-      .get<ReportData>(`/dashboard/reports/${month}/data`, {
-        params: { data_key: dataKey },
-      })
-      .then((res) => {
-        setData(res.data);
-      })
-      .catch((err) => {
-        setError(err?.response?.data?.detail || "获取报表数据失败");
-      })
-      .finally(() => setLoading(false));
-  }, [token, dataKey, month, setAccessToken]);
+
+    if (isPlaywright) {
+      setAccessToken(token!);
+      client
+        .get<ReportData>(`/dashboard/reports/${month}/data`, {
+          params: { data_key: dataKey },
+        })
+        .then((res) => setData(res.data))
+        .catch((err) => setError(err?.response?.data?.detail || "获取报表数据失败"))
+        .finally(() => setLoading(false));
+    } else {
+      client
+        .get<ReportData>(`/dashboard/reports/${month}/view`)
+        .then((res) => setData(res.data))
+        .catch((err) => setError(err?.response?.data?.detail || "获取报表数据失败"))
+        .finally(() => setLoading(false));
+    }
+  }, [month, token, dataKey, isPlaywright, setAccessToken]);
 
   useEffect(() => {
     if (data) {
@@ -56,6 +65,19 @@ export default function MonthlyReportPage() {
       return () => clearTimeout(t);
     }
   }, [data]);
+
+  const handleDownload = async () => {
+    if (!month) return;
+    setDownloading(true);
+    try {
+      await dashboardApi.downloadReport(month);
+    } catch (err: unknown) {
+      const detail = (err as { detail?: string })?.detail || "下载失败";
+      if (!detail.includes("不存在")) throw err;
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -66,7 +88,7 @@ export default function MonthlyReportPage() {
   }
 
   if (error) {
-    return <Result status="error" title="报表生成失败" subTitle={error} />;
+    return <Result status="error" title="报表获取失败" subTitle={error} />;
   }
 
   if (!data) return null;
@@ -97,14 +119,28 @@ export default function MonthlyReportPage() {
 
   return (
     <div style={{ padding: 24, maxWidth: 1000, margin: "0 auto" }}>
-      {chartsReady && <div className="chart-ready" />}
+      {isPlaywright && chartsReady && <div className="chart-ready" />}
 
-      <Title level={3} style={{ marginBottom: 4 }}>
-        CAMIS 月度合规报告
-      </Title>
-      <Text type="secondary">
-        {month} · 生成时间 {data.generated_at?.slice(0, 10)}
-      </Text>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+        <div>
+          <Title level={3} style={{ marginBottom: 4 }}>
+            CAMIS 月度合规报告
+          </Title>
+          <Text type="secondary">
+            {month} · 生成时间 {data.generated_at?.slice(0, 10)}
+          </Text>
+        </div>
+        {!isPlaywright && (
+          <Button
+            type="primary"
+            icon={<DownloadOutlined />}
+            loading={downloading}
+            onClick={handleDownload}
+          >
+            下载 PDF
+          </Button>
+        )}
+      </div>
 
       <Row gutter={16} style={{ marginTop: 24 }}>
         <Col span={6}>
@@ -151,10 +187,7 @@ export default function MonthlyReportPage() {
                 colorField="type"
                 radius={0.8}
                 innerRadius={0.5}
-                label={{
-                  type: "spider",
-                  content: "{name}\n{percentage}",
-                }}
+                label={{ type: "spider", content: "{name}\n{percentage}" }}
                 height={280}
                 legend={{ position: "bottom" }}
               />

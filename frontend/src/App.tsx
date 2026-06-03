@@ -72,6 +72,14 @@ export default function App() {
                 }
               />
               <Route
+                path="/reports/:month"
+                element={
+                  <ProtectedRoute requiredPermissions={["export_report"]}>
+                    <MonthlyReportPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/notifications"
                 element={
                   <ProtectedRoute>

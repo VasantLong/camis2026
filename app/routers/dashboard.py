@@ -110,3 +110,17 @@ async def get_report_data(
         raise NotFoundError("报表数据已过期，请重新生成")
     import json
     return json.loads(cached)
+
+
+@router.get("/reports/{month}/view")
+async def view_report_data(
+    month: str,
+    current_user: User = Depends(get_current_user),
+    _perm: None = require_permission("export_report"),
+    db=Depends(get_db),
+):
+    from dataclasses import asdict
+    from app.services.report_data import ReportDataService
+    svc = ReportDataService(db)
+    data = await svc.gather(month)
+    return asdict(data)
