@@ -43,9 +43,24 @@ docker exec <name> netstat -tlnp | grep <port>
 
 - **改模型 = 必须生成 Alembic migration**：修改 `app/models/*.py` 中的列/表/约束后，必须 `alembic revision --autogenerate`，审查后提交
 - `init-scripts/` 已归档至 `docs/init-scripts-archive/`，仅保留 `00-extensions.sql`（uuid-ossp + update_updated_at 函数）
+- Docker 启动不再依赖 init-scripts；基线迁移 `642e62051696_initial_baseline` 包含全部 20+ 表 DDL + RBAC 种子数据 + `login_attempts` 表
 - Docker 启动自动执行 `alembic upgrade head`
-- 服务层现有 8 个 Service：ActivityService, WorkflowService, DocumentService, FilingService, NotificationService, DashboardService, **AuthService**, **AdminService**
+- 服务层现有 10 个 Service：ActivityService, WorkflowService, DocumentService, FilingService, NotificationService, DashboardService, **AuthService**, **AdminService**, **ReportDataService**（月报数据查询）, **ReportRenderer**（Playwright PDF 渲染，HTTP 客户端）
 - 新加 Service 命名 `XxxService`，构造函数 `def __init__(self, db: AsyncSession)`
+
+## Playwright PDF 渲染
+
+- `playwright-svc/` — 独立 Docker 微服务（FastAPI + headless Chromium），`POST /render` 接收 `{month, data_key, token}` 返回 PDF bytes
+- 主应用通过 `httpx` 调用 `http://localhost:3000/render`；开发环境 CDP 连接 Windows Edge (`127.0.0.1:9222`) 作为后备
+- Docker 部署：`playwright-svc` 容器内 Debian Bookworm 运行 Chromium headless，Ubuntu 26.04 WSL2 不支持 Playwright Chromium
+- 前端报表页 `/reports/monthly/:month` 使用 URL JWT token 自认证，渲染 `@ant-design/charts` 图表，`.chart-ready` 标记通知 Playwright 截图时机
+
+## 脚本速查
+
+| 脚本 | 用途 |
+|------|------|
+| `bash scripts/db-reset.sh` | 一键重建数据库（down -v + 迁移 + seed + 清限流） |
+| `bash scripts/check.sh` | Python 语法检查 + 前端构建验证 |
 
 ## 数据存储三原则（红线）
 

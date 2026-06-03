@@ -56,6 +56,9 @@
 | `PATCH`| `/notifications/{id}/read` | 登录用户 |
 | `PATCH`| `/notifications/read-all` | 登录用户 |
 | `GET`  | `/dashboard/reports/{month}` | `export_report` |
+| `GET`  | `/dashboard/reports/{month}/data` | `export_report` |
+| `GET`  | `/dashboard/reports/{month}/view` | `export_report` |
+| `GET`  | `/activities/counts` | 登录用户 |
 
 > ¹ `PUT /activities/{id}/status` 同时接受 `manage_security`、`audit_material`、`submit_plan` 权限。目标状态为"审批通过-待举办"时额外要求 `confirm_approval`。
 > 活动可见性按角色自动过滤状态（见 `docs/rbac.md`）。

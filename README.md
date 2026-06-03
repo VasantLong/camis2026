@@ -1,27 +1,21 @@
 # CAMIS — 活动合规审批管理系统
 
-> **v0.20.0** — 企业部门活动合规审批 MIS。技术栈：**Python (FastAPI)** + **React SPA** + **PostgreSQL 17** + **MinIO** + **Redis 7.4**，Docker Compose 本地编排，模块化单体架构。
+> **v0.21.0** — 企业部门活动合规审批 MIS。技术栈：**Python (FastAPI)** + **React SPA** + **PostgreSQL 17** + **MinIO** + **Redis 7.4**，Docker Compose 本地编排，模块化单体架构。
 
 ## 快速启动
 
 ```bash
-# 1. 仅启动基础设施 (PostgreSQL + MinIO + Redis + Mailpit)
-docker compose up -d postgres minio redis mailpit minio-init
+# 1. 一次性完整重置（含数据库、种子数据、PDF 渲染服务）
+bash scripts/db-reset.sh
 
-# 2. 数据库迁移 + 测试数据
-alembic upgrade head
-python scripts/seed_test_users.py
-python scripts/seed_test_activities.py
-python scripts/create_devtest_user.py
-
-# 3. 后端 (Python 3.12, mamba env: camis2026)
+# 2. 后端 (Python 3.12, mamba env: camis2026)
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 
-# 4. 前端 (React + Vite)
+# 3. 前端 (React + Vite)
 cd frontend && pnpm install && pnpm dev
 
-# 5. 验证
+# 4. 验证
 curl http://localhost:8000/health    # 后端
 open http://localhost:5173           # 前端
 open http://localhost:18025           # Mailpit
@@ -54,9 +48,12 @@ camis2026/
 ├── init-scripts/                   # PostgreSQL 扩展（仅 uuid-ossp）
 │   └── 00-extensions.sql
 ├── docs/init-scripts-archive/      # 历史 DDL（已由 Alembic 替代）
+├── playwright-svc/                 # Playwright PDF 渲染微服务 (独立 Docker 容器)
 ├── scripts/
+│   ├── db-reset.sh                 # 一键重建数据库 (down -v + 迁移 + seed)
+│   ├── check.sh                    # Python 语法 + 前端构建验证
 │   ├── seed_test_users.py          # 单角色测试用户 (8 users)
-│   ├── seed_test_activities.py     # 23 种子活动 + seed 用户
+│   ├── seed_test_activities.py     # 47 种子活动 (4 个月跨度)
 │   └── create_devtest_user.py      # 全能测试用户 (devtest)
 ├── app/                            # FastAPI 后端
 │   ├── main.py                     # 入口, lifespan, CORS

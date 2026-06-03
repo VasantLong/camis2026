@@ -25,7 +25,7 @@ Docker 只跑基础设施，FastAPI 和前端在本地跑，支持热重载：
 
 ```bash
 # 终端 1：仅启动基础设施服务（数据库 + 存储 + 缓存）
-docker compose up -d postgres minio redis mailpit
+docker compose up -d postgres minio redis mailpit playwright-svc
 
 # 终端 2：后端 API（热重载，改代码自动重启）
 cd /home/vasant/projects/work/camis2026
