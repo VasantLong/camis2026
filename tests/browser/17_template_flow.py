@@ -96,15 +96,15 @@ with sync_playwright() as p:
     gen_btn.click()
     page.wait_for_timeout(1000)
 
-    # Confirm modal
-    confirm_btn = page.locator('.ant-modal-confirm .ant-btn-primary:has-text("确认生成")').first
-    check(confirm_btn.count() > 0, "confirmation modal shown")
-    confirm_btn.click()
+    # Confirm modal — press Enter (antd modal.confirm button click doesn't fire onOk)
+    check(page.locator('.ant-modal-confirm .ant-btn-primary:has-text("确认生成")').count() > 0, "confirmation modal shown")
+    page.keyboard.press("Enter")
     page.wait_for_timeout(500)
 
     # Wait for confirm modal to close
     page.wait_for_selector('.ant-modal-confirm', state='detached', timeout=5000)
     page.wait_for_load_state("networkidle")
+    page.wait_for_timeout(2000)
 
     # Wait for version timeline to show v1
     page.wait_for_selector('button:has-text("v1")', timeout=20000)
@@ -119,11 +119,11 @@ with sync_playwright() as p:
 
     gen_btn.click()
     page.wait_for_timeout(1000)
-    confirm_btn = page.locator('.ant-modal-confirm .ant-btn-primary:has-text("确认生成")').first
-    confirm_btn.click()
+    page.keyboard.press("Enter")
     page.wait_for_timeout(500)
     page.wait_for_selector('.ant-modal-confirm', state='detached', timeout=5000)
     page.wait_for_load_state("networkidle")
+    page.wait_for_timeout(2000)
     page.wait_for_selector('button:has-text("v2")', timeout=20000)
     check(True, "v2 appears in timeline")
 
@@ -194,10 +194,11 @@ with sync_playwright() as p:
     page.wait_for_timeout(1000)
     cfm = page.locator('.ant-modal-confirm .ant-btn-primary:has-text("确认生成")').first
     if cfm.count() > 0:
-        cfm.click()
+        page.keyboard.press("Enter")
         page.wait_for_timeout(500)
         page.wait_for_selector('.ant-modal-confirm', state='detached', timeout=5000)
         page.wait_for_load_state("networkidle")
+        page.wait_for_timeout(2000)
 
     page.wait_for_selector('button:has-text("v1")', timeout=20000)
     check(True, "security plan v1 generated")
