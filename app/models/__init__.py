@@ -10,6 +10,7 @@ from app.models.material import KeyMaterial, MaterialAudit, SecurityPlanMaterial
 from app.models.rule import ActivityRule, ActivityRuleTarget
 from app.models.notification import Notification
 from app.models.rbac import Permission, Role, RolePermission, RoleRequest, UserRole
+from app.models.template import FilledDocument
 
 __all__ = [
     "Base", "User", "Document",
@@ -20,5 +21,5 @@ __all__ = [
     "SecurityPlanMaterial",
     "ActivityRule", "ActivityRuleTarget",
     "Role", "Permission", "UserRole", "RolePermission", "RoleRequest",
-    "Notification",
+    "Notification", "FilledDocument",
 ]

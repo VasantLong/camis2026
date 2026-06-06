@@ -14,17 +14,17 @@
 
 ### ActivityPlan（活动方案）
 
-宣策部编制的活动策划文档。包含活动内容描述和图文附件（PDF/JPG/PNG，≤50MB）。
+宣策部编制的活动策划文档。通过调取系统内置的**活动方案文档模板**（DocumentTemplate），在线填写结构化表单后生成。包含活动内容描述和图文附件（PDF/JPG/PNG，≤50MB）。支持草稿暂存和提交生成，驳回后重新生成产生新版本。
 
 ### SecurityPlan（安保方案）
 
-安保部根据活动风险等级编制的安保预案。包含人员配置、动线、风险评估表、安全责任确认书。需负责人电子签名。
+安保部根据活动风险等级编制的安保预案。填写前先确定风险等级（大型/中型/高风险），系统根据风险等级返回对应的**安保方案文档模板**（条件段变体）。包含人员配置、动线、风险评估表、安全责任确认书。需负责人电子签名。
 
 审核状态流转：待编制 → 待签署 → 已签署 → 已审核（详见 `docs/state-machine.md`）。
 
 ### FilingDoc（备案材料包）
 
-每次打包生成一个材料包快照。一个活动可有多轮打包（政府审查后打回修正，安保部重新打包提交）。包含合规证明材料集合、打包时间、交接状态。
+每次打包生成一个材料包快照。一个活动可有多轮打包（政府审查后打回修正，安保部重新打包提交）。包含合规证明材料集合（通过 `filing_doc_materials` 关联 KeyMaterial）、打包时间、交接状态。打包时生成 ZIP 压缩包（含备案清单 PDF + 各材料 DOCX 文件），存入 MinIO。
 
 ### ApprovalRecord（政府批文）
 
@@ -32,11 +32,19 @@
 
 ### KeyMaterial（关键材料）
 
-各类关键文件（风险评估表、责任确认书、备案承诺书等）。每条材料有合规状态（待审核/合格/不合格）和最新审查意见。状态由 GovLiaison 逐一审查后设定。
+各类关键文件（风险评估表、责任确认书、备案承诺书等）。每种材料有固定的 `material_type`（risk_assessment / responsibility_letter / filing_commitment），一个活动下每种类型唯一。通过调取对应类型的**文档模板**在线填写生成，生成后挂载到当前 FilledDocument 版本。每条材料有合规状态（待审核/合格/不合格）、签署状态和最新审查意见。状态由 GovLiaison 逐一审查后设定。
 
 ### MaterialAudit（材料审核记录，新增）
 
 每次对材料的审核/签署操作产生一条记录。含操作人、时间、动作类型（审核/签署）、结论、意见。is_qualified 和 opinion 在每个 KeyMaterial 上做最新状态的快照冗余。
+
+### DocumentTemplate（文档模板）
+
+系统内置的标准化文档框架。每种模板对应一种业务文件类型（activity_plan / security_plan / risk_assessment / responsibility_letter / filing_commitment），定义表单字段结构和 DOCX 渲染规则。模板文件存储在代码仓库中，随应用部署，不由普通用户增删。安保方案模板根据风险等级包含条件内容段。
+
+### FilledDocument（生成文件）
+
+用户通过填写模板表单后提交生成的正式文件。每个生成文件是 immutable 的版本记录，包含提交时的表单数据快照（data_snapshot）、渲染产物（DOCX + PDF）和模板 hash（用于审计追溯）。同一活动下同一模板类型的多个版本通过 `version_number` 递增区分。当前活跃版本由所属实体（ActivityPlan / SecurityPlan / KeyMaterial）的 `current_filled_document_id` 指向。驳回修正、政府要求补充材料等场景产生新版本，原版本保留为历史审计记录。
 
 ### ImplementationRecord（活动实施记录）
 

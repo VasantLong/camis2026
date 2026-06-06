@@ -27,7 +27,8 @@ frontend/src/
 │   ├── materials.ts        # list, sign, audit, auditHistory
 │   ├── roleRequest.ts      # submit role request
 │   ├── notifications.ts    # list, unreadCount, markRead, markAllRead
-│   └── dashboard.ts        # panel, activityDetail, monthlyReport
+│   ├── dashboard.ts        # panel, activityDetail, monthlyReport
+│   └── templates.ts        # plan/security-plan/materials schema+draft+generate+versions+diff
 ├── stores/
 │   └── authStore.ts        # Zustand: user, accessToken, permissions, isAuthenticated
 ├── hooks/
@@ -39,7 +40,8 @@ frontend/src/
 │   ├── document.ts         # DocumentResponse
 │   ├── workflow.ts         # StatusTransition, RejectRequest, ForceChangeRequest
 │   ├── filing.ts           # MaterialValidation, FilingPackResult
-│   └── dashboard.ts        # PanelData, AnomalyEntry, ActivityDetail, MonthlyReportRequest
+│   ├── dashboard.ts        # PanelData, AnomalyEntry, ActivityDetail, MonthlyReportRequest
+│   └── template.ts         # SchemaResponse, FieldDef, VersionItem/Detail/Diff, GenerateResponse
 ├── pages/
 │   ├── LoginPage.tsx
 │   ├── RegisterPage.tsx
@@ -82,6 +84,9 @@ frontend/src/
 │   │   ├── FilingValidatePanel.tsx # 材料合规性表格
 │   │   ├── FilingPackModal.tsx     # 打包确认
 │   │   └── HandoverConfirm.tsx     # 交接确认（不可逆）
+│   ├── templates/
+│   │   ├── TemplateForm.tsx        # Schema驱动动态表单 (8种字段类型+条件显隐)
+│   │   └── VersionTimeline.tsx     # 版本历史列表+详情/差异对比
 │   └── dashboard/
 │       ├── StatusDistribution.tsx  # 状态分布 Progress 条
 │       ├── AnomalyList.tsx         # 异常活动表格
@@ -105,6 +110,43 @@ frontend/src/
 - 后端 `BackgroundTasks` 异步生成 PDF 上传 MinIO，完成后推送通知（`reference_type="report"`）
 - 前端收到 toast "报表生成中…"，用户通过铃铛通知点击下载 PDF
 - `GET /dashboard/reports/{month}` 下载端点
+
+## 文档模板系统 (P1/P2)
+
+模板系统提供 schema 驱动的动态表单，生成标准化的活动方案、安保方案和关键材料 DOCX/PDF 文档。
+
+### 架构
+
+```
+用户打开活动详情页 → 点击"活动方案"/"安保方案" Tab
+  → GET /activities/{id}/plan/schema (获取字段定义+草稿)
+  → TemplateForm 根据 schema.fields 动态渲染表单
+  → 保存草稿: PUT /activities/{id}/plan/draft
+  → 提交生成: 确认弹窗 → POST /activities/{id}/plan/generate → 渲染 DOCX → 转 PDF → MinIO
+  → 生成后自动弹窗 iframe 预览 PDF
+  → VersionTimeline 展示版本历史 → 支持详情查看和两版本差异对比
+```
+
+### 支持的字段类型
+
+| ui_type | 组件 | 说明 |
+|---------|------|------|
+| `text` | Input | 单行文本 |
+| `textarea` | Input.TextArea | 多行文本 |
+| `number` | InputNumber | 数值输入 |
+| `date` | DatePicker | 日期选择 |
+| `select` | Select | 下拉选择 (options 定义) |
+| `checkbox` | Checkbox | 布尔勾选 |
+| `repeater` | Form.List | 可增删的动态列表 |
+| `signature` | Button+Input | 签名图片上传 (P3 手写板) |
+
+### 条件字段
+
+字段可定义 `condition` 属性（如 `"risk_level == '大型'"`），根据表单其他字段值动态显隐。安保方案的 `CONDITIONAL_FIELDS` 按风险等级（大型/中型/高风险）控制大型活动专属字段。
+
+### 安保方案流程
+
+SecurityOfficer 首次进入时，若 `risk_level` 为空则先弹风险等级选择器（大型/中型/高风险），写入 `PUT /activities/{id}/security-plan` 后加载对应条件的表单。
 
 ## 路由
 

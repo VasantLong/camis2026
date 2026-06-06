@@ -1,6 +1,6 @@
 # 服务内部设计
 
-模块化单体中 6 个服务的内部领域模型、方法签名、校验规则与依赖关系。
+模块化单体中 9 个服务的内部领域模型、方法签名、校验规则与依赖关系。
 
 > 服务蓝图与路由契约见 `docs/design-process.md` 和 `docs/api-routes.md`。
 
@@ -520,7 +520,7 @@ flowchart TD
     DBR --> DBS --> DB
 ```
 
-> **注**：`WorkflowService` 是枢纽——它依赖 `NotificationService`（发通知）和 `ActivityService`（查状态）。`AuthService` 和 `AdminService` 为独立服务，无跨服务依赖。
+> **注**：`WorkflowService` 是枢纽——它依赖 `NotificationService`（发通知）和 `ActivityService`（查状态）。`AuthService` 和 `AdminService` 为独立服务，无跨服务依赖。`TemplateService` 依赖 MinIO（文件上传）和 `WorkflowService`（activity_plan generate 后自动状态变迁）。
 
 ---
 
@@ -536,3 +536,4 @@ flowchart TD
 | DashboardService    |      ✅       |    ✅    |    ✅    |                ✅                |
 | AuthService         |      ✅       |    ✅    |    ✅    |                ✅                |
 | AdminService        |      ✅       |    ✅    |    ✅    |                ✅                |
+| TemplateService     |      ✅       |    ✅    |    ✅    |                ✅                |

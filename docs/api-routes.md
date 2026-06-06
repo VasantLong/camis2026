@@ -23,6 +23,25 @@
 | `GET`  | `/activities/{id}/history` | `view_owned_activity` |
 | `GET`  | `/activities/{id}/documents` | `view_owned_activity` |
 | `GET`  | `/activities/{id}/security-plan` | `view_owned_activity` |
+| `PUT`  | `/activities/{id}/security-plan` | `manage_security` |
+| `GET`  | `/activities/{id}/plan/schema` | 登录用户 |
+| `PUT`  | `/activities/{id}/plan/draft` | `submit_plan` |
+| `POST` | `/activities/{id}/plan/generate` | `submit_plan` |
+| `GET`  | `/activities/{id}/plan/versions` | 登录用户 |
+| `GET`  | `/activities/{id}/plan/versions/{vn}` | 登录用户 |
+| `GET`  | `/activities/{id}/plan/versions/{v1}/diff/{v2}` | 登录用户 |
+| `GET`  | `/activities/{id}/security-plan/schema` | 登录用户 |
+| `PUT`  | `/activities/{id}/security-plan/draft` | `manage_security` |
+| `POST` | `/activities/{id}/security-plan/generate` | `manage_security` |
+| `GET`  | `/activities/{id}/security-plan/versions` | 登录用户 |
+| `GET`  | `/activities/{id}/security-plan/versions/{vn}` | 登录用户 |
+| `GET`  | `/activities/{id}/security-plan/versions/{v1}/diff/{v2}` | 登录用户 |
+| `GET`  | `/activities/{id}/materials/{mid}/schema` | 登录用户 |
+| `PUT`  | `/activities/{id}/materials/{mid}/draft` | `pack_filing` |
+| `POST` | `/activities/{id}/materials/{mid}/generate` | `pack_filing` |
+| `GET`  | `/activities/{id}/materials/{mid}/versions` | 登录用户 |
+| `GET`  | `/activities/{id}/materials/{mid}/versions/{vn}` | 登录用户 |
+| `GET`  | `/activities/{id}/materials/{mid}/versions/{v1}/diff/{v2}` | 登录用户 |
 | `PUT`  | `/activities/{id}/status` | `manage_security`¹ |
 | `POST` | `/activities/{id}/reject` | `reject_approval` |
 | `POST` | `/activities/{id}/force-cancel` | `force_cancel` |
@@ -253,6 +272,39 @@ content_type: "application/pdf"
 { "month": "2026-01" }
 // → 异步生成 PDF 报表，完成后通过 NotificationService 推送下载链接
 ```
+
+### 文档模板
+
+模板系统提供 5 种内置文档模板（活动方案、安保方案、风险评估报备表、安全消防责任确认书、备案承诺书），通过 schema 驱动表单填写 → `docxtpl` 渲染 DOCX → `soffice` 转 PDF 存 MinIO。
+
+#### `GET /activities/{id}/plan/schema` — 获取活动方案表单定义
+
+```json
+{
+  "template_type": "activity_plan",
+  "display_name": "活动方案",
+  "has_draft": true,
+  "draft_data": {"activity_content": "上次草稿内容"},
+  "current_version": 2,
+  "fields": [
+    {"name": "activity_content", "ui_label": "活动主要内容", "ui_type": "textarea", "required": true}
+  ]
+}
+```
+
+前端 `TemplateForm` 根据 `fields` 动态渲染表单控件（8 种 `ui_type`：text/textarea/number/date/select/checkbox/repeater/signature）。
+
+#### `PUT /activities/{id}/plan/draft` — 保存草稿
+
+不占版本号，写入 `activity_plans.draft_data`。
+
+#### `POST /activities/{id}/plan/generate` — 提交生成
+
+渲染 DOCX + 转 PDF → MinIO → INSERT `filled_documents`（版本+1）→ 清空草稿。响应含 `pdf_preview_url`（预签名 URL，前端 iframe 预览）。活动状态为"待设计方案"时自动触发工作流变迁至"待安保方案设计"。
+
+安保方案 schema 含 `risk_level_first: true`，前端先弹风险等级选择器（大型/中型/高风险），写入 `PUT /activities/{id}/security-plan` 的 `risk_level` 后加载条件表单。
+
+版本历史和差异对比见 `GET .../versions` 和 `GET .../versions/{v1}/diff/{v2}`。
 
 ## 实现状态
 

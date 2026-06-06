@@ -1,15 +1,22 @@
 from __future__ import annotations
 
+import tempfile
+import zipfile
 from datetime import datetime, timezone
+from io import BytesIO
+from pathlib import Path
 from uuid import UUID
 
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.activity import Activity
+from app.models.filing import FilingDoc, FilingDocMaterial
 from app.models.material import KeyMaterial, MaterialAudit
+from app.models.template import FilledDocument
 from app.models.user import User
 from app.schemas.filing import FilingPackResult, MaterialValidation
+from app.services import minio_client
 
 # These tables are created by init-scripts/02-activity-tables.sql but ORM models
 # not yet defined. We'll use raw SQL for the join queries until models are added.
@@ -86,8 +93,6 @@ class FilingService:
         qualified = [v for v in validations if v.is_qualified and not v.issues]
         all_ok = len(qualified) == len(validations) and len(validations) > 0
 
-        from app.models.filing import FilingDoc
-
         doc = await self.db.execute(
             select(FilingDoc).where(FilingDoc.activity_id == activity_id)
         )
@@ -117,13 +122,28 @@ class FilingService:
                 ready=False,
             )
 
-        from app.models.activity import Activity
+        # Link materials to filing doc
+        await self._link_materials_to_filing(activity_id, filing_doc.id, validations)
+
         activity = await self.db.get(Activity, activity_id)
 
+        # Generate simple PDF listing (existing behavior)
         pdf_bytes = _generate_pdf(activity.name if activity else "未知活动", validations)
-        from app.services.minio_client import upload_file as minio_upload
         pdf_path = f"filings/{activity_id}/pack_{filing_doc.id}.pdf"
-        await minio_upload(pdf_path, pdf_bytes, "application/pdf")
+        await minio_client.upload_file(pdf_path, pdf_bytes, "application/pdf")
+
+        # Generate ZIP pack with DOCX files
+        try:
+            zip_bytes = await self._build_zip_pack(
+                activity.name if activity else "未知活动", activity_id,
+            )
+            zip_path = f"filings/{activity_id}/pack_{filing_doc.id}.zip"
+            await minio_client.upload_file(zip_path, zip_bytes, "application/zip")
+            filing_doc.pack_url = zip_path
+            await self.db.commit()
+        except Exception:
+            # ZIP pack is best-effort; don't block the pack operation
+            pass
 
         return FilingPackResult(
             filing_doc_id=filing_doc.id,
@@ -133,8 +153,55 @@ class FilingService:
             ready=True,
         )
 
+    async def _link_materials_to_filing(
+        self, activity_id: UUID, filing_doc_id: UUID, validations: list[MaterialValidation],
+    ) -> None:
+        """Ensure all qualified materials are linked to the filing doc via filing_doc_materials."""
+        material_ids = {v.material_id for v in validations}
+
+        existing = await self.db.execute(
+            select(FilingDocMaterial.material_id).where(
+                FilingDocMaterial.filing_doc_id == filing_doc_id,
+            )
+        )
+        existing_ids = {r for (r,) in existing.all()}
+
+        for mid in material_ids - existing_ids:
+            self.db.add(FilingDocMaterial(filing_doc_id=filing_doc_id, material_id=mid))
+        await self.db.commit()
+
+    async def _build_zip_pack(self, activity_name: str, activity_id: UUID) -> bytes:
+        """Collect filled DOCX files for materials linked to activity and zip them."""
+        # Find filled documents linked via key_materials
+        materials_result = await self.db.execute(
+            select(KeyMaterial).where(KeyMaterial.activity_id == activity_id)
+        )
+        materials = materials_result.scalars().all()
+
+        buf = BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            for i, mat in enumerate(materials, 1):
+                if mat.current_filled_document_id:
+                    fd = await self.db.get(FilledDocument, mat.current_filled_document_id)
+                    if fd:
+                        try:
+                            docx_data = minio_client.minio_client.get_object(
+                                minio_client._bucket, fd.minio_path,
+                            ).read()
+                            safe_name = f"{i:02d}_{mat.name}_v{fd.version_number}.docx"
+                            zf.writestr(safe_name, docx_data)
+                        except Exception:
+                            # skip individual files that can't be read
+                            pass
+
+            # Add index PDF
+            pdf_bytes = _generate_pdf(activity_name, [])
+            zf.writestr("备案清单.pdf", pdf_bytes)
+
+        buf.seek(0)
+        return buf.getvalue()
+
     async def confirm_handover(self, activity_id: UUID, operator: User) -> FilingDoc:
-        from app.models.filing import FilingDoc
 
         result = await self.db.execute(
             select(FilingDoc).where(FilingDoc.activity_id == activity_id)
@@ -201,7 +268,6 @@ class FilingService:
         }
 
     async def get_filing_status(self, activity_id: UUID) -> dict:
-        from app.models.filing import FilingDoc
         result = await self.db.execute(
             select(FilingDoc).where(FilingDoc.activity_id == activity_id)
         )

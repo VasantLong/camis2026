@@ -29,5 +29,6 @@ class FilingDoc(Base):
     is_qualified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     handover_status: Mapped[str] = mapped_column(String(64), default="未交接", nullable=False)
     generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    pack_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

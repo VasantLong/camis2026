@@ -32,6 +32,14 @@ export const activitiesApi = {
       sign_time: string | null;
     }>(`/activities/${id}/security-plan`),
 
+  updateSecurityPlan: (id: string, data: { risk_level?: string }) =>
+    client.put<{
+      risk_level: string | null;
+      audit_status: string | null;
+      manager_name: string | null;
+      sign_time: string | null;
+    }>(`/activities/${id}/security-plan`, data),
+
   fetchCounts: () =>
     client.get<Record<string, number>>("/activities/counts"),
 };
