@@ -1,8 +1,8 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint, func
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.user import Base
@@ -57,8 +57,14 @@ class ActivityPlan(Base):
     submit_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     designer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     is_overdue: Mapped[bool] = mapped_column(default=False, nullable=False)
+    draft_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    current_filled_document_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("filled_documents.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (UniqueConstraint("activity_id"),)
 
 
 class SecurityPlan(Base):
@@ -72,8 +78,14 @@ class SecurityPlan(Base):
     audit_status: Mapped[str] = mapped_column(String(64), default="待编制", nullable=False)
     manager_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     sign_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    draft_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    current_filled_document_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("filled_documents.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (UniqueConstraint("activity_id"),)
 
 
 class ApprovalRecord(Base):
