@@ -173,14 +173,18 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
                     添加
                   </Button>
                 </Form.Item>
-                {items.map(({ key, name, ...rest }) => (
-                  <Space key={key} style={{ display: "flex", marginBottom: 8 }} align="baseline">
-                    <Form.Item {...rest} name={name} rules={[{ required: true, message: "必填" }]}>
-                      <Input placeholder={`${field.ui_label} #${name + 1}`} />
-                    </Form.Item>
-                    <DeleteOutlined onClick={() => remove(name)} style={{ color: "#ff4d4f" }} />
-                  </Space>
-                ))}
+                {(items as any[]).map(({ key, name, ...rest }) => {
+                  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                  const { key: _k, ...fieldProps } = rest as any;
+                  return (
+                    <Space key={key} style={{ display: "flex", marginBottom: 8 }} align="baseline">
+                      <Form.Item {...fieldProps} name={name} rules={[{ required: true, message: "必填" }]}>
+                        <Input placeholder={`${field.ui_label} #${(name as number) + 1}`} />
+                      </Form.Item>
+                      <DeleteOutlined onClick={() => remove(name as number)} style={{ color: "#ff4d4f" }} />
+                    </Space>
+                  );
+                })}
               </>
             )}
           </Form.List>
