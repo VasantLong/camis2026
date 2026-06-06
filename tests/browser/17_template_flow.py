@@ -117,7 +117,7 @@ with sync_playwright() as p:
     gen_btn2.click()
     page.wait_for_timeout(1000)
     check(page.locator('.ant-modal:has-text("确认生成")').count() > 0, "confirm modal for v2")
-    page.locator('.ant-modal button:has-text("确认生成")').first.click()
+    page.keyboard.press("Enter")  # antd Modal OK button via keyboard
     page.wait_for_timeout(500)
     page.wait_for_selector('.ant-modal:has-text("确认生成")', state='hidden', timeout=5000)
     page.wait_for_timeout(5000)
