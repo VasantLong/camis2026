@@ -269,17 +269,20 @@ export default function ActivityDetailPage() {
                           const result = res.data;
                           queryClient.setQueryData<VersionItem[]>(
                             ["activities", id, "templates", "plan-versions"],
-                            (old = []) => [
-                              {
-                                id: result.id,
-                                version_number: result.version_number,
-                                generated_by: "",
-                                created_at: result.created_at,
-                                is_current: true,
-                                pdf_ready: result.pdf_ready,
-                              },
-                              ...old.map((v) => ({ ...v, is_current: false })),
-                            ],
+                            (old) => {
+                              const prev = (old || []).map((v) => ({ ...v, is_current: false }));
+                              return [
+                                {
+                                  id: result.id,
+                                  version_number: result.version_number,
+                                  generated_by: "",
+                                  created_at: result.created_at,
+                                  is_current: true,
+                                  pdf_ready: result.pdf_ready,
+                                },
+                                ...prev,
+                              ];
+                            },
                           );
                           // Patch schema cache: update version + store generated data as snapshot
                           queryClient.setQueryData<SchemaResponse>(

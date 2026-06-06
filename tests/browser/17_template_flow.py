@@ -110,11 +110,13 @@ with sync_playwright() as p:
     print("\n=== TC2: v2 + diff ===")
     ta = page.locator('textarea').first
     ta.fill("浏览器测试：v2 修改后的活动方案内容——增加消防措施")
-    page.wait_for_timeout(1000)  # wait for isDirty to propagate
+    page.wait_for_timeout(2000)
 
-    # button should now be enabled (form changed from snapshot)
-    page.locator('button:has-text("提交生成"):not([disabled])').first.click()
+    gen_btn2 = page.locator('button:has-text("提交生成")').first
+    check(gen_btn2.is_enabled(), "generate button enabled after text change")
+    gen_btn2.click()
     page.wait_for_timeout(1000)
+    check(page.locator('.ant-modal:has-text("确认生成")').count() > 0, "confirm modal for v2")
     page.locator('.ant-modal-footer .ant-btn-primary:has-text("确认生成")').first.click()
     page.wait_for_timeout(500)
     page.wait_for_selector('.ant-modal:has-text("确认生成")', state='hidden', timeout=5000)

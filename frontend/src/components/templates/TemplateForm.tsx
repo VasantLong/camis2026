@@ -71,7 +71,11 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
       for (const f of schema.fields) {
         const val = prefillData[f.name];
         if (val !== undefined) {
-          vals[f.name] = f.ui_type === "date" && typeof val === "string" ? dayjs(val) : val;
+          if (f.ui_type === "date" && typeof val === "string") {
+        if (val) vals[f.name] = dayjs(val);  // skip empty strings (dayjs("") → Invalid Date)
+      } else {
+        vals[f.name] = val;
+      }
         }
       }
       form.setFieldsValue(vals);
@@ -224,18 +228,14 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
   };
 
   const doGenerate = async () => {
-    setConfirmOpen(false);
-    setSubmitting(true);
     const nextVersion = (schema.current_version ?? 0) + 1;
     try {
       const values = form.getFieldsValue();
       const data = serializeFormData(values, schema.fields);
       await onSubmit(data);
-      message.success(`已生成 v${nextVersion}，可在版本历史中查看预览`);
+      message.success(`已生成 v${nextVersion}`);
     } catch {
       message.error("生成失败");
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -263,7 +263,7 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
       <Modal
         title="确认生成"
         open={confirmOpen}
-        onOk={doGenerate}
+        onOk={async () => { await doGenerate(); setConfirmOpen(false); }}
         onCancel={() => setConfirmOpen(false)}
         okText="确认生成"
         cancelText="取消"
