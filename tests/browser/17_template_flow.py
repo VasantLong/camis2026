@@ -112,6 +112,13 @@ with sync_playwright() as p:
     page.wait_for_timeout(2000)
     page.wait_for_load_state("networkidle")
 
+    # Debug: read version text from DOM
+    version_area = page.locator('.ant-tabs-tabpane-active').inner_text()
+    has_v1_dom = "v1" in version_area
+    has_no_version_dom = "暂无版本记录" in version_area
+    print(f"  [debug] has v1 in DOM: {has_v1_dom}, has no_version: {has_no_version_dom}")
+    print(f"  [debug] active tab text[:200]: {version_area[:200]}")
+
     # Wait for version timeline to show v1
     page.wait_for_selector('button:has-text("v1")', timeout=20000)
     check(True, "v1 appears in timeline")
