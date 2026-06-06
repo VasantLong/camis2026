@@ -100,18 +100,19 @@ with sync_playwright() as p:
     confirm_btn = page.locator('.ant-modal-confirm .ant-btn-primary:has-text("确认生成")').first
     check(confirm_btn.count() > 0, "confirmation modal shown")
     confirm_btn.click()
-    page.wait_for_timeout(8000)
-    page.wait_for_load_state("networkidle")
 
-    # Close PDF preview modal first (blocks other clicks)
-    preview = page.locator('.ant-modal:has-text("PDF 预览")').first
-    if preview.count() > 0:
-        preview.locator('.ant-modal-close').first.click()
-        page.wait_for_timeout(1000)
+    # Wait for PDF preview modal to appear
+    page.wait_for_selector('.ant-modal:has-text("PDF 预览")', timeout=15000)
+    page.wait_for_timeout(500)
 
-    # v1 in version timeline
-    v1_btn = page.locator('button:has-text("v1")').first
-    check(v1_btn.count() > 0, "v1 appears in timeline")
+    # Close PDF preview modal
+    close_btn = page.locator('.ant-modal:has-text("PDF 预览") .ant-modal-close').first
+    close_btn.click()
+    page.wait_for_timeout(1000)
+
+    # Wait for v1 button in version timeline
+    page.wait_for_selector('button:has-text("v1")', timeout=10000)
+    check(True, "v1 appears in timeline")
 
     # ============================================================
     # 2. Generate v2 then diff v1 vs v2
@@ -124,21 +125,20 @@ with sync_playwright() as p:
     page.wait_for_timeout(1000)
     confirm_btn = page.locator('.ant-modal-confirm .ant-btn-primary:has-text("确认生成")').first
     confirm_btn.click()
-    page.wait_for_timeout(8000)
-    page.wait_for_load_state("networkidle")
 
-    # Close PDF preview modal first
-    preview = page.locator('.ant-modal:has-text("PDF 预览")').first
-    if preview.count() > 0:
-        preview.locator('.ant-modal-close').first.click()
-        page.wait_for_timeout(1000)
+    # Wait for PDF preview modal and close it
+    page.wait_for_selector('.ant-modal:has-text("PDF 预览")', timeout=15000)
+    page.wait_for_timeout(500)
+    page.locator('.ant-modal:has-text("PDF 预览") .ant-modal-close').first.click()
+    page.wait_for_timeout(1000)
 
-    v2_btn = page.locator('button:has-text("v2")').first
-    check(v2_btn.count() > 0, "v2 appears in timeline")
+    # Wait for v2 button
+    page.wait_for_selector('button:has-text("v2")', timeout=10000)
+    check(True, "v2 appears in timeline")
 
     # Select v1 and v2 for diff
     page.locator('button:has-text("v1")').first.click()
-    v2_btn.click()
+    page.locator('button:has-text("v2")').first.click()
     page.wait_for_timeout(300)
 
     diff_btn = page.locator('button:has-text("对比")').first
@@ -204,18 +204,16 @@ with sync_playwright() as p:
     cfm = page.locator('.ant-modal-confirm .ant-btn-primary:has-text("确认生成")').first
     if cfm.count() > 0:
         cfm.click()
-        page.wait_for_timeout(8000)
-        page.wait_for_load_state("networkidle")
 
-        # Close PDF preview
-        preview = page.locator('.ant-modal:has-text("PDF 预览")').first
-        if preview.count() > 0:
-            preview.locator('.ant-modal-close').first.click()
-            page.wait_for_timeout(1000)
+        # Wait for PDF preview modal and close it
+        page.wait_for_selector('.ant-modal:has-text("PDF 预览")', timeout=15000)
+        page.wait_for_timeout(500)
+        page.locator('.ant-modal:has-text("PDF 预览") .ant-modal-close').first.click()
+        page.wait_for_timeout(1000)
 
-    # Check version generated
-    sp_v1 = page.locator('button:has-text("v1")').first
-    check(sp_v1.count() > 0, "security plan v1 generated")
+    # Wait for security plan v1
+    page.wait_for_selector('button:has-text("v1")', timeout=10000)
+    check(True, "security plan v1 generated")
 
     # ============================================================
     # Report
