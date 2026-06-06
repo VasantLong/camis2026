@@ -63,10 +63,10 @@ class TemplateService:
         return schema
 
     async def save_draft(
-        self, template_type: str, activity_id: UUID, data: dict,
+        self, template_type: str, activity_id: UUID, data: dict, user_id: UUID,
         material_type: str | None = None,
     ) -> None:
-        entity = await self._get_or_create_entity(template_type, activity_id, material_type)
+        entity = await self._get_or_create_entity(template_type, activity_id, user_id, material_type)
         entity.draft_data = data
         logger.info("draft saved type=%s activity=%s", template_type, activity_id)
         await self.db.flush()
@@ -79,7 +79,7 @@ class TemplateService:
         self, template_type: str, activity_id: UUID, data: dict, user_id: UUID,
         material_type: str | None = None,
     ) -> FilledDocument:
-        entity = await self._get_or_create_entity(template_type, activity_id, material_type)
+        entity = await self._get_or_create_entity(template_type, activity_id, user_id, material_type)
 
         # resolve version
         version_number = await self._next_version(activity_id, template_type)
@@ -312,7 +312,8 @@ class TemplateService:
         return None
 
     async def _get_or_create_entity(
-        self, template_type: str, activity_id: UUID, material_type: str | None = None,
+        self, template_type: str, activity_id: UUID, user_id: UUID,
+        material_type: str | None = None,
     ):
         entity_type = TEMPLATE_ENTITY_MAP[template_type]
         if entity_type == "activity_plan":
@@ -321,7 +322,7 @@ class TemplateService:
             )
             entity = result.scalar_one_or_none()
             if not entity:
-                entity = ActivityPlan(activity_id=activity_id, designer_id=UUID("00000000-0000-0000-0000-000000000000"))
+                entity = ActivityPlan(activity_id=activity_id, designer_id=user_id)
                 self.db.add(entity)
                 await self.db.flush()
             return entity

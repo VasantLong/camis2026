@@ -50,7 +50,7 @@ async def plan_save_draft(
     svc: TemplateService = Depends(_svc),
 ):
     """Save activity plan draft."""
-    await svc.save_draft("activity_plan", activity_id, body.data)
+    await svc.save_draft("activity_plan", activity_id, body.data, current_user.id)
     return {"ok": True}
 
 
@@ -131,7 +131,7 @@ async def security_plan_save_draft(
     _=require_permission("manage_security"),
     svc: TemplateService = Depends(_svc),
 ):
-    await svc.save_draft("security_plan", activity_id, body.data)
+    await svc.save_draft("security_plan", activity_id, body.data, current_user.id)
     return {"ok": True}
 
 
@@ -223,7 +223,7 @@ async def material_save_draft(
     )
     if not mat or mat.activity_id != activity_id or not mat.material_type:
         raise HTTPException(status_code=404, detail="Material not found")
-    await svc.save_draft(mat.material_type, activity_id, body.data, mat.material_type)
+    await svc.save_draft(mat.material_type, activity_id, body.data, current_user.id, mat.material_type)
     return {"ok": True}
 
 
