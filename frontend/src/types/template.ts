@@ -26,6 +26,7 @@ export interface VersionItem {
   generated_by: string;
   created_at: string | null;
   is_current: boolean;
+  pdf_ready: boolean;
 }
 
 export interface VersionDetail extends VersionItem {
@@ -44,6 +45,7 @@ export interface GenerateResponse {
   template_type: string;
   version_number: number;
   minio_path: string;
+  pdf_ready: boolean;
   pdf_preview_url: string | null;
   created_at: string | null;
 }

@@ -83,13 +83,16 @@ export default function VersionTimeline({ versions, onViewDetail, onDiff, onPrev
             <Button size="small" type="link" onClick={() => handleViewDetail(v.version_number)}>
               详情
             </Button>
-            {onPreview && (
+            {onPreview && v.pdf_ready && (
               <Button size="small" type="link" onClick={async () => {
                 const url = await onPreview(v.version_number);
                 if (url) setPreviewUrl(url);
               }}>
                 预览
               </Button>
+            )}
+            {onPreview && !v.pdf_ready && (
+              <Tag>生成中</Tag>
             )}
           </Space>
         ))}
