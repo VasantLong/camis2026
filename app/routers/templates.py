@@ -46,7 +46,7 @@ async def plan_save_draft(
     activity_id: UUID,
     body: DraftRequest,
     current_user: User = Depends(get_current_user),
-    _=Depends(require_permission("submit_plan")),
+    _=require_permission("submit_plan"),
     svc: TemplateService = Depends(_svc),
 ):
     """Save activity plan draft."""
@@ -59,7 +59,7 @@ async def plan_generate(
     activity_id: UUID,
     body: GenerateRequest,
     current_user: User = Depends(get_current_user),
-    _=Depends(require_permission("submit_plan")),
+    _=require_permission("submit_plan"),
     svc: TemplateService = Depends(_svc),
 ):
     """Generate activity plan DOCX+PDF from template."""
@@ -128,7 +128,7 @@ async def security_plan_save_draft(
     activity_id: UUID,
     body: DraftRequest,
     current_user: User = Depends(get_current_user),
-    _=Depends(require_permission("manage_security")),
+    _=require_permission("manage_security"),
     svc: TemplateService = Depends(_svc),
 ):
     await svc.save_draft("security_plan", activity_id, body.data)
@@ -140,7 +140,7 @@ async def security_plan_generate(
     activity_id: UUID,
     body: GenerateRequest,
     current_user: User = Depends(get_current_user),
-    _=Depends(require_permission("manage_security")),
+    _=require_permission("manage_security"),
     svc: TemplateService = Depends(_svc),
 ):
     fd = await svc.generate("security_plan", activity_id, body.data, current_user.id)
@@ -215,7 +215,7 @@ async def material_save_draft(
     activity_id: UUID, material_id: UUID,
     body: DraftRequest,
     current_user: User = Depends(get_current_user),
-    _=Depends(require_permission("pack_filing")),
+    _=require_permission("pack_filing"),
     svc: TemplateService = Depends(_svc),
 ):
     mat = await svc.db.get(
@@ -232,7 +232,7 @@ async def material_generate(
     activity_id: UUID, material_id: UUID,
     body: GenerateRequest,
     current_user: User = Depends(get_current_user),
-    _=Depends(require_permission("pack_filing")),
+    _=require_permission("pack_filing"),
     svc: TemplateService = Depends(_svc),
 ):
     mat = await svc.db.get(
