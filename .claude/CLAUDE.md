@@ -45,8 +45,9 @@ docker exec <name> netstat -tlnp | grep <port>
 - `init-scripts/` 已归档至 `docs/init-scripts-archive/`，仅保留 `00-extensions.sql`（uuid-ossp + update_updated_at 函数）
 - Docker 启动不再依赖 init-scripts；基线迁移 `642e62051696_initial_baseline` 包含全部 20+ 表 DDL + RBAC 种子数据 + `login_attempts` 表
 - Docker 启动自动执行 `alembic upgrade head`
-- 服务层现有 10 个 Service：ActivityService, WorkflowService, DocumentService, FilingService, NotificationService, DashboardService, **AuthService**, **AdminService**, **ReportDataService**（月报数据查询）, **ReportRenderer**（Playwright PDF 渲染，HTTP 客户端）
+- 服务层现有 11 个 Service：ActivityService, WorkflowService, DocumentService, FilingService, NotificationService, DashboardService, **AuthService**, **AdminService**, **ReportDataService**（月报数据查询）, **ReportRenderer**（Playwright PDF 渲染，HTTP 客户端）, **TemplateService**（DOCX 模板渲染 + 版本管理，借助 docxtpl + LibreOffice）
 - 新加 Service 命名 `XxxService`，构造函数 `def __init__(self, db: AsyncSession)`
+- 文档模板：`app/templates/{type}/` 含 `schema.py`（Pydantic 表单）和 `template.docx`（docxtpl Jinja2 占位符），详见 `docs/adr/0006.md`
 
 ## Playwright PDF 渲染
 
@@ -61,6 +62,7 @@ docker exec <name> netstat -tlnp | grep <port>
 |------|------|
 | `bash scripts/db-reset.sh` | 一键重建数据库（down -v + 迁移 + seed + 清限流） |
 | `bash scripts/check.sh` | Python 语法检查 + 前端构建验证 |
+| `python scripts/create_template_docx.py` | 重建 5 个 DOCX 模板文件 |
 
 ## 数据存储三原则（红线）
 
