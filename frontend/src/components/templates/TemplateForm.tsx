@@ -9,10 +9,11 @@ import {
   Button,
   Space,
   Upload,
+  Modal,
   App,
 } from "antd";
 import { PlusOutlined, DeleteOutlined, UploadOutlined } from "@ant-design/icons";
-import type { SchemaResponse, FieldDef } from "@/types/template";
+import type { SchemaResponse, FieldDef, GenerateResponse } from "@/types/template";
 import { documentsApi } from "@/api/documents";
 import dayjs from "dayjs";
 
@@ -21,14 +22,15 @@ interface Props {
   schema: SchemaResponse;
   loading?: boolean;
   onSaveDraft: (data: Record<string, unknown>) => Promise<void>;
-  onSubmit: (data: Record<string, unknown>) => Promise<void>;
+  onSubmit: (data: Record<string, unknown>) => Promise<GenerateResponse>;
 }
 
 export default function TemplateForm({ activityId, schema, loading, onSaveDraft, onSubmit }: Props) {
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const { message } = App.useApp();
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const { message, modal } = App.useApp();
 
   useEffect(() => {
     if (schema.has_draft && schema.draft_data) {
@@ -182,39 +184,67 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
     }
   };
 
-  const handleSubmit = async () => {
-    try {
-      await form.validateFields();
-    } catch {
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const values = form.getFieldsValue();
-      const data = serializeFormData(values, schema.fields);
-      await onSubmit(data);
-      message.success(`已生成 v${(schema.current_version ?? 0) + 1}`);
-    } catch {
-      message.error("生成失败");
-    } finally {
-      setSubmitting(false);
-    }
+  const handleSubmit = () => {
+    form.validateFields().then(() => {
+      const nextVersion = (schema.current_version ?? 0) + 1;
+      modal.confirm({
+        title: "确认生成",
+        content: `将生成 v${nextVersion} 版本，生成后不可撤销。确认继续？`,
+        okText: "确认生成",
+        cancelText: "取消",
+        onOk: async () => {
+          setSubmitting(true);
+          try {
+            const values = form.getFieldsValue();
+            const data = serializeFormData(values, schema.fields);
+            const result = await onSubmit(data);
+            message.success(`已生成 v${nextVersion}`);
+            if (result.pdf_preview_url) {
+              setPreviewUrl(result.pdf_preview_url);
+            }
+          } catch {
+            message.error("生成失败");
+          } finally {
+            setSubmitting(false);
+          }
+        },
+      });
+    }).catch(() => {});
   };
 
   return (
-    <Form form={form} layout="vertical" disabled={loading || submitting}>
-      {visibleFields(schema.fields).map(renderField)}
-      <Form.Item>
-        <Space>
-          <Button onClick={handleSaveDraft} loading={saving}>
-            保存草稿
-          </Button>
-          <Button type="primary" onClick={handleSubmit} loading={submitting}>
-            提交生成
-          </Button>
-        </Space>
-      </Form.Item>
-    </Form>
+    <>
+      <Form form={form} layout="vertical" disabled={loading || submitting}>
+        {visibleFields(schema.fields).map(renderField)}
+        <Form.Item>
+          <Space>
+            <Button onClick={handleSaveDraft} loading={saving}>
+              保存草稿
+            </Button>
+            <Button type="primary" onClick={handleSubmit} loading={submitting}>
+              提交生成
+            </Button>
+          </Space>
+        </Form.Item>
+      </Form>
+      <Modal
+        title="PDF 预览"
+        open={!!previewUrl}
+        onCancel={() => setPreviewUrl(null)}
+        footer={null}
+        width="90%"
+        style={{ top: 20 }}
+        destroyOnClose
+      >
+        {previewUrl && (
+          <iframe
+            src={previewUrl}
+            style={{ width: "100%", height: "75vh", border: "none" }}
+            title="PDF 预览"
+          />
+        )}
+      </Modal>
+    </>
   );
 }
 

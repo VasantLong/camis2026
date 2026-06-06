@@ -79,7 +79,7 @@ class TemplateService:
     async def generate(
         self, template_type: str, activity_id: UUID, data: dict, user_id: UUID,
         material_type: str | None = None,
-    ) -> FilledDocument:
+    ) -> dict:
         entity = await self._get_or_create_entity(template_type, activity_id, user_id, material_type)
 
         # resolve version
@@ -98,10 +98,12 @@ class TemplateService:
 
         # convert to PDF
         pdf_path = None
+        pdf_preview_url = None
         try:
             pdf_bytes = await self._docx_to_pdf(docx_bytes)
             pdf_path = f"filled_documents/{activity_id}/{template_type}/v{version_number}.pdf"
             await minio_client.upload_file(pdf_path, pdf_bytes, "application/pdf")
+            pdf_preview_url = await minio_client.get_presigned_url(pdf_path, inline=True)
         except Exception:
             logger.warning("pdf conversion failed type=%s activity=%s", template_type, activity_id)
 
@@ -143,7 +145,14 @@ class TemplateService:
             "generated type=%s activity=%s v%d",
             template_type, activity_id, version_number,
         )
-        return fd
+        return {
+            "id": fd.id,
+            "template_type": fd.template_type,
+            "version_number": fd.version_number,
+            "minio_path": fd.minio_path,
+            "pdf_preview_url": pdf_preview_url,
+            "created_at": fd.created_at.isoformat() if fd.created_at else None,
+        }
 
     # ------------------------------------------------------------------
     # versions

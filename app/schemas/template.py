@@ -26,6 +26,7 @@ class GenerateResponse(BaseModel):
     template_type: str
     version_number: int
     minio_path: str
+    pdf_preview_url: str | None = None
     created_at: str | None
 
 

@@ -265,9 +265,10 @@ export default function ActivityDetailPage() {
                           await templatesApi.savePlanDraft(id!, data);
                         }}
                         onSubmit={async (data) => {
-                          await templatesApi.generatePlan(id!, data);
+                          const res = await templatesApi.generatePlan(id!, data);
                           refetchPlanSchema();
                           refetchPlanVersions();
+                          return res.data;
                         }}
                       />
                       <VersionTimeline
@@ -318,9 +319,10 @@ export default function ActivityDetailPage() {
                           await templatesApi.saveSecurityPlanDraft(id!, data);
                         }}
                         onSubmit={async (data) => {
-                          await templatesApi.generateSecurityPlan(id!, data);
+                          const res = await templatesApi.generateSecurityPlan(id!, data);
                           refetchSecuritySchema();
                           refetchSecurityVersions();
+                          return res.data;
                         }}
                       />
                       <VersionTimeline

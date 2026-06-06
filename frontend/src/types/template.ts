@@ -44,5 +44,6 @@ export interface GenerateResponse {
   template_type: string;
   version_number: number;
   minio_path: string;
+  pdf_preview_url: string | null;
   created_at: string | null;
 }

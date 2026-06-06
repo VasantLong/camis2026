@@ -63,12 +63,8 @@ async def plan_generate(
     svc: TemplateService = Depends(_svc),
 ):
     """Generate activity plan DOCX+PDF from template."""
-    fd = await svc.generate("activity_plan", activity_id, body.data, current_user.id)
-    return GenerateResponse(
-        id=fd.id, template_type=fd.template_type,
-        version_number=fd.version_number, minio_path=fd.minio_path,
-        created_at=fd.created_at.isoformat() if fd.created_at else None,
-    )
+    result = await svc.generate("activity_plan", activity_id, body.data, current_user.id)
+    return GenerateResponse(**result)
 
 
 @router.get("/{activity_id}/plan/versions", response_model=list[VersionItem])
@@ -143,12 +139,8 @@ async def security_plan_generate(
     _=require_permission("manage_security"),
     svc: TemplateService = Depends(_svc),
 ):
-    fd = await svc.generate("security_plan", activity_id, body.data, current_user.id)
-    return GenerateResponse(
-        id=fd.id, template_type=fd.template_type,
-        version_number=fd.version_number, minio_path=fd.minio_path,
-        created_at=fd.created_at.isoformat() if fd.created_at else None,
-    )
+    result = await svc.generate("security_plan", activity_id, body.data, current_user.id)
+    return GenerateResponse(**result)
 
 
 @router.get("/{activity_id}/security-plan/versions", response_model=list[VersionItem])
@@ -240,14 +232,10 @@ async def material_generate(
     )
     if not mat or mat.activity_id != activity_id or not mat.material_type:
         raise HTTPException(status_code=404, detail="Material not found")
-    fd = await svc.generate(
+    result = await svc.generate(
         mat.material_type, activity_id, body.data, current_user.id, mat.material_type,
     )
-    return GenerateResponse(
-        id=fd.id, template_type=fd.template_type,
-        version_number=fd.version_number, minio_path=fd.minio_path,
-        created_at=fd.created_at.isoformat() if fd.created_at else None,
-    )
+    return GenerateResponse(**result)
 
 
 @router.get("/{activity_id}/materials/{material_id}/versions", response_model=list[VersionItem])
