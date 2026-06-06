@@ -103,15 +103,15 @@ with sync_playwright() as p:
     page.wait_for_timeout(8000)
     page.wait_for_load_state("networkidle")
 
-    # v1 in version timeline
-    v1_btn = page.locator('button:has-text("v1")').first
-    check(v1_btn.count() > 0, "v1 appears in timeline")
-
-    # Close PDF preview modal if shown
+    # Close PDF preview modal first (blocks other clicks)
     preview = page.locator('.ant-modal:has-text("PDF 预览")').first
     if preview.count() > 0:
         preview.locator('.ant-modal-close').first.click()
-        page.wait_for_timeout(500)
+        page.wait_for_timeout(1000)
+
+    # v1 in version timeline
+    v1_btn = page.locator('button:has-text("v1")').first
+    check(v1_btn.count() > 0, "v1 appears in timeline")
 
     # ============================================================
     # 2. Generate v2 then diff v1 vs v2
@@ -127,14 +127,14 @@ with sync_playwright() as p:
     page.wait_for_timeout(8000)
     page.wait_for_load_state("networkidle")
 
-    v2_btn = page.locator('button:has-text("v2")').first
-    check(v2_btn.count() > 0, "v2 appears in timeline")
-
-    # Close PDF preview
+    # Close PDF preview modal first
     preview = page.locator('.ant-modal:has-text("PDF 预览")').first
     if preview.count() > 0:
         preview.locator('.ant-modal-close').first.click()
-        page.wait_for_timeout(500)
+        page.wait_for_timeout(1000)
+
+    v2_btn = page.locator('button:has-text("v2")').first
+    check(v2_btn.count() > 0, "v2 appears in timeline")
 
     # Select v1 and v2 for diff
     page.locator('button:has-text("v1")').first.click()
@@ -206,6 +206,12 @@ with sync_playwright() as p:
         cfm.click()
         page.wait_for_timeout(8000)
         page.wait_for_load_state("networkidle")
+
+        # Close PDF preview
+        preview = page.locator('.ant-modal:has-text("PDF 预览")').first
+        if preview.count() > 0:
+            preview.locator('.ant-modal-close').first.click()
+            page.wait_for_timeout(1000)
 
     # Check version generated
     sp_v1 = page.locator('button:has-text("v1")').first
