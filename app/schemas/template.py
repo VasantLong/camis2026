@@ -37,6 +37,7 @@ class VersionItem(BaseModel):
     generated_by: str
     created_at: str | None
     is_current: bool
+    pdf_ready: bool = False
 
 
 class VersionDetail(BaseModel):
@@ -47,6 +48,7 @@ class VersionDetail(BaseModel):
     generated_by: str
     created_at: str | None
     is_current: bool
+    pdf_ready: bool = False
 
 
 class VersionDiff(BaseModel):

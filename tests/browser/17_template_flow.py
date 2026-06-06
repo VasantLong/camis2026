@@ -104,7 +104,15 @@ with sync_playwright() as p:
     # Wait for modal to close
     page.wait_for_selector('.ant-modal:has-text("确认生成")', state='hidden', timeout=5000)
     page.wait_for_load_state("networkidle")
-    page.wait_for_timeout(2000)
+    page.wait_for_timeout(5000)
+
+    # Debug
+    OUT.mkdir(exist_ok=True)
+    page.screenshot(path=str(OUT / "debug_after_generate.png"))
+    all_text = page.locator('body').inner_text()
+    has_v1 = "v1" in all_text
+    has_no_version = "暂无版本记录" in all_text
+    print(f"  [debug] has v1: {has_v1}, has no_version: {has_no_version}")
 
     # Wait for version timeline to show v1
     page.wait_for_selector('button:has-text("v1")', timeout=20000)
