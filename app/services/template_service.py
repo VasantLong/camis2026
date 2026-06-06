@@ -121,20 +121,6 @@ class TemplateService:
         entity.submit_time = datetime.now(timezone.utc)
         await self.db.flush()
 
-        # workflow trigger for activity plan (also commits)
-        if template_type == "activity_plan":
-            activity = await self.db.get(Activity, activity_id)
-            if activity and activity.status == "待设计方案":
-                from app.services.workflow_service import WorkflowService
-                from app.services.notification_service import NotificationService
-                ws = WorkflowService(self.db, NotificationService(self.db))
-                await ws.transition(
-                    activity_id, "待安保方案设计",
-                    await self.db.get(
-                        __import__("app.models.user", fromlist=["User"]).User, user_id,
-                    ),
-                )
-
         logger.info(
             "generated type=%s activity=%s v%d",
             template_type, activity_id, version_number,
@@ -149,6 +135,26 @@ class TemplateService:
             "docx_bytes": docx_bytes,  # for background task (not exposed to client)
             "created_at": fd.created_at.isoformat() if fd.created_at else None,
         }
+
+    # ------------------------------------------------------------------
+    # finalize
+    # ------------------------------------------------------------------
+
+    async def finalize_plan(self, activity_id: UUID, user_id: UUID) -> None:
+        """Finalize the activity plan: check version exists, trigger workflow transition."""
+        entity = await self._get_entity("activity_plan", activity_id)
+        if not entity or not entity.current_filled_document_id:
+            raise ValueError("活动方案尚未生成，无法最终确定")
+
+        activity = await self.db.get(Activity, activity_id)
+        if not activity or activity.status != "待设计方案":
+            raise ValueError("当前状态不允许最终确定")
+
+        from app.services.workflow_service import WorkflowService
+        from app.services.notification_service import NotificationService
+        ws = WorkflowService(self.db, NotificationService(self.db))
+        User = __import__("app.models.user", fromlist=["User"]).User
+        await ws.transition(activity_id, "待安保方案设计", await self.db.get(User, user_id))
 
     # ------------------------------------------------------------------
     # versions

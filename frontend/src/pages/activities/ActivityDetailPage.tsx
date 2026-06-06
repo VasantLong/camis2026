@@ -281,7 +281,11 @@ export default function ActivityDetailPage() {
                               ...old.map((v) => ({ ...v, is_current: false })),
                             ],
                           );
-                          refetchPlanSchema();  // non-blocking: keep current_version accurate
+                          // Patch schema cache so confirmation modal shows correct version
+                          queryClient.setQueryData(
+                            ["activities", id, "templates", "plan-schema"],
+                            (old: any) => old ? { ...old, current_version: result.version_number, has_draft: false, draft_data: null } : old,
+                          );
                           return result;
                         }}
                       />
@@ -299,6 +303,19 @@ export default function ActivityDetailPage() {
                           return r.data.url;
                         }}
                       />
+                      {planVersions.length > 0 && activity?.status === "待设计方案" && permissions.includes("submit_plan") && (
+                        <Button
+                          type="primary"
+                          style={{ marginTop: 16 }}
+                          onClick={async () => {
+                            await templatesApi.finalizePlan(id!);
+                            message.success("方案已最终确定，已提交至安保方案设计");
+                            queryClient.invalidateQueries({ queryKey: ["activities", id] });
+                          }}
+                        >
+                          最终确定方案
+                        </Button>
+                      )}
                     </div>
                   ) : (
                     <Spin />

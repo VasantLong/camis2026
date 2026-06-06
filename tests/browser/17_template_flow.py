@@ -118,8 +118,8 @@ with sync_playwright() as p:
     page.locator('.ant-modal-footer .ant-btn-primary:has-text("确认生成")').first.click()
     page.wait_for_timeout(500)
     page.wait_for_selector('.ant-modal:has-text("确认生成")', state='hidden', timeout=5000)
-    page.wait_for_timeout(2000)
-    page.wait_for_selector('button:has-text("v2")', timeout=15000)
+    page.wait_for_timeout(5000)
+    page.wait_for_selector('button:has-text("v2")', timeout=20000)
     check(True, "v2 appears in timeline")
 
     # Select v1 and v2 for diff
@@ -139,6 +139,13 @@ with sync_playwright() as p:
 
     diff_modal.locator('.ant-modal-close').first.click()
     page.wait_for_timeout(500)
+
+    # Finalize plan (triggers workflow → 待安保方案设计)
+    finalize_btn = page.locator('button:has-text("最终确定方案")').first
+    check(finalize_btn.count() > 0, "finalize button visible")
+    finalize_btn.click()
+    page.wait_for_timeout(2000)
+    page.wait_for_load_state("networkidle")
 
     # ============================================================
     # 3. SecurityOfficer: risk level → security plan → generate

@@ -30,6 +30,9 @@ export const templatesApi = {
   getPlanVersionPreview: (activityId: string, version: number) =>
     client.get<{ url: string }>(`/activities/${activityId}/plan/versions/${version}/preview`),
 
+  finalizePlan: (activityId: string) =>
+    client.post<{ ok: boolean }>(`/activities/${activityId}/plan/finalize`),
+
   // ── security plan ──
   getSecurityPlanSchema: (activityId: string) =>
     client.get<SchemaResponse>(`/activities/${activityId}/security-plan/schema`),

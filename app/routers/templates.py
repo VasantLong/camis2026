@@ -95,6 +95,18 @@ async def plan_version_detail(
     return VersionDetail(**detail)
 
 
+@router.post("/{activity_id}/plan/finalize")
+async def plan_finalize(
+    activity_id: UUID,
+    current_user: User = Depends(get_current_user),
+    _=require_permission("submit_plan"),
+    svc: TemplateService = Depends(_svc),
+):
+    """Finalize activity plan: submit to 安保方案设计 stage."""
+    await svc.finalize_plan(activity_id, current_user.id)
+    return {"ok": True}
+
+
 @router.get("/{activity_id}/plan/versions/{version_number}/preview")
 async def plan_version_preview(
     activity_id: UUID, version_number: int,
