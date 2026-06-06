@@ -107,34 +107,27 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
   );
 
   const renderField = (field: FieldDef, changed: boolean) => {
-    const common: Record<string, unknown> = {
-      key: field.name,
-      name: field.name,
-      label: field.ui_label,
-      rules: field.required
-        ? [{ required: true, message: `请填写${field.ui_label}` }]
-        : undefined,
-    };
-    if (changed) {
-      common.style = { background: "#fffbe6", padding: 8, borderRadius: 4 };
-    }
+    const itemStyle = changed ? { background: "#fffbe6", padding: 8, borderRadius: 4 } : undefined;
+    const rules = field.required
+      ? [{ required: true, message: `请填写${field.ui_label}` }]
+      : undefined;
 
     switch (field.ui_type) {
       case "text":
         return (
-          <Form.Item {...common}>
+          <Form.Item key={field.name} name={field.name} label={field.ui_label} rules={rules} style={itemStyle}>
             <Input placeholder={field.ui_label} />
           </Form.Item>
         );
       case "textarea":
         return (
-          <Form.Item {...common}>
+          <Form.Item key={field.name} name={field.name} label={field.ui_label} rules={rules} style={itemStyle}>
             <Input.TextArea rows={4} placeholder={field.ui_label} />
           </Form.Item>
         );
       case "number":
         return (
-          <Form.Item {...common}>
+          <Form.Item key={field.name} name={field.name} label={field.ui_label} rules={rules} style={itemStyle}>
             <InputNumber
               min={field.min ?? 0}
               style={{ width: "100%" }}
@@ -144,13 +137,13 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
         );
       case "date":
         return (
-          <Form.Item {...common}>
+          <Form.Item key={field.name} name={field.name} label={field.ui_label} rules={rules} style={itemStyle}>
             <DatePicker style={{ width: "100%" }} />
           </Form.Item>
         );
       case "select":
         return (
-          <Form.Item {...common}>
+          <Form.Item key={field.name} name={field.name} label={field.ui_label} rules={rules} style={itemStyle}>
             <Select
               placeholder={field.ui_label}
               options={(field.options || []).map((o) => ({ label: o, value: o }))}
@@ -159,7 +152,7 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
         );
       case "checkbox":
         return (
-          <Form.Item {...common} valuePropName="checked">
+          <Form.Item key={field.name} name={field.name} label={field.ui_label} rules={rules} style={itemStyle} valuePropName="checked">
             <Checkbox>{field.ui_label}</Checkbox>
           </Form.Item>
         );
@@ -191,7 +184,7 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
         );
       case "signature":
         return (
-          <Form.Item {...common}>
+          <Form.Item key={field.name} name={field.name} label={field.ui_label} rules={rules} style={itemStyle}>
             <Upload
               accept="image/*"
               maxCount={1}

@@ -66,7 +66,7 @@ export default function VersionTimeline({ versions, onViewDetail, onDiff, onPrev
         )}
       </Space>
 
-      <Space direction="vertical" size="small">
+      <Space orientation="vertical" size="small">
         {versions.map((v) => (
           <Space key={v.id}>
             <Button
@@ -154,7 +154,7 @@ export default function VersionTimeline({ versions, onViewDetail, onDiff, onPrev
         footer={null}
         width="90%"
         style={{ top: 20 }}
-        destroyOnClose
+        destroyOnHidden
       >
         {previewUrl && (
           <iframe
