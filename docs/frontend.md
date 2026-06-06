@@ -122,7 +122,8 @@ frontend/src/
   → GET /activities/{id}/plan/schema (获取字段定义+草稿)
   → TemplateForm 根据 schema.fields 动态渲染表单
   → 保存草稿: PUT /activities/{id}/plan/draft
-  → 提交生成: POST /activities/{id}/plan/generate → 渲染 DOCX → 转 PDF → MinIO
+  → 提交生成: 确认弹窗 → POST /activities/{id}/plan/generate → 渲染 DOCX → 转 PDF → MinIO
+  → 生成后自动弹窗 iframe 预览 PDF
   → VersionTimeline 展示版本历史 → 支持详情查看和两版本差异对比
 ```
 

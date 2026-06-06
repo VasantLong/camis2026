@@ -300,7 +300,7 @@ content_type: "application/pdf"
 
 #### `POST /activities/{id}/plan/generate` — 提交生成
 
-渲染 DOCX + 转 PDF → MinIO → INSERT `filled_documents`（版本+1）→ 清空草稿。活动状态为"待设计方案"时自动触发工作流变迁至"待安保方案设计"。
+渲染 DOCX + 转 PDF → MinIO → INSERT `filled_documents`（版本+1）→ 清空草稿。响应含 `pdf_preview_url`（预签名 URL，前端 iframe 预览）。活动状态为"待设计方案"时自动触发工作流变迁至"待安保方案设计"。
 
 安保方案 schema 含 `risk_level_first: true`，前端先弹风险等级选择器（大型/中型/高风险），写入 `PUT /activities/{id}/security-plan` 的 `risk_level` 后加载条件表单。
 
