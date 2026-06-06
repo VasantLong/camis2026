@@ -225,6 +225,7 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
   };
 
   const doGenerate = async () => {
+    setSubmitting(true);
     const nextVersion = (schema.current_version ?? 0) + 1;
     try {
       const values = form.getFieldsValue();
@@ -233,6 +234,9 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
       message.success(`已生成 v${nextVersion}`);
     } catch {
       message.error("生成失败");
+    } finally {
+      setSubmitting(false);
+      setConfirmOpen(false);
     }
   };
 
@@ -260,7 +264,7 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
       <Modal
         title="确认生成"
         open={confirmOpen}
-        onOk={async () => { await doGenerate(); setConfirmOpen(false); }}
+        onOk={doGenerate}
         onCancel={() => setConfirmOpen(false)}
         okText="确认生成"
         cancelText="取消"
