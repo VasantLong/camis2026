@@ -259,6 +259,7 @@ export default function ActivityDetailPage() {
                   children: planSchema ? (
                     <div>
                       <TemplateForm
+                        activityId={id!}
                         schema={planSchema}
                         onSaveDraft={async (data) => {
                           await templatesApi.savePlanDraft(id!, data);
@@ -311,6 +312,7 @@ export default function ActivityDetailPage() {
                         </div>
                       )}
                       <TemplateForm
+                        activityId={id!}
                         schema={securityPlanSchema}
                         onSaveDraft={async (data) => {
                           await templatesApi.saveSecurityPlanDraft(id!, data);

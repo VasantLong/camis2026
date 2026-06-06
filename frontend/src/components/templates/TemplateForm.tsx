@@ -8,20 +8,23 @@ import {
   Checkbox,
   Button,
   Space,
+  Upload,
   App,
 } from "antd";
-import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
+import { PlusOutlined, DeleteOutlined, UploadOutlined } from "@ant-design/icons";
 import type { SchemaResponse, FieldDef } from "@/types/template";
+import { documentsApi } from "@/api/documents";
 import dayjs from "dayjs";
 
 interface Props {
+  activityId: string;
   schema: SchemaResponse;
   loading?: boolean;
   onSaveDraft: (data: Record<string, unknown>) => Promise<void>;
   onSubmit: (data: Record<string, unknown>) => Promise<void>;
 }
 
-export default function TemplateForm({ schema, loading, onSaveDraft, onSubmit }: Props) {
+export default function TemplateForm({ activityId, schema, loading, onSaveDraft, onSubmit }: Props) {
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -140,7 +143,24 @@ export default function TemplateForm({ schema, loading, onSaveDraft, onSubmit }:
       case "signature":
         return (
           <Form.Item {...common}>
-            <Input placeholder="签名（P3 将支持手写板）" disabled />
+            <Upload
+              accept="image/*"
+              maxCount={1}
+              customRequest={async ({ file, onSuccess, onError }) => {
+                try {
+                  const res = await documentsApi.upload(activityId, file as File, ["signature"]);
+                  const doc = res.data;
+                  form.setFieldValue(field.name, doc.minio_path);
+                  onSuccess?.(doc);
+                  message.success(`已上传签名图片`);
+                } catch {
+                  onError?.(new Error("上传失败"));
+                  message.error("签名上传失败");
+                }
+              }}
+            >
+              <Button icon={<UploadOutlined />}>上传签名图片</Button>
+            </Upload>
           </Form.Item>
         );
       default:

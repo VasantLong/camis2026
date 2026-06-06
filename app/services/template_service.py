@@ -231,13 +231,27 @@ class TemplateService:
     async def _render_docx(
         self, template_type: str, data: dict, risk_level: str | None,
     ) -> bytes:
+        from docxtpl import InlineImage
+        from docx.shared import Mm
+
         template_path = TEMPLATES_ROOT / template_type / "template.docx"
         if not template_path.exists():
             raise FileNotFoundError(f"template not found: {template_path}")
 
         doc = DocxTemplate(template_path)
-        # inject display mappings for checkbox fields
         context = dict(data)
+
+        # detect signature fields and embed images if value is a minio_path
+        for field_name, value in list(context.items()):
+            if "signature" in field_name and isinstance(value, str) and value:
+                try:
+                    img_bytes = minio_client.minio_client.get_object(
+                        minio_client._bucket, value,
+                    ).read()
+                    context[field_name] = InlineImage(doc, BytesIO(img_bytes), width=Mm(30))
+                except Exception:
+                    pass  # fall back to text rendering
+
         doc.render(context)
         buf = BytesIO()
         doc.save(buf)

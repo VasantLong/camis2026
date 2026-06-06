@@ -5,16 +5,17 @@
 > 本文假设读者已读过 `CONTEXT.md`、`docs/service-design.md` 和 `docs/rbac.md`。
 > 不重复 UML 类图（见 `docs/camis-UML.md`），只记录类图之外的运维与设计决策。
 
-## 1. 表清单（23 张）
+## 1. 表清单（24 张）
 
 ### 1.1 核心业务域（Activity 聚合根，CASCADE 删除子实体）
 
 | 表 | 模型 | 说明 |
 |---|------|------|
 | `activities` | Activity | 聚合根，FK owner_id + designer_id → users |
-| `activity_plans` | ActivityPlan | 活动方案，CASCADE activity |
-| `security_plans` | SecurityPlan | 安保方案，CASCADE activity，FK manager_id → users |
+| `activity_plans` | ActivityPlan | 活动方案，CASCADE activity，**UNIQUE(activity_id)**，含 draft_data + current_filled_document_id |
+| `security_plans` | SecurityPlan | 安保方案，CASCADE activity，**UNIQUE(activity_id)**，FK manager_id → users，含 draft_data + current_filled_document_id |
 | `filing_docs` | FilingDoc | 备案材料包，CASCADE activity，**UNIQUE(activity_id)** |
+| `filled_documents` | FilledDocument | 模板生成版本记录，CASCADE activity，**UNIQUE(activity_id, template_type, version_number)** |
 | `approval_records` | ApprovalRecord | 政府批文，CASCADE activity，FK liaison_id → users |
 | `implementation_records` | ImplementationRecord | 实施记录，CASCADE activity，FK admin_id → users |
 | `activity_status_log` | ActivityStatusLog | 追加式审计日志，CASCADE activity |
@@ -27,8 +28,8 @@
 
 | 表 | 模型 | 说明 |
 |---|------|------|
-| `documents` | Document | 文件元数据，FK activity_id SET NULL，GIN 索引 tags |
-| `key_materials` | KeyMaterial | 关键材料，**FK activity_id → activities**，sign_status + audit_round |
+| `documents` | Document | 文件元数据，FK activity_id SET NULL，FK filled_document_id SET NULL，GIN 索引 tags |
+| `key_materials` | KeyMaterial | 关键材料，**FK activity_id → activities**，**UNIQUE(activity_id, material_type)**，sign_status + audit_round + material_type + draft_data + current_filled_document_id |
 | `material_audits` | MaterialAudit | 材料审核/签署记录，CASCADE key_material，action ∈ {sign, audit} |
 
 ### 1.3 RBAC 权限体系
