@@ -8,11 +8,13 @@ interface Props {
   versions: VersionItem[];
   onViewDetail: (version: number) => Promise<VersionDetail | null>;
   onDiff: (v1: number, v2: number) => Promise<VersionDiff[]>;
+  onPreview?: (version: number) => Promise<string | null>;
 }
 
-export default function VersionTimeline({ versions, onViewDetail, onDiff }: Props) {
+export default function VersionTimeline({ versions, onViewDetail, onDiff, onPreview }: Props) {
   const [detailVisible, setDetailVisible] = useState(false);
   const [diffVisible, setDiffVisible] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [detail, setDetail] = useState<VersionDetail | null>(null);
   const [diffs, setDiffs] = useState<VersionDiff[]>([]);
   const [selectedV1, setSelectedV1] = useState<number | null>(null);
@@ -81,6 +83,14 @@ export default function VersionTimeline({ versions, onViewDetail, onDiff }: Prop
             <Button size="small" type="link" onClick={() => handleViewDetail(v.version_number)}>
               详情
             </Button>
+            {onPreview && (
+              <Button size="small" type="link" onClick={async () => {
+                const url = await onPreview(v.version_number);
+                if (url) setPreviewUrl(url);
+              }}>
+                预览
+              </Button>
+            )}
           </Space>
         ))}
       </Space>
@@ -130,6 +140,25 @@ export default function VersionTimeline({ versions, onViewDetail, onDiff }: Prop
               </Descriptions.Item>
             </Descriptions>
           ))
+        )}
+      </Modal>
+
+      {/* pdf preview modal */}
+      <Modal
+        title="PDF 预览"
+        open={!!previewUrl}
+        onCancel={() => setPreviewUrl(null)}
+        footer={null}
+        width="90%"
+        style={{ top: 20 }}
+        destroyOnClose
+      >
+        {previewUrl && (
+          <iframe
+            src={previewUrl}
+            style={{ width: "100%", height: "75vh", border: "none" }}
+            title="PDF 预览"
+          />
         )}
       </Modal>
     </>

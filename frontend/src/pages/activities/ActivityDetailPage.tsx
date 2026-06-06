@@ -279,6 +279,10 @@ export default function ActivityDetailPage() {
                         onDiff={(v1, v2) =>
                           templatesApi.getPlanVersionDiff(id!, v1, v2).then((r) => r.data)
                         }
+                        onPreview={async (v) => {
+                          const r = await templatesApi.getPlanVersionPreview(id!, v);
+                          return r.data.url;
+                        }}
                       />
                     </div>
                   ) : (

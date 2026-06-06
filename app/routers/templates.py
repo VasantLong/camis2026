@@ -88,6 +88,19 @@ async def plan_version_detail(
     return VersionDetail(**detail)
 
 
+@router.get("/{activity_id}/plan/versions/{version_number}/preview")
+async def plan_version_preview(
+    activity_id: UUID, version_number: int,
+    current_user: User = Depends(get_current_user),
+    svc: TemplateService = Depends(_svc),
+):
+    """Return pre-signed URL for a specific plan version's PDF."""
+    url = await svc.get_version_preview_url("activity_plan", activity_id, version_number)
+    if not url:
+        raise HTTPException(status_code=404, detail="PDF not available for this version")
+    return {"url": url}
+
+
 @router.get("/{activity_id}/plan/versions/{v1}/diff/{v2}", response_model=list[VersionDiff])
 async def plan_version_diff(
     activity_id: UUID, v1: int, v2: int,

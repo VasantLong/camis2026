@@ -9,7 +9,6 @@ import {
   Button,
   Space,
   Upload,
-  Modal,
   App,
 } from "antd";
 import { PlusOutlined, DeleteOutlined, UploadOutlined } from "@ant-design/icons";
@@ -29,7 +28,6 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const { message, modal } = App.useApp();
 
   useEffect(() => {
@@ -197,11 +195,8 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
           try {
             const values = form.getFieldsValue();
             const data = serializeFormData(values, schema.fields);
-            const result = await onSubmit(data);
-            message.success(`已生成 v${nextVersion}`);
-            if (result.pdf_preview_url) {
-              setPreviewUrl(result.pdf_preview_url);
-            }
+            await onSubmit(data);
+            message.success(`已生成 v${nextVersion}，可在版本历史中查看预览`);
           } catch {
             message.error("生成失败");
           } finally {
@@ -213,38 +208,19 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
   };
 
   return (
-    <>
-      <Form form={form} layout="vertical" disabled={loading || submitting}>
-        {visibleFields(schema.fields).map(renderField)}
-        <Form.Item>
-          <Space>
-            <Button onClick={handleSaveDraft} loading={saving}>
-              保存草稿
-            </Button>
-            <Button type="primary" onClick={handleSubmit} loading={submitting}>
-              提交生成
-            </Button>
-          </Space>
-        </Form.Item>
-      </Form>
-      <Modal
-        title="PDF 预览"
-        open={!!previewUrl}
-        onCancel={() => setPreviewUrl(null)}
-        footer={null}
-        width="90%"
-        style={{ top: 20 }}
-        destroyOnClose
-      >
-        {previewUrl && (
-          <iframe
-            src={previewUrl}
-            style={{ width: "100%", height: "75vh", border: "none" }}
-            title="PDF 预览"
-          />
-        )}
-      </Modal>
-    </>
+    <Form form={form} layout="vertical" disabled={loading || submitting}>
+      {visibleFields(schema.fields).map(renderField)}
+      <Form.Item>
+        <Space>
+          <Button onClick={handleSaveDraft} loading={saving}>
+            保存草稿
+          </Button>
+          <Button type="primary" onClick={handleSubmit} loading={submitting}>
+            提交生成
+          </Button>
+        </Space>
+      </Form.Item>
+    </Form>
   );
 }
 

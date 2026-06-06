@@ -101,17 +101,8 @@ with sync_playwright() as p:
     check(confirm_btn.count() > 0, "confirmation modal shown")
     confirm_btn.click()
 
-    # Wait for PDF preview modal to appear
-    page.wait_for_selector('.ant-modal:has-text("PDF 预览")', timeout=15000)
-    page.wait_for_timeout(500)
-
-    # Close PDF preview modal
-    close_btn = page.locator('.ant-modal:has-text("PDF 预览") .ant-modal-close').first
-    close_btn.click()
-    page.wait_for_timeout(1000)
-
     # Wait for v1 button in version timeline
-    page.wait_for_selector('button:has-text("v1")', timeout=10000)
+    page.wait_for_selector('button:has-text("v1")', timeout=15000)
     check(True, "v1 appears in timeline")
 
     # ============================================================
@@ -126,14 +117,8 @@ with sync_playwright() as p:
     confirm_btn = page.locator('.ant-modal-confirm .ant-btn-primary:has-text("确认生成")').first
     confirm_btn.click()
 
-    # Wait for PDF preview modal and close it
-    page.wait_for_selector('.ant-modal:has-text("PDF 预览")', timeout=15000)
-    page.wait_for_timeout(500)
-    page.locator('.ant-modal:has-text("PDF 预览") .ant-modal-close').first.click()
-    page.wait_for_timeout(1000)
-
     # Wait for v2 button
-    page.wait_for_selector('button:has-text("v2")', timeout=10000)
+    page.wait_for_selector('button:has-text("v2")', timeout=15000)
     check(True, "v2 appears in timeline")
 
     # Select v1 and v2 for diff
@@ -205,14 +190,8 @@ with sync_playwright() as p:
     if cfm.count() > 0:
         cfm.click()
 
-        # Wait for PDF preview modal and close it
-        page.wait_for_selector('.ant-modal:has-text("PDF 预览")', timeout=15000)
-        page.wait_for_timeout(500)
-        page.locator('.ant-modal:has-text("PDF 预览") .ant-modal-close').first.click()
-        page.wait_for_timeout(1000)
-
     # Wait for security plan v1
-    page.wait_for_selector('button:has-text("v1")', timeout=10000)
+    page.wait_for_selector('button:has-text("v1")', timeout=15000)
     check(True, "security plan v1 generated")
 
     # ============================================================

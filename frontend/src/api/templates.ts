@@ -27,6 +27,9 @@ export const templatesApi = {
   getPlanVersionDiff: (activityId: string, v1: number, v2: number) =>
     client.get<VersionDiff[]>(`/activities/${activityId}/plan/versions/${v1}/diff/${v2}`),
 
+  getPlanVersionPreview: (activityId: string, version: number) =>
+    client.get<{ url: string }>(`/activities/${activityId}/plan/versions/${version}/preview`),
+
   // ── security plan ──
   getSecurityPlanSchema: (activityId: string) =>
     client.get<SchemaResponse>(`/activities/${activityId}/security-plan/schema`),

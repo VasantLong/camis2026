@@ -213,6 +213,14 @@ class TemplateService:
             "is_current": fd.id == current_id,
         }
 
+    async def get_version_preview_url(
+        self, template_type: str, activity_id: UUID, version_number: int,
+    ) -> str | None:
+        fd = await self._get_version_row(activity_id, template_type, version_number)
+        if not fd or not fd.pdf_path:
+            return None
+        return await minio_client.get_presigned_url(fd.pdf_path, inline=True)
+
     async def get_version_diff(
         self, template_type: str, activity_id: UUID, v1: int, v2: int,
         material_type: str | None = None,
