@@ -96,13 +96,13 @@ with sync_playwright() as p:
     gen_btn.click()
     page.wait_for_timeout(1000)
 
-    # Confirm modal — press Enter (antd modal.confirm button click doesn't fire onOk)
-    check(page.locator('.ant-modal-confirm .ant-btn-primary:has-text("确认生成")').count() > 0, "confirmation modal shown")
-    page.keyboard.press("Enter")
+    # Confirm modal — click OK button (explicit Modal with onOk prop)
+    check(page.locator('.ant-modal:has-text("确认生成")').count() > 0, "confirmation modal shown")
+    page.locator('.ant-modal-footer .ant-btn-primary:has-text("确认生成")').first.click()
     page.wait_for_timeout(500)
 
-    # Wait for confirm modal to close
-    page.wait_for_selector('.ant-modal-confirm', state='detached', timeout=5000)
+    # Wait for modal to close
+    page.wait_for_selector('.ant-modal:has-text("确认生成")', state='detached', timeout=5000)
     page.wait_for_load_state("networkidle")
     page.wait_for_timeout(2000)
 
@@ -119,9 +119,9 @@ with sync_playwright() as p:
 
     gen_btn.click()
     page.wait_for_timeout(1000)
-    page.keyboard.press("Enter")
+    page.locator('.ant-modal-footer .ant-btn-primary:has-text("确认生成")').first.click()
     page.wait_for_timeout(500)
-    page.wait_for_selector('.ant-modal-confirm', state='detached', timeout=5000)
+    page.wait_for_selector('.ant-modal:has-text("确认生成")', state='detached', timeout=5000)
     page.wait_for_load_state("networkidle")
     page.wait_for_timeout(2000)
     page.wait_for_selector('button:has-text("v2")', timeout=20000)
@@ -192,11 +192,11 @@ with sync_playwright() as p:
     check(sp_gen.count() > 0, "generate button visible")
     sp_gen.click()
     page.wait_for_timeout(1000)
-    cfm = page.locator('.ant-modal-confirm .ant-btn-primary:has-text("确认生成")').first
+    cfm = page.locator('.ant-modal-footer .ant-btn-primary:has-text("确认生成")').first
     if cfm.count() > 0:
-        page.keyboard.press("Enter")
+        cfm.click()
         page.wait_for_timeout(500)
-        page.wait_for_selector('.ant-modal-confirm', state='detached', timeout=5000)
+        page.wait_for_selector('.ant-modal:has-text("确认生成")', state='detached', timeout=5000)
         page.wait_for_load_state("networkidle")
         page.wait_for_timeout(2000)
 

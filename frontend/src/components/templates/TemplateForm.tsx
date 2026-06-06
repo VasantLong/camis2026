@@ -9,6 +9,7 @@ import {
   Button,
   Space,
   Upload,
+  Modal,
   App,
 } from "antd";
 import { PlusOutlined, DeleteOutlined, UploadOutlined } from "@ant-design/icons";
@@ -28,7 +29,8 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (schema.has_draft && schema.draft_data) {
@@ -182,45 +184,55 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
     }
   };
 
-  const handleSubmit = () => {
-    form.validateFields().then(() => {
-      const nextVersion = (schema.current_version ?? 0) + 1;
-      modal.confirm({
-        title: "确认生成",
-        content: `将生成 v${nextVersion} 版本，生成后不可撤销。确认继续？`,
-        okText: "确认生成",
-        cancelText: "取消",
-        onOk: async () => {
-          setSubmitting(true);
-          try {
-            const values = form.getFieldsValue();
-            const data = serializeFormData(values, schema.fields);
-            await onSubmit(data);
-            message.success(`已生成 v${nextVersion}，可在版本历史中查看预览`);
-          } catch {
-            message.error("生成失败");
-          } finally {
-            setSubmitting(false);
-          }
-        },
-      });
-    }).catch(() => {});
+  const doGenerate = async () => {
+    setConfirmOpen(false);
+    setSubmitting(true);
+    const nextVersion = (schema.current_version ?? 0) + 1;
+    try {
+      const values = form.getFieldsValue();
+      const data = serializeFormData(values, schema.fields);
+      await onSubmit(data);
+      message.success(`已生成 v${nextVersion}，可在版本历史中查看预览`);
+    } catch {
+      message.error("生成失败");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
+  const handleSubmit = () => {
+    form.validateFields().then(() => setConfirmOpen(true)).catch(() => {});
+  };
+
+  const nextVersion = (schema.current_version ?? 0) + 1;
+
   return (
-    <Form form={form} layout="vertical" disabled={loading || submitting}>
-      {visibleFields(schema.fields).map(renderField)}
-      <Form.Item>
-        <Space>
-          <Button onClick={handleSaveDraft} loading={saving}>
-            保存草稿
-          </Button>
-          <Button type="primary" onClick={handleSubmit} loading={submitting}>
-            提交生成
-          </Button>
-        </Space>
-      </Form.Item>
-    </Form>
+    <>
+      <Form form={form} layout="vertical" disabled={loading || submitting}>
+        {visibleFields(schema.fields).map(renderField)}
+        <Form.Item>
+          <Space>
+            <Button onClick={handleSaveDraft} loading={saving}>
+              保存草稿
+            </Button>
+            <Button type="primary" onClick={handleSubmit} loading={submitting}>
+              提交生成
+            </Button>
+          </Space>
+        </Form.Item>
+      </Form>
+      <Modal
+        title="确认生成"
+        open={confirmOpen}
+        onOk={doGenerate}
+        onCancel={() => setConfirmOpen(false)}
+        okText="确认生成"
+        cancelText="取消"
+        confirmLoading={submitting}
+      >
+        将生成 v{nextVersion} 版本，生成后不可撤销。确认继续？
+      </Modal>
+    </>
   );
 }
 
