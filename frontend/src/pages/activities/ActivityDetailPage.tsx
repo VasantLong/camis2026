@@ -20,7 +20,7 @@ import { materialsApi } from "@/api/materials";
 import { templatesApi } from "@/api/templates";
 import { useAuthStore } from "@/stores/authStore";
 import { STATUS_COLOR_MAP } from "@/utils/constants";
-import type { VersionItem, VersionDetail, VersionDiff } from "@/types/template";
+import type { VersionItem, VersionDetail, VersionDiff, SchemaResponse } from "@/types/template";
 
 export default function ActivityDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -281,16 +281,15 @@ export default function ActivityDetailPage() {
                               ...old.map((v) => ({ ...v, is_current: false })),
                             ],
                           );
-                          // Patch schema cache so confirmation modal shows correct version
-                          queryClient.setQueryData(
+                          // Patch schema cache: update version + store generated data as snapshot
+                          queryClient.setQueryData<SchemaResponse>(
                             ["activities", id, "templates", "plan-schema"],
-                            (old: any) => old ? { ...old, current_version: result.version_number, has_draft: false, draft_data: null } : old,
+                            (old) => old ? { ...old, current_version: result.version_number, has_draft: false, draft_data: null, snapshot_data: data } : old as any,
                           );
                           return result;
                         }}
                       />
                       <VersionTimeline
-                        key={planVersions.length}
                         versions={planVersions}
                         onViewDetail={(v) =>
                           templatesApi.getPlanVersionDetail(id!, v).then((r) => r.data)
@@ -376,7 +375,6 @@ export default function ActivityDetailPage() {
                         }}
                       />
                       <VersionTimeline
-                        key={securityPlanVersions.length}
                         versions={securityPlanVersions}
                         onViewDetail={(v) =>
                           templatesApi.getSecurityPlanVersionDetail(id!, v).then((r) => r.data)
