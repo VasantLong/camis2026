@@ -329,6 +329,10 @@ class SecurityPlanResponse(BaseModel):
     sign_time: str | None = None
 
 
+class SecurityPlanUpdate(BaseModel):
+    risk_level: str | None = None
+
+
 @router.get("/{activity_id}/security-plan", response_model=SecurityPlanResponse)
 async def get_security_plan(
     activity_id: UUID,
@@ -340,3 +344,17 @@ async def get_security_plan(
     if result is None:
         return SecurityPlanResponse()
     return SecurityPlanResponse(**result)
+
+
+@router.put("/{activity_id}/security-plan", response_model=SecurityPlanResponse)
+async def update_security_plan(
+    activity_id: UUID,
+    body: SecurityPlanUpdate,
+    current_user: User = Depends(get_current_user),
+    svc: ActivityService = Depends(_service),
+    _perm: None = require_permission("manage_security"),
+):
+    if body.risk_level is not None:
+        await svc.set_security_risk_level(activity_id, body.risk_level)
+    result = await svc.get_security_plan(activity_id)
+    return SecurityPlanResponse(**result) if result else SecurityPlanResponse()

@@ -68,8 +68,9 @@ class TemplateService:
     ) -> None:
         entity = await self._get_or_create_entity(template_type, activity_id, user_id, material_type)
         entity.draft_data = data
-        logger.info("draft saved type=%s activity=%s", template_type, activity_id)
         await self.db.flush()
+        await self.db.commit()
+        logger.info("draft saved type=%s activity=%s", template_type, activity_id)
 
     # ------------------------------------------------------------------
     # generate
@@ -124,7 +125,7 @@ class TemplateService:
         entity.submit_time = datetime.now(timezone.utc)
         await self.db.flush()
 
-        # workflow trigger for activity plan
+        # workflow trigger for activity plan (also commits)
         if template_type == "activity_plan":
             activity = await self.db.get(Activity, activity_id)
             if activity and activity.status == "待设计方案":

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Descriptions, Tabs, Button, Tag, Spin, Typography, Space, Modal, Input, message, List } from "antd";
+import { Descriptions, Tabs, Button, Tag, Spin, Typography, Space, Modal, Input, message, List, Select } from "antd";
 import { ArrowLeftOutlined, CheckOutlined, CloseOutlined, EditOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -12,11 +12,15 @@ import WorkflowActions from "@/components/workflows/WorkflowActions";
 import FilingValidatePanel from "@/components/filings/FilingValidatePanel";
 import FilingPackModal from "@/components/filings/FilingPackModal";
 import HandoverConfirm from "@/components/filings/HandoverConfirm";
+import TemplateForm from "@/components/templates/TemplateForm";
+import VersionTimeline from "@/components/templates/VersionTimeline";
 import { filingsApi } from "@/api/filings";
 import { activitiesApi } from "@/api/activities";
 import { materialsApi } from "@/api/materials";
+import { templatesApi } from "@/api/templates";
 import { useAuthStore } from "@/stores/authStore";
 import { STATUS_COLOR_MAP } from "@/utils/constants";
+import type { VersionItem, VersionDetail, VersionDiff } from "@/types/template";
 
 export default function ActivityDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -70,6 +74,34 @@ export default function ActivityDetailPage() {
     queryKey: ["activities", id, "materials", "audit-history"],
     queryFn: () => materialsApi.getAuditHistory(id!).then((r) => r.data),
     enabled: showFiling,
+  });
+
+  // ── template queries ──
+  const canViewPlan = permissions.includes("submit_plan") || permissions.includes("view_owned_activity");
+  const canViewSecurity = permissions.includes("manage_security") || permissions.includes("view_owned_activity");
+
+  const { data: planSchema, refetch: refetchPlanSchema } = useQuery({
+    queryKey: ["activities", id, "templates", "plan-schema"],
+    queryFn: () => templatesApi.getPlanSchema(id!).then((r) => r.data),
+    enabled: canViewPlan,
+  });
+
+  const { data: planVersions = [], refetch: refetchPlanVersions } = useQuery({
+    queryKey: ["activities", id, "templates", "plan-versions"],
+    queryFn: () => templatesApi.getPlanVersions(id!).then((r) => r.data),
+    enabled: canViewPlan,
+  });
+
+  const { data: securityPlanSchema, refetch: refetchSecuritySchema } = useQuery({
+    queryKey: ["activities", id, "templates", "security-schema"],
+    queryFn: () => templatesApi.getSecurityPlanSchema(id!).then((r) => r.data),
+    enabled: canViewSecurity,
+  });
+
+  const { data: securityPlanVersions = [], refetch: refetchSecurityVersions } = useQuery({
+    queryKey: ["activities", id, "templates", "security-versions"],
+    queryFn: () => templatesApi.getSecurityPlanVersions(id!).then((r) => r.data),
+    enabled: canViewSecurity,
   });
 
   const queryClient = useQueryClient();
@@ -219,6 +251,92 @@ export default function ActivityDetailPage() {
               <StatusTimeline history={history} />
             ),
           },
+          ...(canViewPlan
+            ? [
+                {
+                  key: "plan" as string,
+                  label: "活动方案",
+                  children: planSchema ? (
+                    <div>
+                      <TemplateForm
+                        schema={planSchema}
+                        onSaveDraft={async (data) => {
+                          await templatesApi.savePlanDraft(id!, data);
+                        }}
+                        onSubmit={async (data) => {
+                          await templatesApi.generatePlan(id!, data);
+                          refetchPlanSchema();
+                          refetchPlanVersions();
+                        }}
+                      />
+                      <VersionTimeline
+                        versions={planVersions}
+                        onViewDetail={(v) =>
+                          templatesApi.getPlanVersionDetail(id!, v).then((r) => r.data)
+                        }
+                        onDiff={(v1, v2) =>
+                          templatesApi.getPlanVersionDiff(id!, v1, v2).then((r) => r.data)
+                        }
+                      />
+                    </div>
+                  ) : (
+                    <Spin />
+                  ),
+                },
+              ]
+            : []),
+          ...(canViewSecurity
+            ? [
+                {
+                  key: "security-plan" as string,
+                  label: "安保方案",
+                  children: securityPlanSchema ? (
+                    <div>
+                      {securityPlanSchema.risk_level === null && (
+                        <div style={{ marginBottom: 16 }}>
+                          <Typography.Text strong>请先选择风险等级</Typography.Text>
+                          <Select
+                            style={{ width: 200, marginLeft: 12 }}
+                            placeholder="选择风险等级"
+                            options={[
+                              { label: "大型", value: "大型" },
+                              { label: "中型", value: "中型" },
+                              { label: "高风险", value: "高风险" },
+                            ]}
+                            onChange={async (val) => {
+                              await activitiesApi.updateSecurityPlan(id!, { risk_level: val });
+                              refetchSecuritySchema();
+                            }}
+                          />
+                        </div>
+                      )}
+                      <TemplateForm
+                        schema={securityPlanSchema}
+                        onSaveDraft={async (data) => {
+                          await templatesApi.saveSecurityPlanDraft(id!, data);
+                        }}
+                        onSubmit={async (data) => {
+                          await templatesApi.generateSecurityPlan(id!, data);
+                          refetchSecuritySchema();
+                          refetchSecurityVersions();
+                        }}
+                      />
+                      <VersionTimeline
+                        versions={securityPlanVersions}
+                        onViewDetail={(v) =>
+                          templatesApi.getSecurityPlanVersionDetail(id!, v).then((r) => r.data)
+                        }
+                        onDiff={(v1, v2) =>
+                          templatesApi.getSecurityPlanVersionDiff(id!, v1, v2).then((r) => r.data)
+                        }
+                      />
+                    </div>
+                  ) : (
+                    <Spin />
+                  ),
+                },
+              ]
+            : []),
           {
             key: "documents",
             label: "文档",

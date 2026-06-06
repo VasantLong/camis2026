@@ -247,3 +247,18 @@ class ActivityService:
             "manager_name": manager_name,
             "sign_time": sp.sign_time.isoformat() if sp.sign_time else None,
         }
+
+    async def set_security_risk_level(self, activity_id: UUID, risk_level: str) -> None:
+        from app.models.activity import SecurityPlan
+
+        result = await self.db.execute(
+            select(SecurityPlan).where(SecurityPlan.activity_id == activity_id)
+        )
+        sp = result.scalar_one_or_none()
+        if sp is None:
+            sp = SecurityPlan(activity_id=activity_id, risk_level=risk_level)
+            self.db.add(sp)
+        else:
+            sp.risk_level = risk_level
+        await self.db.flush()
+        await self.db.commit()
