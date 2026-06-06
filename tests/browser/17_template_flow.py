@@ -64,9 +64,25 @@ with sync_playwright() as p:
     page.wait_for_load_state("networkidle")
     page.wait_for_selector('textarea', timeout=5000)
 
-    # Fill textarea (activity_content)
+    # Fill required fields
     ta = page.locator('textarea').first
     ta.fill("浏览器测试：活动主要内容填写验证——文艺汇演")
+
+    # Fill number inputs: find total_days (first InputNumber)
+    num_inputs = page.locator('input[type="text"][role="spinbutton"]').all()
+    for inp in num_inputs:
+        inp.fill("3")
+        break  # only total_days needed
+
+    # Fill date inputs: start_time and end_time (first two DatePicker inputs)
+    date_inputs = page.locator('.ant-picker input').all()
+    if len(date_inputs) >= 2:
+        date_inputs[0].fill("2026-08-01")
+        date_inputs[0].press("Enter")
+        page.wait_for_timeout(300)
+        date_inputs[1].fill("2026-08-03")
+        date_inputs[1].press("Enter")
+        page.wait_for_timeout(300)
 
     # Save draft
     draft_btn = page.locator('button:has-text("保存草稿")').first
@@ -172,6 +188,13 @@ with sync_playwright() as p:
             page.wait_for_timeout(1500)
             page.wait_for_load_state("networkidle")
             check(True, "risk level set to 大型")
+
+    # Fill required textareas for security plan
+    sp_textareas = page.locator('textarea').all()
+    for i, ta_el in enumerate(sp_textareas):
+        if ta_el.is_visible():
+            ta_el.fill(f"浏览器测试安保方案字段{i+1}")
+    page.wait_for_timeout(300)
 
     # Generate security plan
     sp_gen = page.locator('button:has-text("提交生成")').first
