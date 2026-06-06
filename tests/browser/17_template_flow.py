@@ -68,13 +68,11 @@ with sync_playwright() as p:
     ta = page.locator('textarea').first
     ta.fill("浏览器测试：活动主要内容填写验证——文艺汇演")
 
-    # Fill number inputs: find total_days (first InputNumber)
     num_inputs = page.locator('input[type="text"][role="spinbutton"]').all()
     for inp in num_inputs:
         inp.fill("3")
-        break  # only total_days needed
+        break
 
-    # Fill date inputs: start_time and end_time (first two DatePicker inputs)
     date_inputs = page.locator('.ant-picker input').all()
     if len(date_inputs) >= 2:
         date_inputs[0].fill("2026-08-01")
@@ -96,31 +94,14 @@ with sync_playwright() as p:
     gen_btn.click()
     page.wait_for_timeout(1000)
 
-    # Confirm modal — click OK button (explicit Modal with onOk prop)
+    # Confirm modal → click OK
     check(page.locator('.ant-modal:has-text("确认生成")').count() > 0, "confirmation modal shown")
     page.locator('.ant-modal-footer .ant-btn-primary:has-text("确认生成")').first.click()
     page.wait_for_timeout(500)
 
-    # Wait for modal to close
+    # Wait for modal to close and v1 to appear (setQueryData makes this instant)
     page.wait_for_selector('.ant-modal:has-text("确认生成")', state='hidden', timeout=5000)
-    page.wait_for_timeout(3000)
-
-    # Toggle tab to force re-render + fresh fetch
-    page.locator('.ant-tabs-tab:has-text("状态历史")').first.click()
-    page.wait_for_timeout(1000)
-    page.locator('.ant-tabs-tab:has-text("活动方案")').first.click()
-    page.wait_for_timeout(2000)
-    page.wait_for_load_state("networkidle")
-
-    # Debug: read version text from DOM
-    version_area = page.locator('.ant-tabs-tabpane-active').inner_text()
-    has_v1_dom = "v1" in version_area
-    has_no_version_dom = "暂无版本记录" in version_area
-    print(f"  [debug] has v1 in DOM: {has_v1_dom}, has no_version: {has_no_version_dom}")
-    print(f"  [debug] active tab text[:200]: {version_area[:200]}")
-
-    # Wait for version timeline to show v1
-    page.wait_for_selector('button:has-text("v1")', timeout=20000)
+    page.wait_for_selector('button:has-text("v1")', timeout=10000)
     check(True, "v1 appears in timeline")
 
     # ============================================================
@@ -135,13 +116,7 @@ with sync_playwright() as p:
     page.locator('.ant-modal-footer .ant-btn-primary:has-text("确认生成")').first.click()
     page.wait_for_timeout(500)
     page.wait_for_selector('.ant-modal:has-text("确认生成")', state='hidden', timeout=5000)
-    page.wait_for_timeout(3000)
-    page.locator('.ant-tabs-tab:has-text("状态历史")').first.click()
-    page.wait_for_timeout(1000)
-    page.locator('.ant-tabs-tab:has-text("活动方案")').first.click()
-    page.wait_for_timeout(2000)
-    page.wait_for_load_state("networkidle")
-    page.wait_for_selector('button:has-text("v2")', timeout=20000)
+    page.wait_for_selector('button:has-text("v2")', timeout=10000)
     check(True, "v2 appears in timeline")
 
     # Select v1 and v2 for diff
@@ -156,7 +131,6 @@ with sync_playwright() as p:
 
     diff_modal = page.locator('.ant-modal:has-text("版本对比")').first
     check(diff_modal.count() > 0, "diff modal open")
-    # Verify at least one changed field shown
     changed = diff_modal.locator('.ant-descriptions').count()
     check(changed > 0, f"diff shows {changed} changed field(s)")
 
@@ -214,15 +188,10 @@ with sync_playwright() as p:
         cfm.click()
         page.wait_for_timeout(500)
         page.wait_for_selector('.ant-modal:has-text("确认生成")', state='hidden', timeout=5000)
-        page.wait_for_timeout(3000)
-        page.locator('.ant-tabs-tab:has-text("基本信息")').first.click()
-        page.wait_for_timeout(1000)
-        page.locator('.ant-tabs-tab:has-text("安保方案")').first.click()
-        page.wait_for_timeout(2000)
-        page.wait_for_load_state("networkidle")
-
-    page.wait_for_selector('button:has-text("v1")', timeout=20000)
-    check(True, "security plan v1 generated")
+        page.wait_for_selector('button:has-text("v1")', timeout=10000)
+        check(True, "security plan v1 generated")
+    else:
+        check(False, "confirmation modal not shown for security plan")
 
     # ============================================================
     # Report

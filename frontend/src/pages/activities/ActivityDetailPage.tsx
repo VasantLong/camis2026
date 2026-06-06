@@ -266,12 +266,26 @@ export default function ActivityDetailPage() {
                         }}
                         onSubmit={async (data) => {
                           const res = await templatesApi.generatePlan(id!, data);
-                          refetchPlanSchema();
-                          refetchPlanVersions();
-                          return res.data;
+                          const result = res.data;
+                          queryClient.setQueryData<VersionItem[]>(
+                            ["activities", id, "templates", "plan-versions"],
+                            (old = []) => [
+                              {
+                                id: result.id,
+                                version_number: result.version_number,
+                                generated_by: "",
+                                created_at: result.created_at,
+                                is_current: true,
+                                pdf_ready: result.pdf_ready,
+                              },
+                              ...old.map((v) => ({ ...v, is_current: false })),
+                            ],
+                          );
+                          return result;
                         }}
                       />
                       <VersionTimeline
+                        key={planVersions.length}
                         versions={planVersions}
                         onViewDetail={(v) =>
                           templatesApi.getPlanVersionDetail(id!, v).then((r) => r.data)
@@ -324,12 +338,26 @@ export default function ActivityDetailPage() {
                         }}
                         onSubmit={async (data) => {
                           const res = await templatesApi.generateSecurityPlan(id!, data);
-                          refetchSecuritySchema();
-                          refetchSecurityVersions();
-                          return res.data;
+                          const result = res.data;
+                          queryClient.setQueryData<VersionItem[]>(
+                            ["activities", id, "templates", "security-versions"],
+                            (old = []) => [
+                              {
+                                id: result.id,
+                                version_number: result.version_number,
+                                generated_by: "",
+                                created_at: result.created_at,
+                                is_current: true,
+                                pdf_ready: result.pdf_ready,
+                              },
+                              ...old.map((v) => ({ ...v, is_current: false })),
+                            ],
+                          );
+                          return result;
                         }}
                       />
                       <VersionTimeline
+                        key={securityPlanVersions.length}
                         versions={securityPlanVersions}
                         onViewDetail={(v) =>
                           templatesApi.getSecurityPlanVersionDetail(id!, v).then((r) => r.data)
