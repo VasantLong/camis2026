@@ -281,6 +281,7 @@ export default function ActivityDetailPage() {
                               ...old.map((v) => ({ ...v, is_current: false })),
                             ],
                           );
+                          refetchPlanSchema();  // non-blocking: keep current_version accurate
                           return result;
                         }}
                       />
@@ -353,6 +354,7 @@ export default function ActivityDetailPage() {
                               ...old.map((v) => ({ ...v, is_current: false })),
                             ],
                           );
+                          refetchSecuritySchema();
                           return result;
                         }}
                       />

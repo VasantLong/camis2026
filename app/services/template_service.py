@@ -49,11 +49,16 @@ class TemplateService:
         schema["has_draft"] = draft_data is not None
         schema["draft_data"] = draft_data
 
+        # latest version snapshot (pre-fill when no draft)
         current_version = None
+        snapshot_data = None
         if current_fd_id:
             fd = await self.db.get(FilledDocument, current_fd_id)
-            current_version = fd.version_number if fd else None
+            if fd:
+                current_version = fd.version_number
+                snapshot_data = fd.data_snapshot
         schema["current_version"] = current_version
+        schema["snapshot_data"] = snapshot_data
 
         # security plan: expose risk_level for conditional field filtering
         if template_type == "security_plan":

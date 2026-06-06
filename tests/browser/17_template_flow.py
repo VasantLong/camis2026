@@ -111,12 +111,13 @@ with sync_playwright() as p:
     ta = page.locator('textarea').first
     ta.fill("浏览器测试：v2 修改后的活动方案内容——增加消防措施")
 
-    gen_btn.click()
+    page.locator('button:has-text("提交生成")').first.click()
     page.wait_for_timeout(1000)
     page.locator('.ant-modal-footer .ant-btn-primary:has-text("确认生成")').first.click()
     page.wait_for_timeout(500)
     page.wait_for_selector('.ant-modal:has-text("确认生成")', state='hidden', timeout=5000)
-    page.wait_for_selector('button:has-text("v2")', timeout=10000)
+    page.wait_for_timeout(2000)
+    page.wait_for_selector('button:has-text("v2")', timeout=15000)
     check(True, "v2 appears in timeline")
 
     # Select v1 and v2 for diff

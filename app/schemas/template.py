@@ -8,6 +8,7 @@ class SchemaResponse(BaseModel):
     display_name: str
     has_draft: bool = False
     draft_data: dict | None = None
+    snapshot_data: dict | None = None
     current_version: int | None = None
     risk_level: str | None = None  # security plan only
     fields: list[dict]

@@ -31,19 +31,48 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
   const [submitting, setSubmitting] = useState(false);
   const { message } = App.useApp();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [changedFields, setChangedFields] = useState<Set<string>>(new Set());
+
+  // Track changed fields vs snapshot
+  const handleValuesChange = (_changed: Record<string, unknown>, allValues: Record<string, unknown>) => {
+    if (!snapshot) return;
+    const diff = new Set<string>();
+    for (const f of schema.fields) {
+      const cur = serializeFieldValue(allValues[f.name], f);
+      const snap = snapshot[f.name];
+      if (cur !== snap && snap !== undefined && cur !== undefined && cur !== "") {
+        diff.add(f.name);
+      }
+    }
+    setChangedFields(diff);
+  };
+
+  function serializeFieldValue(v: unknown, f: FieldDef): unknown {
+    if (v === undefined || v === null || v === "") return f.ui_type === "repeater" ? undefined : f.ui_type === "number" ? undefined : "";
+    if (f.ui_type === "date") return dayjs.isDayjs(v) ? (v as dayjs.Dayjs).format("YYYY-MM-DD") : String(v);
+    if (f.ui_type === "number") return typeof v === "number" ? v : Number(v) || 0;
+    if (f.ui_type === "repeater") return JSON.stringify(v);
+    return v;
+  }
+
+  // pre-fill: draft first, then snapshot
+  const prefillData = schema.has_draft && schema.draft_data
+    ? schema.draft_data
+    : schema.snapshot_data;
+  const snapshot = schema.snapshot_data;
 
   useEffect(() => {
-    if (schema.has_draft && schema.draft_data) {
-      const draft: Record<string, unknown> = {};
+    if (prefillData) {
+      const vals: Record<string, unknown> = {};
       for (const f of schema.fields) {
-        const val = schema.draft_data[f.name];
+        const val = prefillData[f.name];
         if (val !== undefined) {
-          draft[f.name] = f.ui_type === "date" && typeof val === "string" ? dayjs(val) : val;
+          vals[f.name] = f.ui_type === "date" && typeof val === "string" ? dayjs(val) : val;
         }
       }
-      form.setFieldsValue(draft);
+      form.setFieldsValue(vals);
     }
-  }, [schema, form]);
+  }, [schema, form]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   const visibleFields = useCallback(
     (fields: FieldDef[]) => {
@@ -66,8 +95,8 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
     [form, schema.risk_level]
   );
 
-  const renderField = (field: FieldDef) => {
-    const common = {
+  const renderField = (field: FieldDef, changed: boolean) => {
+    const common: Record<string, unknown> = {
       key: field.name,
       name: field.name,
       label: field.ui_label,
@@ -75,6 +104,9 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
         ? [{ required: true, message: `请填写${field.ui_label}` }]
         : undefined,
     };
+    if (changed) {
+      common.style = { background: "#fffbe6", padding: 8, borderRadius: 4 };
+    }
 
     switch (field.ui_type) {
       case "text":
@@ -208,8 +240,8 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
 
   return (
     <>
-      <Form form={form} layout="vertical" disabled={loading || submitting}>
-        {visibleFields(schema.fields).map(renderField)}
+      <Form form={form} layout="vertical" disabled={loading || submitting} onValuesChange={handleValuesChange}>
+        {visibleFields(schema.fields).map((f) => renderField(f, changedFields.has(f.name)))}
         <Form.Item>
           <Space>
             <Button onClick={handleSaveDraft} loading={saving}>

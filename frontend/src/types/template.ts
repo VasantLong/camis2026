@@ -15,6 +15,7 @@ export interface SchemaResponse {
   display_name: string;
   has_draft: boolean;
   draft_data: Record<string, unknown> | null;
+  snapshot_data: Record<string, unknown> | null;
   current_version: number | null;
   risk_level: string | null;
   fields: FieldDef[];
