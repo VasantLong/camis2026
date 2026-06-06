@@ -32,19 +32,22 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
   const { message } = App.useApp();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [changedFields, setChangedFields] = useState<Set<string>>(new Set());
+  const [isDirty, setIsDirty] = useState(false);
 
   // Track changed fields vs snapshot
   const handleValuesChange = (_changed: Record<string, unknown>, allValues: Record<string, unknown>) => {
-    if (!snapshot) return;
+    let hasAnyChange = false;
     const diff = new Set<string>();
     for (const f of schema.fields) {
       const cur = serializeFieldValue(allValues[f.name], f);
-      const snap = snapshot[f.name];
-      if (cur !== snap && snap !== undefined && cur !== undefined && cur !== "") {
+      const snap = snapshot ? snapshot[f.name] : undefined;
+      if (snap !== undefined && cur !== snap && cur !== "") {
         diff.add(f.name);
+        hasAnyChange = true;
       }
     }
     setChangedFields(diff);
+    setIsDirty(hasAnyChange || schema.has_draft === true);
   };
 
   function serializeFieldValue(v: unknown, f: FieldDef): unknown {
@@ -60,6 +63,7 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
     ? schema.draft_data
     : schema.snapshot_data;
   const snapshot = schema.snapshot_data;
+  const hasDraft = schema.has_draft === true;
 
   useEffect(() => {
     if (prefillData) {
@@ -72,7 +76,10 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
       }
       form.setFieldsValue(vals);
     }
+    setIsDirty(hasDraft);
   }, [schema, form]);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  const buttonsEnabled = !loading && !submitting && (isDirty || !snapshot);
 
   const visibleFields = useCallback(
     (fields: FieldDef[]) => {
@@ -244,10 +251,10 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
         {visibleFields(schema.fields).map((f) => renderField(f, changedFields.has(f.name)))}
         <Form.Item>
           <Space>
-            <Button onClick={handleSaveDraft} loading={saving}>
+            <Button onClick={handleSaveDraft} loading={saving} disabled={!buttonsEnabled}>
               保存草稿
             </Button>
-            <Button type="primary" onClick={handleSubmit} loading={submitting}>
+            <Button type="primary" onClick={handleSubmit} loading={submitting} disabled={!buttonsEnabled}>
               提交生成
             </Button>
           </Space>
