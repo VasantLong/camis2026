@@ -103,16 +103,14 @@ with sync_playwright() as p:
 
     # Wait for modal to close
     page.wait_for_selector('.ant-modal:has-text("确认生成")', state='hidden', timeout=5000)
-    page.wait_for_load_state("networkidle")
-    page.wait_for_timeout(5000)
+    page.wait_for_timeout(3000)
 
-    # Debug
-    OUT.mkdir(exist_ok=True)
-    page.screenshot(path=str(OUT / "debug_after_generate.png"))
-    all_text = page.locator('body').inner_text()
-    has_v1 = "v1" in all_text
-    has_no_version = "暂无版本记录" in all_text
-    print(f"  [debug] has v1: {has_v1}, has no_version: {has_no_version}")
+    # Toggle tab to force re-render + fresh fetch
+    page.locator('.ant-tabs-tab:has-text("状态历史")').first.click()
+    page.wait_for_timeout(1000)
+    page.locator('.ant-tabs-tab:has-text("活动方案")').first.click()
+    page.wait_for_timeout(2000)
+    page.wait_for_load_state("networkidle")
 
     # Wait for version timeline to show v1
     page.wait_for_selector('button:has-text("v1")', timeout=20000)
@@ -130,8 +128,12 @@ with sync_playwright() as p:
     page.locator('.ant-modal-footer .ant-btn-primary:has-text("确认生成")').first.click()
     page.wait_for_timeout(500)
     page.wait_for_selector('.ant-modal:has-text("确认生成")', state='hidden', timeout=5000)
-    page.wait_for_load_state("networkidle")
+    page.wait_for_timeout(3000)
+    page.locator('.ant-tabs-tab:has-text("状态历史")').first.click()
+    page.wait_for_timeout(1000)
+    page.locator('.ant-tabs-tab:has-text("活动方案")').first.click()
     page.wait_for_timeout(2000)
+    page.wait_for_load_state("networkidle")
     page.wait_for_selector('button:has-text("v2")', timeout=20000)
     check(True, "v2 appears in timeline")
 
@@ -205,8 +207,12 @@ with sync_playwright() as p:
         cfm.click()
         page.wait_for_timeout(500)
         page.wait_for_selector('.ant-modal:has-text("确认生成")', state='hidden', timeout=5000)
-        page.wait_for_load_state("networkidle")
+        page.wait_for_timeout(3000)
+        page.locator('.ant-tabs-tab:has-text("基本信息")').first.click()
+        page.wait_for_timeout(1000)
+        page.locator('.ant-tabs-tab:has-text("安保方案")').first.click()
         page.wait_for_timeout(2000)
+        page.wait_for_load_state("networkidle")
 
     page.wait_for_selector('button:has-text("v1")', timeout=20000)
     check(True, "security plan v1 generated")
