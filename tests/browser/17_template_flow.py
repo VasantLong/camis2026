@@ -102,7 +102,7 @@ with sync_playwright() as p:
     page.wait_for_timeout(500)
 
     # Wait for modal to close
-    page.wait_for_selector('.ant-modal:has-text("确认生成")', state='detached', timeout=5000)
+    page.wait_for_selector('.ant-modal:has-text("确认生成")', state='hidden', timeout=5000)
     page.wait_for_load_state("networkidle")
     page.wait_for_timeout(2000)
 
@@ -121,7 +121,7 @@ with sync_playwright() as p:
     page.wait_for_timeout(1000)
     page.locator('.ant-modal-footer .ant-btn-primary:has-text("确认生成")').first.click()
     page.wait_for_timeout(500)
-    page.wait_for_selector('.ant-modal:has-text("确认生成")', state='detached', timeout=5000)
+    page.wait_for_selector('.ant-modal:has-text("确认生成")', state='hidden', timeout=5000)
     page.wait_for_load_state("networkidle")
     page.wait_for_timeout(2000)
     page.wait_for_selector('button:has-text("v2")', timeout=20000)
@@ -196,7 +196,7 @@ with sync_playwright() as p:
     if cfm.count() > 0:
         cfm.click()
         page.wait_for_timeout(500)
-        page.wait_for_selector('.ant-modal:has-text("确认生成")', state='detached', timeout=5000)
+        page.wait_for_selector('.ant-modal:has-text("确认生成")', state='hidden', timeout=5000)
         page.wait_for_load_state("networkidle")
         page.wait_for_timeout(2000)
 
