@@ -96,7 +96,7 @@ with sync_playwright() as p:
 
     # Confirm modal → click OK
     check(page.locator('.ant-modal:has-text("确认生成")').count() > 0, "confirmation modal shown")
-    page.locator('.ant-modal-footer .ant-btn-primary:has-text("确认生成")').first.click()
+    page.locator('.ant-modal .ant-btn-primary:has-text("确认生成")').first.click()
     page.wait_for_timeout(500)
 
     # Wait for modal to close and v1 to appear (setQueryData makes this instant)
@@ -117,7 +117,7 @@ with sync_playwright() as p:
     gen_btn2.click()
     page.wait_for_timeout(1000)
     check(page.locator('.ant-modal:has-text("确认生成")').count() > 0, "confirm modal for v2")
-    page.locator('.ant-modal-footer .ant-btn-primary:has-text("确认生成")').first.click()
+    page.locator('.ant-modal .ant-btn-primary:has-text("确认生成")').first.click()
     page.wait_for_timeout(500)
     page.wait_for_selector('.ant-modal:has-text("确认生成")', state='hidden', timeout=5000)
     page.wait_for_timeout(5000)
@@ -195,7 +195,7 @@ with sync_playwright() as p:
     check(sp_gen.count() > 0, "generate button visible")
     sp_gen.click()
     page.wait_for_timeout(1000)
-    cfm = page.locator('.ant-modal-footer .ant-btn-primary:has-text("确认生成")').first
+    cfm = page.locator('.ant-modal .ant-btn-primary:has-text("确认生成")').first
     if cfm.count() > 0:
         cfm.click()
         page.wait_for_timeout(500)

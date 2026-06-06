@@ -120,6 +120,7 @@ class TemplateService:
         entity.draft_data = None
         entity.submit_time = datetime.now(timezone.utc)
         await self.db.flush()
+        await self.db.commit()
 
         logger.info(
             "generated type=%s activity=%s v%d",
