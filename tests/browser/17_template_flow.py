@@ -5,8 +5,9 @@ Setup uses API for activity creation (not the focus). All template interactions 
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from playwright.sync_api import sync_playwright
-from utils import (CDP, BASE, create_page, setup_logging, start_recording,
-                   check, get_failed, login_as, sidebar_nav, login_api, api_post)
+from utils import (CDP, BASE, create_page, setup_logging, capture_console,
+                   start_recording, check, get_failed, login_as, sidebar_nav,
+                   login_api, api_post)
 
 OUT = Path(__file__).parent / "screenshots"
 
@@ -16,9 +17,7 @@ with sync_playwright() as p:
     setup_logging("17_template_flow")
     recorder = start_recording(page, "17_template_flow")
 
-    errors: list[str] = []
-    page.on("console", lambda m: errors.append(f"[{m.type}] {m.text}"))
-    page.on("pageerror", lambda e: errors.append(f"PAGE_ERROR: {e}"))
+    errors = capture_console(page, "17_template_flow")
 
     # ============================================================
     # SETUP: create activity via API (Promoter owns it)
@@ -117,7 +116,7 @@ with sync_playwright() as p:
     gen_btn2.click()
     page.wait_for_timeout(1000)
     check(page.locator('.ant-modal:has-text("确认生成")').count() > 0, "confirm modal for v2")
-    page.keyboard.press("Enter")  # antd Modal OK button via keyboard
+    page.locator('.ant-modal button:has-text("确认生成")').first.click()
     page.wait_for_timeout(500)
     page.wait_for_selector('.ant-modal:has-text("确认生成")', state='hidden', timeout=5000)
     page.wait_for_timeout(5000)

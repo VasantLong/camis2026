@@ -399,22 +399,28 @@ async def render_pdf_background(
 
 
 async def _docx_to_pdf_sync(docx_bytes: bytes) -> bytes:
-    with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as tf_in:
-        tf_in.write(docx_bytes)
-        in_path = tf_in.name
+    """Convert DOCX to PDF via LibreOffice in a thread — must not block event loop."""
+    import asyncio
 
-    out_dir = tempfile.mkdtemp()
-    try:
-        subprocess.run(
-            ["soffice", "--headless", "--convert-to", "pdf", "--outdir", out_dir, in_path],
-            check=True, timeout=60, capture_output=True,
-        )
-        pdf_name = Path(in_path).stem + ".pdf"
-        pdf_path = Path(out_dir) / pdf_name
-        if not pdf_path.exists():
-            raise RuntimeError("pdf not produced by soffice")
-        return pdf_path.read_bytes()
-    finally:
-        Path(in_path).unlink(missing_ok=True)
-        import shutil
-        shutil.rmtree(out_dir, ignore_errors=True)
+    def _convert() -> bytes:
+        with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as tf_in:
+            tf_in.write(docx_bytes)
+            in_path = tf_in.name
+
+        out_dir = tempfile.mkdtemp()
+        try:
+            subprocess.run(
+                ["soffice", "--headless", "--convert-to", "pdf", "--outdir", out_dir, in_path],
+                check=True, timeout=60, capture_output=True,
+            )
+            pdf_name = Path(in_path).stem + ".pdf"
+            pdf_path = Path(out_dir) / pdf_name
+            if not pdf_path.exists():
+                raise RuntimeError("pdf not produced by soffice")
+            return pdf_path.read_bytes()
+        finally:
+            Path(in_path).unlink(missing_ok=True)
+            import shutil
+            shutil.rmtree(out_dir, ignore_errors=True)
+
+    return await asyncio.to_thread(_convert)
