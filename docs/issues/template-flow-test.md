@@ -1,6 +1,6 @@
 # 文档模板流程测试 — 当前状态与遗留问题
 
-分支: `test/template-flow` → `feat/workflow-enhance`
+分支: `feat/workflow-enhance`（承接 `test/template-flow` PR #16）
 
 ## 测试覆盖
 
@@ -27,7 +27,10 @@
 11. **Console 日志捕获**: 各测试脚本内联 console 监听重复 → 提炼 `capture_console()` 到 `utils.py`，实时写入 `logs/{name}_console.log`
 12. **snapshot_data 未回传前端**: `get_schema` service 已计算但 route handler 未传入 SchemaResponse → 三个 handler 补传 `snapshot_data`
 13. **角色权限控制**: TemplateForm 无只读模式，有 `view_owned_activity` 但无写权限的用户可交互但 403 → 新增 `readOnly` prop，Promoter 编辑活动方案，SecurityOfficer/Manager 编辑安保方案
-14. **最终确定缺表单校验**: `finalize_plan` 不验证内容完整性 → 前端基于 snapshot 禁用按钮 + 后端 Pydantic 校验 `ActivityPlanForm`
+14. **最终确定缺表单校验**: `finalize_plan` 不验证内容完整性 → 方案B弹窗列出不合规字段 + 修改方案按钮 + 前后端双重校验
+15. **角色视图混合**: `readOnly` 只能灰化表单 → 三种视图策略：TemplateForm（编辑）/ VersionSnapshot（只读快照）/ VersionTimeline（版本管理）
+16. **字段完善**: 新增 has_opening/has_performers 选择器、crowd→select 选项、auto_calc total_days、security_staff_count、contact_phone 11位校验
+17. **antd Select CDP 兼容**: `fill()` 无法操作 readonly combobox → `keyboard.type()` + Enter 完成选择
 
 ## 未解决的问题
 
