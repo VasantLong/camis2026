@@ -182,7 +182,10 @@ export default function TemplateForm({ activityId, schema, loading, highlightFie
       case "date":
         return (
           <Form.Item key={field.name} name={field.name} label={field.ui_label} rules={rules} style={itemStyle}>
-            <DatePicker style={{ width: "100%" }} />
+            <DatePicker
+              style={{ width: "100%" }}
+              disabledDate={field.name === "end_time" ? (d) => d && d.isBefore(dayjs(form.getFieldValue("start_time"))) : undefined}
+            />
           </Form.Item>
         );
       case "select":

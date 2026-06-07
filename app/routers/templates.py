@@ -187,6 +187,21 @@ async def security_plan_generate(
     return GenerateResponse(**result)
 
 
+@router.post("/{activity_id}/security-plan/submit-review")
+async def security_plan_submit_review(
+    activity_id: UUID,
+    current_user: User = Depends(get_current_user),
+    _=require_permission("manage_security"),
+    svc: TemplateService = Depends(_svc),
+):
+    """Submit security plan for SecurityManager review after content validation."""
+    try:
+        await svc.submit_security_plan_for_review(activity_id, current_user.id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"ok": True}
+
+
 @router.get("/{activity_id}/security-plan/versions", response_model=list[VersionItem])
 async def security_plan_versions(
     activity_id: UUID,

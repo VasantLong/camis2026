@@ -33,6 +33,9 @@ export const templatesApi = {
   finalizePlan: (activityId: string) =>
     client.post<{ ok: boolean }>(`/activities/${activityId}/plan/finalize`),
 
+  submitSecurityPlanReview: (activityId: string) =>
+    client.post<{ ok: boolean }>(`/activities/${activityId}/security-plan/submit-review`),
+
   // ── security plan ──
   getSecurityPlanSchema: (activityId: string) =>
     client.get<SchemaResponse>(`/activities/${activityId}/security-plan/schema`),

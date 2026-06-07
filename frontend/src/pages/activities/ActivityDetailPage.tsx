@@ -15,7 +15,7 @@ import HandoverConfirm from "@/components/filings/HandoverConfirm";
 import TemplateForm from "@/components/templates/TemplateForm";
 import VersionTimeline from "@/components/templates/VersionTimeline";
 import VersionSnapshot from "@/components/templates/VersionSnapshot";
-import { validateActivityPlan, type ValidationError } from "@/utils/templateValidation";
+import { validateActivityPlan, validateSecurityPlan, type ValidationError } from "@/utils/templateValidation";
 import { filingsApi } from "@/api/filings";
 import { activitiesApi } from "@/api/activities";
 import { materialsApi } from "@/api/materials";
@@ -116,6 +116,9 @@ export default function ActivityDetailPage() {
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [validationModalOpen, setValidationModalOpen] = useState(false);
   const [highlightFields, setHighlightFields] = useState<string[] | undefined>(undefined);
+  const [planFinalizeOpen, setPlanFinalizeOpen] = useState(false);
+  const [securitySubmitOpen, setSecuritySubmitOpen] = useState(false);
+  const [finalizing, setFinalizing] = useState(false);
 
   const signMutation = useMutation({
     mutationFn: (matId: string) => materialsApi.sign(id!, matId),
@@ -325,16 +328,36 @@ export default function ActivityDetailPage() {
                                   setValidationErrors(errs);
                                   setValidationModalOpen(true);
                                 } else {
-                                  templatesApi.finalizePlan(id!).then(() => {
-                                    message.success("方案已最终确定，已提交至安保方案设计");
-                                    queryClient.invalidateQueries({ queryKey: ["activities", id] });
-                                  }).catch((e) => message.error(e?.response?.data?.detail || "提交失败"));
+                                  setPlanFinalizeOpen(true);
                                 }
                               }}
                             >
                               最终确定方案
                             </Button>
                           )}
+                          <Modal
+                            title="确认最终确定方案"
+                            open={planFinalizeOpen}
+                            onOk={async () => {
+                              setFinalizing(true);
+                              try {
+                                await templatesApi.finalizePlan(id!);
+                                message.success("方案已最终确定，已提交至安保方案设计");
+                                queryClient.invalidateQueries({ queryKey: ["activities", id] });
+                                setPlanFinalizeOpen(false);
+                              } catch (e: any) {
+                                message.error(e?.response?.data?.detail || "提交失败");
+                              } finally {
+                                setFinalizing(false);
+                              }
+                            }}
+                            onCancel={() => setPlanFinalizeOpen(false)}
+                            okText="确认提交"
+                            cancelText="取消"
+                            confirmLoading={finalizing}
+                          >
+                            方案将提交至安保方案设计阶段，提交后不可修改。确认继续？
+                          </Modal>
                         </>
                       ) : isAdmin ? (
                         <VersionTimeline
@@ -423,6 +446,47 @@ export default function ActivityDetailPage() {
                               templatesApi.getSecurityPlanVersionDiff(id!, v1, v2).then((r) => r.data)
                             }
                           />
+                          {securityPlanVersions.length > 0 && activity?.status === "待安保方案设计" && (
+                            <Button
+                              type="primary"
+                              style={{ marginTop: 16 }}
+                              onClick={() => {
+                                const errs = validateSecurityPlan(securityPlanSchema?.snapshot_data, securityPlanSchema?.risk_level);
+                                if (errs.length > 0) {
+                                  setValidationErrors(errs);
+                                  setValidationModalOpen(true);
+                                } else {
+                                  setSecuritySubmitOpen(true);
+                                }
+                              }}
+                            >
+                              提交审核
+                            </Button>
+                          )}
+                          <Modal
+                            title="确认提交审核"
+                            open={securitySubmitOpen}
+                            onOk={async () => {
+                              setFinalizing(true);
+                              try {
+                                await templatesApi.submitSecurityPlanReview(id!);
+                                message.success("安保方案已提交审核，等待负责人签署");
+                                setSecuritySubmitOpen(false);
+                                queryClient.invalidateQueries({ queryKey: ["activities", id] });
+                                refetchSecuritySchema();
+                              } catch (e: any) {
+                                message.error(e?.response?.data?.detail || "提交失败");
+                              } finally {
+                                setFinalizing(false);
+                              }
+                            }}
+                            onCancel={() => setSecuritySubmitOpen(false)}
+                            okText="确认提交"
+                            cancelText="取消"
+                            confirmLoading={finalizing}
+                          >
+                            方案将提交给安保负责人审核签署，提交后不可修改。确认继续？
+                          </Modal>
                         </>
                       ) : isAdmin ? (
                         <VersionTimeline

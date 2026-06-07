@@ -205,6 +205,60 @@ class TemplateService:
         User = __import__("app.models.user", fromlist=["User"]).User
         await ws.transition(activity_id, "待安保方案设计", await self.db.get(User, user_id))
 
+    async def submit_security_plan_for_review(self, activity_id: UUID, user_id: UUID) -> None:
+        """Submit security plan for SecurityManager review. Validate content, set audit_status=待签署."""
+        entity = await self._get_entity("security_plan", activity_id)
+        if not entity or not entity.current_filled_document_id:
+            raise ValueError("安保方案尚未生成，无法提交审核")
+
+        fd = await self.db.get(FilledDocument, entity.current_filled_document_id)
+        if not fd or not fd.data_snapshot:
+            raise ValueError("未找到当前版本数据")
+
+        from app.templates.security_plan.schema import SecurityPlanForm
+        import re
+
+        try:
+            SecurityPlanForm(**fd.data_snapshot)
+        except Exception as e:
+            raise ValueError(f"安保方案内容不完整: {e}")
+
+        data = fd.data_snapshot
+        errors: list[str] = []
+        if not data.get("security_staff_config"):
+            errors.append("安保人员配置不能为空")
+        if not data.get("movement_plan"):
+            errors.append("动线设计不能为空")
+        if not data.get("equipment_list"):
+            errors.append("安保设备清单不能为空")
+        if not data.get("emergency_plan"):
+            errors.append("应急预案不能为空")
+        if not data.get("security_staff_count") or data["security_staff_count"] <= 0:
+            errors.append("安保人员数量必须大于0")
+
+        risk_level = getattr(entity, "risk_level", "") or ""
+        if risk_level == "大型" and not data.get("medical_plan"):
+            errors.append("医疗救护措施不能为空（风险等级：大型）")
+        if risk_level in ("大型", "中型", "高风险") and not data.get("fire_plan"):
+            errors.append("消防措施不能为空")
+        if risk_level in ("大型", "高风险") and not data.get("crowd_control"):
+            errors.append("人流管控方案不能为空")
+
+        if errors:
+            raise ValueError("; ".join(errors))
+
+        activity = await self.db.get(Activity, activity_id)
+        if not activity or activity.status != "待安保方案设计":
+            raise ValueError("当前状态不允许提交审核")
+
+        entity.audit_status = "待签署"
+        await self.db.commit()
+
+        from app.services.notification_service import NotificationService
+        ns = NotificationService(self.db)
+        await ns.notify_role("SecurityManager", "安保方案已提交，请审核签署",
+            reference_id=activity_id, reference_type="activity")
+
     # ------------------------------------------------------------------
     # versions
     # ------------------------------------------------------------------
