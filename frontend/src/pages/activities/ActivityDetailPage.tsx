@@ -159,7 +159,7 @@ export default function ActivityDetailPage() {
       }
       if (fields.length > 0) setHighlightFields(fields);
     }
-  }, [securityPlan?.last_reject_reason]);  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [securityPlan?.last_reject_reason, securityPlan]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   const signMutation = useMutation({
     mutationFn: (matId: string) => materialsApi.sign(id!, matId),
@@ -613,6 +613,7 @@ export default function ActivityDetailPage() {
                             activityId={id!}
                             schema={securityPlanSchema}
                             disabled={!!(securityPlan?.audit_status && securityPlan.audit_status !== "待编制")}
+                            highlightFields={highlightFields}
                             onSaveDraft={async (data) => {
                               await templatesApi.saveSecurityPlanDraft(id!, data);
                             }}
