@@ -173,6 +173,28 @@ WSL2 内 Playwright 通过 `connect_over_cdp("http://127.0.0.1:9222")` 连接 Wi
 
 Ant Design Modal 关闭后 DOM 不销毁，使用 `.ant-modal:visible` 前缀限定当前可见 Modal 内的元素，避免选中隐藏的旧 Modal 子元素。
 
+### antd Select 操作
+
+v6 Select 内部 input 是 `readonly` 的 `role="combobox"`，不能用 `fill()`。正确方式：
+
+```python
+# click → keyboard.type → Enter
+cb = page.locator('input[role="combobox"]').first
+cb.click()
+page.keyboard.type("选项文本")
+page.keyboard.press("Enter")
+```
+
+或通过 `.ant-form-item` 标签定位后选择：
+
+```python
+item = page.locator('.ant-form-item').filter(has_text="字段标签").first
+cb = item.locator('input[role="combobox"]').first
+cb.click()
+page.keyboard.type("选项文本")
+page.keyboard.press("Enter")
+```
+
 ### 模块级 `didRefresh` 标志
 
 React 19 StrictMode 双重挂载组件时，第一次 API 调用消耗 refresh token，第二次调用失败。`didRefresh` 模块级变量跨挂载去重，且 `setChecking(false)` 始终执行，防止 Spin 死锁。

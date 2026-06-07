@@ -185,7 +185,7 @@ class WorkflowService:
 | → `待补充备案材料`        | SecurityOfficer 角色    | "需补充备案材料"       |
 | → `审批通过`              | SecurityManager 角色   | "批文已上传，待确认"   |
 | → `审批通过-待举办`       | AdminStaff 角色         | "活动可合法举办"       |
-| → `待安保方案设计` (驳回) | AdminStaff + 安保负责人 | "方案被驳回，需重做"   |
+| → `待安保方案设计` (驳回) | SecurityOfficer          | "安保方案被驳回需修改" |
 | → `已取消` / `已延期`     | 活动相关人              | 变更原因               |
 
 ---

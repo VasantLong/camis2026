@@ -86,7 +86,8 @@ frontend/src/
 │   │   └── HandoverConfirm.tsx     # 交接确认（不可逆）
 │   ├── templates/
 │   │   ├── TemplateForm.tsx        # Schema驱动动态表单 (8种字段类型+条件显隐)
-│   │   └── VersionTimeline.tsx     # 版本历史列表+详情/差异对比
+│   │   ├── VersionTimeline.tsx     # 版本历史列表+详情/差异对比
+│   │   └── VersionSnapshot.tsx     # 只读快照展示 (供非编辑角色查看最新版本)
 │   └── dashboard/
 │       ├── StatusDistribution.tsx  # 状态分布 Progress 条
 │       ├── AnomalyList.tsx         # 异常活动表格
@@ -119,11 +120,16 @@ frontend/src/
 
 ```
 用户打开活动详情页 → 点击"活动方案"/"安保方案" Tab
-  → GET /activities/{id}/plan/schema (获取字段定义+草稿)
+  → 按角色显示不同视图:
+     · 编辑角色 (Promoter/SecurityOfficer): TemplateForm + VersionTimeline
+     · 管理角色 (AdminStaff): VersionTimeline (全部版本)
+     · 其他角色: VersionSnapshot (只读快照)
+  → GET /activities/{id}/plan/schema (获取字段定义+草稿+快照数据)
   → TemplateForm 根据 schema.fields 动态渲染表单
   → 保存草稿: PUT /activities/{id}/plan/draft
-  → 提交生成: 确认弹窗 → POST /activities/{id}/plan/generate → 渲染 DOCX → 转 PDF → MinIO
-  → 生成后自动弹窗 iframe 预览 PDF
+  → 提交生成: 确认弹窗 → POST → 活动方案立即生成 DOCX / 安保方案仅存快照
+  → 活动方案"最终确定": 方案B校验 → 确认弹窗 → 流转
+  → 安保方案"提交审核": 校验 → SecurityManager 签署 → 批量生成 DOCX → 流转
   → VersionTimeline 展示版本历史 → 支持详情查看和两版本差异对比
 ```
 
