@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Descriptions, Tabs, Button, Tag, Spin, Typography, Space, Modal, Input, message, List, Select, Upload } from "antd";
-import { ArrowLeftOutlined, CheckOutlined, CloseOutlined, EditOutlined } from "@ant-design/icons";
+import { ArrowLeftOutlined, CheckOutlined, CloseOutlined, EditOutlined, UploadOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useActivity, useActivityHistory, useActivityDocuments } from "@/hooks/useActivityQueries";

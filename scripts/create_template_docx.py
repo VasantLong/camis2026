@@ -35,6 +35,7 @@ def make_security_plan():
     doc.add_paragraph("")
     doc.add_paragraph("安保人员配置：")
     doc.add_paragraph("{{ security_staff_config }}")
+    doc.add_paragraph("安保人员数量：{{ security_staff_count }}人")
     doc.add_paragraph("")
     doc.add_paragraph("动线设计：")
     doc.add_paragraph("{{ movement_plan }}")
@@ -48,6 +49,8 @@ def make_security_plan():
     doc.add_paragraph("医疗救护措施：{{ medical_plan }}")
     doc.add_paragraph("消防措施：{{ fire_plan }}")
     doc.add_paragraph("人流管控方案：{{ crowd_control }}")
+    doc.add_paragraph("")
+    doc.add_paragraph("安保负责人审核签名：{{ manager_signature }}")
     return doc
 
 
@@ -82,6 +85,7 @@ def make_risk_assessment():
     doc.add_paragraph("联系人：{{ contact_person }}")
     doc.add_paragraph("联系电话：{{ contact_phone }}")
     doc.add_paragraph("评估主体负责人签字：{{ assessor_signature }}")
+    doc.add_paragraph("安保负责人审核签名：{{ manager_signature }}")
     return doc
 
 
@@ -108,6 +112,7 @@ def make_responsibility_letter():
     doc.add_paragraph("活动安全负责人：{{ security_leader_name }}")
     doc.add_paragraph("确认日期：{{ confirm_date }}")
     doc.add_paragraph("确认地点：{{ confirm_location }}")
+    doc.add_paragraph("安保负责人审核签名：{{ manager_signature }}")
     return doc
 
 
