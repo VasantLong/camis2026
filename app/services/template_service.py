@@ -261,6 +261,8 @@ class TemplateService:
             raise ValueError("当前状态不允许提交审核")
 
         entity.audit_status = "待签署"
+        entity.last_reject_reason = None
+        entity.rejected_at = None
         await self.db.commit()
 
         from app.services.notification_service import NotificationService
