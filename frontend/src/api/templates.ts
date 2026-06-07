@@ -39,6 +39,9 @@ export const templatesApi = {
   signSecurityPlan: (activityId: string, managerSignature: string) =>
     client.post<{ ok: boolean }>(`/activities/${activityId}/security-plan/sign`, { manager_signature: managerSignature }),
 
+  rejectSecurityPlan: (activityId: string, reasons: string[], comment?: string) =>
+    client.post<{ ok: boolean }>(`/activities/${activityId}/security-plan/reject`, { reasons, comment }),
+
   // ── security plan ──
   getSecurityPlanSchema: (activityId: string) =>
     client.get<SchemaResponse>(`/activities/${activityId}/security-plan/schema`),

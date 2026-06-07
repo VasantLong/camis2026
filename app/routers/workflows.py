@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 
 from app.database import get_db
 from app.deps import get_current_user
@@ -9,6 +10,7 @@ from app.rbac import get_user_permissions, require_permission
 from app.schemas.activity import StatusLogEntry
 from app.schemas.workflow import ForceChangeRequest, RejectRequest, StatusTransition
 from app.services.notification_service import NotificationService
+from app.services.template_service import TemplateService
 from app.services.workflow_service import WorkflowService
 from app.errors import NotFoundError, ValidationError
 
@@ -16,6 +18,11 @@ router = APIRouter(prefix="/activities", tags=["workflow"])
 
 
 def _service(db=Depends(get_db)) -> WorkflowService:
+    return WorkflowService(db, NotificationService(db))
+
+
+def _tpl_svc(db=Depends(get_db)) -> TemplateService:
+    return TemplateService(db)
     return WorkflowService(db, NotificationService(db))
 
 
@@ -58,6 +65,27 @@ async def reject_activity(
         raise NotFoundError(str(e))
     except ValueError as e:
         raise ValidationError(str(e))
+
+
+class SecurityPlanRejectRequest(BaseModel):
+    reasons: list[str]
+    comment: str | None = None
+
+
+@router.post("/{activity_id}/security-plan/reject")
+async def reject_security_plan(
+    activity_id: UUID,
+    body: SecurityPlanRejectRequest,
+    current_user: User = Depends(get_current_user),
+    svc: TemplateService = Depends(_tpl_svc),
+    _perm: None = require_permission("reject_approval"),
+):
+    """SecurityManager rejects security plan — set audit_status back to 待编制."""
+    try:
+        await svc.reject_security_plan(activity_id, current_user.id, body.reasons, body.comment)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"ok": True}
 
 
 @router.post("/{activity_id}/force-cancel", response_model=StatusLogEntry)

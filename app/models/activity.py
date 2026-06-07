@@ -78,6 +78,8 @@ class SecurityPlan(Base):
     audit_status: Mapped[str] = mapped_column(String(64), default="待编制", nullable=False)
     manager_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     sign_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_reject_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     draft_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     current_filled_document_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("filled_documents.id", ondelete="SET NULL"), nullable=True

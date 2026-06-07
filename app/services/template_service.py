@@ -327,6 +327,37 @@ class TemplateService:
         User = __import__("app.models.user", fromlist=["User"]).User
         await ws.transition(activity_id, "待备案申请", await self.db.get(User, user_id))
 
+    async def reject_security_plan(self, activity_id: UUID, user_id: UUID,
+                                   reasons: list[str], comment: str | None = None) -> None:
+        """SecurityManager rejects the security plan back to SecurityOfficer."""
+        from app.models.rbac import Role, UserRole
+        from app.services.notification_service import NotificationService
+
+        role_rows = await self.db.execute(
+            select(Role.name).join(UserRole, UserRole.role_id == Role.id)
+            .where(UserRole.user_id == user_id)
+        )
+        roles = {row[0] for row in role_rows.all()}
+        if "SecurityManager" not in roles:
+            raise ValueError("仅安保负责人可驳回")
+
+        entity = await self._get_entity("security_plan", activity_id)
+        if not entity or entity.audit_status != "待签署":
+            raise ValueError("当前状态不允许驳回")
+
+        full_reason = "；".join(reasons)
+        if comment:
+            full_reason += f"（补充：{comment}）"
+
+        entity.audit_status = "待编制"
+        entity.last_reject_reason = full_reason
+        entity.rejected_at = datetime.now(timezone.utc)
+        await self.db.commit()
+
+        ns = NotificationService(self.db)
+        await ns.notify_role("SecurityOfficer", f"安保方案被驳回需修改：{full_reason}",
+            reference_id=activity_id, reference_type="activity")
+
     # ------------------------------------------------------------------
     # versions
     # ------------------------------------------------------------------

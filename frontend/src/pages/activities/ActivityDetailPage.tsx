@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Descriptions, Tabs, Button, Tag, Spin, Typography, Space, Modal, Input, message, List, Select, Upload } from "antd";
+import { Descriptions, Tabs, Button, Tag, Spin, Typography, Space, Modal, Input, message, List, Select, Upload, Checkbox } from "antd";
 import { ArrowLeftOutlined, CheckOutlined, CloseOutlined, EditOutlined, UploadOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -124,6 +124,21 @@ export default function ActivityDetailPage() {
   const [managerSignaturePath, setManagerSignaturePath] = useState<string | null>(null);
   const [signaturePreview, setSignaturePreview] = useState<string | null>(null);
   const [signatureUploadTime, setSignatureUploadTime] = useState<string | null>(null);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectReasons, setRejectReasons] = useState<string[]>([]);
+  const [rejectComment, setRejectComment] = useState("");
+  const [rejecting, setRejecting] = useState(false);
+
+  const REJECT_PRESETS = [
+    "安保人员配置不足或不当",
+    "动线设计不合理",
+    "设备清单不完善",
+    "应急预案不充分",
+    "医疗救护措施不完善",
+    "消防措施不充分",
+    "人流管控方案不合理",
+    "其他（需补充说明）",
+  ];
 
   const signMutation = useMutation({
     mutationFn: (matId: string) => materialsApi.sign(id!, matId),
@@ -396,9 +411,10 @@ export default function ActivityDetailPage() {
                   children: securityPlanSchema ? (
                     <div>
                       {isManager && securityPlan?.audit_status === "待签署" ? (
-                        <div style={{ padding: 16, border: "1px solid #1677ff", borderRadius: 8 }}>
-                          <Typography.Title level={5}>安保负责人签署确认</Typography.Title>
-                          <VersionSnapshot schema={securityPlanSchema} />
+                        <>
+                          <div style={{ padding: 16, border: "1px solid #1677ff", borderRadius: 8 }}>
+                            <Typography.Title level={5}>安保负责人签署确认</Typography.Title>
+                            <VersionSnapshot schema={securityPlanSchema} />
                           <div style={{ marginTop: 16 }}>
                             <Space>
                               <Upload
@@ -454,9 +470,62 @@ export default function ActivityDetailPage() {
                               >
                                 确认签署并提交备案
                               </Button>
+                              <Button
+                                danger
+                                onClick={() => {
+                                  setRejectReasons([]);
+                                  setRejectComment("");
+                                  setRejectOpen(true);
+                                }}
+                              >
+                                驳回
+                              </Button>
                             </Space>
                           </div>
                         </div>
+                        <Modal
+                          title="驳回安保方案"
+                          open={rejectOpen}
+                          onCancel={() => setRejectOpen(false)}
+                          onOk={async () => {
+                            if (rejectReasons.length === 0 && !rejectComment) return;
+                            setRejecting(true);
+                            try {
+                              await templatesApi.rejectSecurityPlan(id!, rejectReasons, rejectComment || undefined);
+                              message.success("已驳回");
+                              setRejectOpen(false);
+                              queryClient.invalidateQueries({ queryKey: ["activities", id] });
+                              queryClient.invalidateQueries({ queryKey: ["activities", id, "security-plan"] });
+                              refetchSecuritySchema();
+                            } catch (e: any) {
+                              message.error(e?.response?.data?.detail || "驳回失败");
+                            } finally {
+                              setRejecting(false);
+                            }
+                          }}
+                          okText="确认驳回"
+                          okButtonProps={{ danger: true, loading: rejecting }}
+                          cancelText="取消"
+                        >
+                          <div style={{ marginBottom: 12 }}>
+                            <Typography.Text strong>驳回原因</Typography.Text>
+                          </div>
+                          <Checkbox.Group
+                            options={REJECT_PRESETS}
+                            value={rejectReasons}
+                            onChange={(v) => setRejectReasons(v as string[])}
+                            style={{ display: "flex", flexDirection: "column", gap: 8 }}
+                          />
+                          <div style={{ marginTop: 12 }}>
+                            <Input.TextArea
+                              placeholder="补充说明（可选）"
+                              rows={2}
+                              value={rejectComment}
+                              onChange={(e) => setRejectComment(e.target.value)}
+                            />
+                          </div>
+                        </Modal>
+                        </>
                       ) : isManager && securityPlan?.audit_status === "已签署" ? (
                         <div>
                           <div style={{ marginBottom: 16, padding: "8px 16px", background: "#f6ffed", borderRadius: 4, border: "1px solid #b7eb8f" }}>
@@ -478,6 +547,17 @@ export default function ActivityDetailPage() {
                         </div>
                       ) : canEditSecurity ? (
                         <>
+                          {!isManager && securityPlan?.last_reject_reason && (
+                            <div style={{ marginBottom: 16, padding: "8px 16px", background: "#fff2f0", borderRadius: 4, border: "1px solid #ffccc7" }}>
+                              <Typography.Text strong style={{ color: "#ff4d4f" }}>被驳回</Typography.Text>
+                              <Typography.Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
+                                {securityPlan.rejected_at ? new Date(securityPlan.rejected_at).toLocaleString("zh-CN") : ""}
+                              </Typography.Text>
+                              <div style={{ marginTop: 4 }}>
+                                <Typography.Text>{securityPlan.last_reject_reason}</Typography.Text>
+                              </div>
+                            </div>
+                          )}
                           <div style={{ marginBottom: 16 }}>
                             <Typography.Text strong>风险等级</Typography.Text>
                             <Select

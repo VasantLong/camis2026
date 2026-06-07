@@ -327,6 +327,8 @@ class SecurityPlanResponse(BaseModel):
     audit_status: str | None = None
     manager_name: str | None = None
     sign_time: str | None = None
+    last_reject_reason: str | None = None
+    rejected_at: str | None = None
 
 
 class SecurityPlanUpdate(BaseModel):
