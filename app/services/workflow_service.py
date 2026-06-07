@@ -108,7 +108,7 @@ class WorkflowService:
                 self.db.add(SecurityPlan(
                     activity_id=activity_id,
                     audit_status="待编制",
-                    risk_level="中/一般",
+                    risk_level=None,
                 ))
             return
 

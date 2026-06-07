@@ -167,12 +167,18 @@ with sync_playwright() as p:
     diff_modal.locator('.ant-modal-close').first.click()
     page.wait_for_timeout(500)
 
-    # Finalize plan (triggers workflow → 待安保方案设计)
+    # Finalize plan: click → confirm modal → submit
     finalize_btn = page.locator('button:has-text("最终确定方案")').first
     check(finalize_btn.count() > 0, "finalize button visible")
     finalize_btn.click()
+    page.wait_for_timeout(500)
+
+    # Confirm modal
+    check(page.locator('.ant-modal:has-text("确认最终确定方案")').count() > 0, "finalize confirm modal")
+    page.locator('.ant-modal button:has-text("确认提交")').first.click()
     page.wait_for_timeout(2000)
     page.wait_for_load_state("networkidle")
+    check(True, "plan finalized → workflow transition")
 
     # ============================================================
     # 3. SecurityOfficer: risk level → security plan → generate
@@ -196,17 +202,17 @@ with sync_playwright() as p:
     page.wait_for_timeout(1500)
     page.wait_for_load_state("networkidle")
 
-    # Select risk level if needed
-    risk_selector = page.locator('.ant-select-selector').first
-    if risk_selector.count() > 0:
-        risk_selector.click()
-        page.wait_for_timeout(500)
-        option = page.locator('.ant-select-item-option:has-text("大型")').first
-        if option.count() > 0:
-            option.click()
-            page.wait_for_timeout(1500)
-            page.wait_for_load_state("networkidle")
-            check(True, "risk level set to 大型")
+    # Select risk level (shown because SecurityPlan starts with null risk_level)
+    risk_sel = page.locator('.ant-form-item:has-text("请先选择风险等级") .ant-select-selector').first
+    if risk_sel.count() > 0:
+        risk_sel.click()
+        page.wait_for_timeout(300)
+        page.keyboard.type("大型")
+        page.wait_for_timeout(200)
+        page.keyboard.press("Enter")
+        page.wait_for_timeout(1500)
+        page.wait_for_load_state("networkidle")
+        check(True, "risk level set to 大型")
 
     # Fill required textareas for security plan
     sp_textareas = page.locator('textarea').all()
@@ -235,6 +241,18 @@ with sync_playwright() as p:
         check(True, "security plan v1 generated")
     else:
         check(False, "confirmation modal not shown for security plan")
+
+    # Submit for review
+    submit_btn = page.locator('button:has-text("提交审核")').first
+    check(submit_btn.count() > 0, "submit review button visible")
+    submit_btn.click()
+    page.wait_for_timeout(500)
+
+    check(page.locator('.ant-modal:has-text("确认提交审核")').count() > 0, "submit confirm modal")
+    page.locator('.ant-modal button:has-text("确认提交")').first.click()
+    page.wait_for_timeout(2000)
+    page.wait_for_load_state("networkidle")
+    check(True, "security plan submitted for review")
 
     # ============================================================
     # Report
