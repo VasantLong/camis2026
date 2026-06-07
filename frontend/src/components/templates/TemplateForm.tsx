@@ -21,11 +21,12 @@ interface Props {
   activityId: string;
   schema: SchemaResponse;
   loading?: boolean;
+  highlightFields?: string[];
   onSaveDraft: (data: Record<string, unknown>) => Promise<void>;
   onSubmit: (data: Record<string, unknown>) => Promise<GenerateResponse>;
 }
 
-export default function TemplateForm({ activityId, schema, loading, onSaveDraft, onSubmit }: Props) {
+export default function TemplateForm({ activityId, schema, loading, highlightFields, onSaveDraft, onSubmit }: Props) {
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -33,9 +34,24 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [changedFields, setChangedFields] = useState<Set<string>>(new Set());
   const [isDirty, setIsDirty] = useState(false);
+  const [highlightSet, setHighlightSet] = useState<Set<string>>(new Set());
+
+  // Sync highlightFields prop
+  useEffect(() => {
+    if (highlightFields && highlightFields.length > 0) {
+      setHighlightSet(new Set(highlightFields));
+    }
+  }, [highlightFields]);
+
+  // Clear highlights when form values change (user started editing)
+  const clearHighlights = () => {
+    if (highlightSet.size > 0) setHighlightSet(new Set());
+  };
 
   // Track changed fields vs snapshot
   const handleValuesChange = (_changed: Record<string, unknown>, allValues: Record<string, unknown>) => {
+    clearHighlights();
+
     // auto_calc: total_days from start_time/end_time
     for (const f of schema.fields) {
       if (f.auto_calc === "end_time - start_time") {
@@ -120,7 +136,10 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
   );
 
   const renderField = (field: FieldDef, changed: boolean) => {
-    const itemStyle = changed ? { background: "#fffbe6", padding: 8, borderRadius: 4 } : undefined;
+    const isHighlighted = highlightSet.has(field.name);
+    const itemStyle = isHighlighted
+      ? { background: "#fff2f0", padding: 8, borderRadius: 4, border: "1px solid #ff4d4f" }
+      : changed ? { background: "#fffbe6", padding: 8, borderRadius: 4 } : undefined;
     const rules = field.required
       ? [{ required: true, message: `请填写${field.ui_label}` }]
       : undefined;

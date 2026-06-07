@@ -115,6 +115,7 @@ export default function ActivityDetailPage() {
   const [auditOpinion, setAuditOpinion] = useState("");
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [validationModalOpen, setValidationModalOpen] = useState(false);
+  const [highlightFields, setHighlightFields] = useState<string[] | undefined>(undefined);
 
   const signMutation = useMutation({
     mutationFn: (matId: string) => materialsApi.sign(id!, matId),
@@ -270,6 +271,7 @@ export default function ActivityDetailPage() {
                           <TemplateForm
                             activityId={id!}
                             schema={planSchema}
+                            highlightFields={highlightFields}
                             onSaveDraft={async (data) => {
                               await templatesApi.savePlanDraft(id!, data);
                             }}
@@ -651,7 +653,10 @@ export default function ActivityDetailPage() {
         open={validationModalOpen}
         onCancel={() => setValidationModalOpen(false)}
         footer={
-          <Button type="primary" onClick={() => setValidationModalOpen(false)}>
+          <Button type="primary" onClick={() => {
+            setHighlightFields(validationErrors.filter(e => e.field).map(e => e.field));
+            setValidationModalOpen(false);
+          }}>
             修改方案
           </Button>
         }
