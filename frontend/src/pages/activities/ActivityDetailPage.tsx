@@ -122,6 +122,8 @@ export default function ActivityDetailPage() {
   const [securitySubmitOpen, setSecuritySubmitOpen] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
   const [managerSignaturePath, setManagerSignaturePath] = useState<string | null>(null);
+  const [signaturePreview, setSignaturePreview] = useState<string | null>(null);
+  const [signatureUploadTime, setSignatureUploadTime] = useState<string | null>(null);
 
   const signMutation = useMutation({
     mutationFn: (matId: string) => materialsApi.sign(id!, matId),
@@ -402,11 +404,18 @@ export default function ActivityDetailPage() {
                               <Upload
                                 accept="image/*"
                                 maxCount={1}
+                                showUploadList={false}
                                 customRequest={async ({ file, onSuccess, onError }) => {
                                   try {
-                                    const res = await documentsApi.upload(id!, file as File, ["signature"]);
+                                    const f = file as File;
+                                    const ext = f.name.split(".").pop() || "png";
+                                    const ts = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 14);
+                                    const renamed = new File([f], `manager_sign_${ts}.${ext}`, { type: f.type });
+                                    const res = await documentsApi.upload(id!, renamed, ["signature"]);
                                     const doc = res.data;
                                     setManagerSignaturePath(doc.minio_path);
+                                    setSignaturePreview(URL.createObjectURL(f));
+                                    setSignatureUploadTime(new Date().toLocaleString("zh-CN"));
                                     onSuccess?.(doc);
                                     message.success("已上传签名图片");
                                   } catch {
@@ -417,6 +426,12 @@ export default function ActivityDetailPage() {
                               >
                                 <Button icon={<UploadOutlined />}>上传签名图片</Button>
                               </Upload>
+                              {signaturePreview && (
+                                <div>
+                                  <img src={signaturePreview} alt="签名预览" style={{ maxWidth: 200, maxHeight: 80, borderRadius: 4, border: "1px solid #d9d9d9", display: "block" }} />
+                                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>上传时间：{signatureUploadTime}</Typography.Text>
+                                </div>
+                              )}
                               <Button
                                 type="primary"
                                 disabled={!managerSignaturePath}
