@@ -142,10 +142,20 @@ class TemplateService:
     # ------------------------------------------------------------------
 
     async def finalize_plan(self, activity_id: UUID, user_id: UUID) -> None:
-        """Finalize the activity plan: check version exists, trigger workflow transition."""
+        """Finalize the activity plan: validate content, trigger workflow transition."""
         entity = await self._get_entity("activity_plan", activity_id)
         if not entity or not entity.current_filled_document_id:
             raise ValueError("活动方案尚未生成，无法最终确定")
+
+        fd = await self.db.get(FilledDocument, entity.current_filled_document_id)
+        if not fd or not fd.data_snapshot:
+            raise ValueError("未找到当前版本数据")
+
+        from app.templates.activity_plan.schema import ActivityPlanForm
+        try:
+            ActivityPlanForm(**fd.data_snapshot)
+        except Exception as e:
+            raise ValueError(f"活动方案内容不完整: {e}")
 
         activity = await self.db.get(Activity, activity_id)
         if not activity or activity.status != "待设计方案":

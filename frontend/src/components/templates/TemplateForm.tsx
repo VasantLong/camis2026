@@ -21,11 +21,12 @@ interface Props {
   activityId: string;
   schema: SchemaResponse;
   loading?: boolean;
+  readOnly?: boolean;
   onSaveDraft: (data: Record<string, unknown>) => Promise<void>;
   onSubmit: (data: Record<string, unknown>) => Promise<GenerateResponse>;
 }
 
-export default function TemplateForm({ activityId, schema, loading, onSaveDraft, onSubmit }: Props) {
+export default function TemplateForm({ activityId, schema, loading, readOnly, onSaveDraft, onSubmit }: Props) {
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -248,18 +249,20 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
 
   return (
     <>
-      <Form form={form} layout="vertical" disabled={loading || submitting} onValuesChange={handleValuesChange}>
+      <Form form={form} layout="vertical" disabled={loading || submitting || readOnly} onValuesChange={handleValuesChange}>
         {visibleFields(schema.fields).map((f) => renderField(f, changedFields.has(f.name)))}
-        <Form.Item>
-          <Space>
-            <Button onClick={handleSaveDraft} loading={saving} disabled={!buttonsEnabled}>
-              保存草稿
-            </Button>
-            <Button type="primary" onClick={handleSubmit} loading={submitting} disabled={!buttonsEnabled}>
-              提交生成
-            </Button>
-          </Space>
-        </Form.Item>
+        {!readOnly && (
+          <Form.Item>
+            <Space>
+              <Button onClick={handleSaveDraft} loading={saving} disabled={!buttonsEnabled}>
+                保存草稿
+              </Button>
+              <Button type="primary" onClick={handleSubmit} loading={submitting} disabled={!buttonsEnabled}>
+                提交生成
+              </Button>
+            </Space>
+          </Form.Item>
+        )}
       </Form>
       <Modal
         title="确认生成"

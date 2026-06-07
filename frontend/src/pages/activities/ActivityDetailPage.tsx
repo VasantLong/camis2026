@@ -79,6 +79,8 @@ export default function ActivityDetailPage() {
   // ── template queries ──
   const canViewPlan = permissions.includes("submit_plan") || permissions.includes("view_owned_activity");
   const canViewSecurity = permissions.includes("manage_security") || permissions.includes("view_owned_activity");
+  const canEditPlan = permissions.includes("submit_plan");
+  const canEditSecurity = permissions.includes("manage_security");
 
   const { data: planSchema, refetch: refetchPlanSchema } = useQuery({
     queryKey: ["activities", id, "templates", "plan-schema"],
@@ -261,6 +263,7 @@ export default function ActivityDetailPage() {
                       <TemplateForm
                         activityId={id!}
                         schema={planSchema}
+                        readOnly={!canEditPlan}
                         onSaveDraft={async (data) => {
                           await templatesApi.savePlanDraft(id!, data);
                         }}
@@ -305,19 +308,38 @@ export default function ActivityDetailPage() {
                           return r.data.url;
                         }}
                       />
-                      {planVersions.length > 0 && activity?.status === "待设计方案" && permissions.includes("submit_plan") && (
-                        <Button
-                          type="primary"
-                          style={{ marginTop: 16 }}
-                          onClick={async () => {
-                            await templatesApi.finalizePlan(id!);
-                            message.success("方案已最终确定，已提交至安保方案设计");
-                            queryClient.invalidateQueries({ queryKey: ["activities", id] });
-                          }}
-                        >
-                          最终确定方案
-                        </Button>
-                      )}
+                      {(() => {
+                        const snap = planSchema?.snapshot_data;
+                        const canFinalize = snap && planSchema.fields
+                          .filter((f) => f.required)
+                          .every((f) => {
+                            const v = snap[f.name];
+                            if (v === null || v === undefined || v === "") return false;
+                            if (f.ui_type === "number" && (typeof v !== "number" || v <= 0)) return false;
+                            return true;
+                          });
+                        return planVersions.length > 0 && activity?.status === "待设计方案" && permissions.includes("submit_plan") && (
+                          <>
+                            <Button
+                              type="primary"
+                              style={{ marginTop: 16 }}
+                              disabled={!canFinalize}
+                              onClick={async () => {
+                                await templatesApi.finalizePlan(id!);
+                                message.success("方案已最终确定，已提交至安保方案设计");
+                                queryClient.invalidateQueries({ queryKey: ["activities", id] });
+                              }}
+                            >
+                              最终确定方案
+                            </Button>
+                            {!canFinalize && (
+                              <span style={{ marginLeft: 12, color: "#faad14", fontSize: 13 }}>
+                                请先完善活动方案必填字段后再最终确定
+                              </span>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                   ) : (
                     <Spin />
@@ -353,6 +375,7 @@ export default function ActivityDetailPage() {
                       <TemplateForm
                         activityId={id!}
                         schema={securityPlanSchema}
+                        readOnly={!canEditSecurity}
                         onSaveDraft={async (data) => {
                           await templatesApi.saveSecurityPlanDraft(id!, data);
                         }}
