@@ -8,6 +8,8 @@ export interface FieldDef {
   min_items?: number;
   options?: string[];
   condition?: string;
+  auto_calc?: string;
+  validate?: { pattern: string; message: string };
 }
 
 export interface SchemaResponse {

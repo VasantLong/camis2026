@@ -152,10 +152,48 @@ class TemplateService:
             raise ValueError("未找到当前版本数据")
 
         from app.templates.activity_plan.schema import ActivityPlanForm
+
         try:
             ActivityPlanForm(**fd.data_snapshot)
         except Exception as e:
             raise ValueError(f"活动方案内容不完整: {e}")
+
+        data = fd.data_snapshot
+        import re
+
+        errors: list[str] = []
+        if not data.get("activity_content"):
+            errors.append("活动主要内容不能为空")
+        if not data.get("start_time"):
+            errors.append("开始时间未填写")
+        if not data.get("end_time"):
+            errors.append("结束时间未填写")
+        if data.get("start_time") and data.get("end_time") and data["start_time"] >= data["end_time"]:
+            errors.append("结束时间必须晚于开始时间")
+        if not data.get("staff_count") or data["staff_count"] <= 0:
+            errors.append("工作人员数量必须大于0")
+        if not data.get("construction_plan"):
+            errors.append("搭建方案不能为空")
+        if not data.get("regular_crowd"):
+            errors.append("平日人数范围未选择")
+        phone = data.get("contact_phone", "")
+        if not re.match(r"^1[3-9]\d{9}$", str(phone)):
+            errors.append("负责人联系方式须为11位手机号码")
+        if data.get("has_opening") == "是":
+            if not data.get("opening_start"):
+                errors.append("开幕式开始时间未填写")
+            if not data.get("opening_end"):
+                errors.append("开幕式结束时间未填写")
+            if not data.get("opening_crowd"):
+                errors.append("主要活动日人数范围未选择")
+        if data.get("has_performers") == "是":
+            if not data.get("performer_count") or data["performer_count"] <= 0:
+                errors.append("演员数量必须大于0")
+            if not data.get("guest_count") or data["guest_count"] <= 0:
+                errors.append("嘉宾数量必须大于0")
+
+        if errors:
+            raise ValueError("; ".join(errors))
 
         activity = await self.db.get(Activity, activity_id)
         if not activity or activity.status != "待设计方案":

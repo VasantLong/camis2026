@@ -36,6 +36,19 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
 
   // Track changed fields vs snapshot
   const handleValuesChange = (_changed: Record<string, unknown>, allValues: Record<string, unknown>) => {
+    // auto_calc: total_days from start_time/end_time
+    for (const f of schema.fields) {
+      if (f.auto_calc === "end_time - start_time") {
+        const s = allValues["start_time"];
+        const e = allValues["end_time"];
+        if (s && e && dayjs.isDayjs(s) && dayjs.isDayjs(e)) {
+          const days = (e as dayjs.Dayjs).diff(s as dayjs.Dayjs, "day") + 1;
+          if (days > 0 && (allValues as any)["total_days"] !== days) {
+            form.setFieldValue("total_days", days);
+          }
+        }
+      }
+    }
     let hasAnyChange = false;
     const diff = new Set<string>();
     for (const f of schema.fields) {
@@ -113,19 +126,30 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
       : undefined;
 
     switch (field.ui_type) {
-      case "text":
+      case "text": {{
+        const extraRules = field.validate
+          ? [{ pattern: new RegExp(field.validate.pattern), message: field.validate.message }]
+          : [];
         return (
-          <Form.Item key={field.name} name={field.name} label={field.ui_label} rules={rules} style={itemStyle}>
+          <Form.Item key={field.name} name={field.name} label={field.ui_label} rules={[...(rules || []), ...extraRules]} style={itemStyle}>
             <Input placeholder={field.ui_label} />
           </Form.Item>
         );
+      }}
       case "textarea":
         return (
           <Form.Item key={field.name} name={field.name} label={field.ui_label} rules={rules} style={itemStyle}>
             <Input.TextArea rows={4} placeholder={field.ui_label} />
           </Form.Item>
         );
-      case "number":
+      case "number": {{
+        if (field.auto_calc) {
+          return (
+            <Form.Item key={field.name} name={field.name} label={field.ui_label} style={itemStyle}>
+              <InputNumber disabled style={{ width: "100%" }} />
+            </Form.Item>
+          );
+        }
         return (
           <Form.Item key={field.name} name={field.name} label={field.ui_label} rules={rules} style={itemStyle}>
             <InputNumber
@@ -135,6 +159,7 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
             />
           </Form.Item>
         );
+      }}
       case "date":
         return (
           <Form.Item key={field.name} name={field.name} label={field.ui_label} rules={rules} style={itemStyle}>

@@ -15,6 +15,7 @@ import HandoverConfirm from "@/components/filings/HandoverConfirm";
 import TemplateForm from "@/components/templates/TemplateForm";
 import VersionTimeline from "@/components/templates/VersionTimeline";
 import VersionSnapshot from "@/components/templates/VersionSnapshot";
+import { validateActivityPlan, type ValidationError } from "@/utils/templateValidation";
 import { filingsApi } from "@/api/filings";
 import { activitiesApi } from "@/api/activities";
 import { materialsApi } from "@/api/materials";
@@ -112,6 +113,8 @@ export default function ActivityDetailPage() {
   const [auditTarget, setAuditTarget] = useState<{ id: string; name: string } | null>(null);
   const [auditConclusion, setAuditConclusion] = useState<string>("qualified");
   const [auditOpinion, setAuditOpinion] = useState("");
+  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+  const [validationModalOpen, setValidationModalOpen] = useState(false);
 
   const signMutation = useMutation({
     mutationFn: (matId: string) => materialsApi.sign(id!, matId),
@@ -310,38 +313,26 @@ export default function ActivityDetailPage() {
                               return r.data.url;
                             }}
                           />
-                          {(() => {
-                            const snap = planSchema?.snapshot_data;
-                            const canFinalize = snap && planSchema.fields
-                              .filter((f) => f.required)
-                              .every((f) => {
-                                const v = snap[f.name];
-                                if (v === null || v === undefined || v === "") return false;
-                                if (f.ui_type === "number" && (typeof v !== "number" || v <= 0)) return false;
-                                return true;
-                              });
-                            return planVersions.length > 0 && activity?.status === "待设计方案" && (
-                              <>
-                                <Button
-                                  type="primary"
-                                  style={{ marginTop: 16 }}
-                                  disabled={!canFinalize}
-                                  onClick={async () => {
-                                    await templatesApi.finalizePlan(id!);
+                          {planVersions.length > 0 && activity?.status === "待设计方案" && (
+                            <Button
+                              type="primary"
+                              style={{ marginTop: 16 }}
+                              onClick={() => {
+                                const errs = validateActivityPlan(planSchema?.snapshot_data);
+                                if (errs.length > 0) {
+                                  setValidationErrors(errs);
+                                  setValidationModalOpen(true);
+                                } else {
+                                  templatesApi.finalizePlan(id!).then(() => {
                                     message.success("方案已最终确定，已提交至安保方案设计");
                                     queryClient.invalidateQueries({ queryKey: ["activities", id] });
-                                  }}
-                                >
-                                  最终确定方案
-                                </Button>
-                                {!canFinalize && (
-                                  <span style={{ marginLeft: 12, color: "#faad14", fontSize: 13 }}>
-                                    请先完善活动方案必填字段后再最终确定
-                                  </span>
-                                )}
-                              </>
-                            );
-                          })()}
+                                  }).catch((e) => message.error(e?.response?.data?.detail || "提交失败"));
+                                }
+                              }}
+                            >
+                              最终确定方案
+                            </Button>
+                          )}
                         </>
                       ) : isAdmin ? (
                         <VersionTimeline
@@ -655,6 +646,24 @@ export default function ActivityDetailPage() {
             : []),
         ]}
       />
+      <Modal
+        title="以下字段需要完善后才能最终确定"
+        open={validationModalOpen}
+        onCancel={() => setValidationModalOpen(false)}
+        footer={
+          <Button type="primary" onClick={() => setValidationModalOpen(false)}>
+            修改方案
+          </Button>
+        }
+      >
+        <ul style={{ paddingLeft: 20, margin: 0 }}>
+          {validationErrors.map((e, i) => (
+            <li key={i} style={{ marginBottom: 6 }}>
+              <strong>{e.label}</strong>：{e.reason}
+            </li>
+          ))}
+        </ul>
+      </Modal>
     </div>
   );
 }
