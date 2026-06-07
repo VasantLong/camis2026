@@ -53,6 +53,7 @@ export default function Sidebar() {
         key: "/activities/new",
         label: "新建立项",
         icon: <PlusOutlined />,
+        // @ts-expect-error antd v6 MenuItem type missing disabled
         disabled: !user?.contact_phone,
       });
     }

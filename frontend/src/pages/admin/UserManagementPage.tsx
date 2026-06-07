@@ -18,7 +18,7 @@ import {
 } from "antd";
 import { StopOutlined, CheckOutlined, EditOutlined, LockOutlined } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { adminApi, type UserListItem, type UserOverview } from "@/api/admin";
+import { adminApi, type UserListItem } from "@/api/admin";
 import { authApi } from "@/api/auth";
 import { useAuthStore } from "@/stores/authStore";
 import { ROLE_LABEL_MAP } from "@/utils/constants";

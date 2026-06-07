@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Badge, Button, Dropdown, List, Typography, Empty } from "antd";
+import { Badge, Button, Dropdown, Typography, Empty } from "antd";
 import { BellOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -74,12 +74,13 @@ export default function HeaderNotifications() {
   if (notifications.length > 3) {
     items.push({
       key: "view-all",
+      onClick: () => {},
       label: (
         <Typography.Link onClick={() => { setOpen(false); navigate("/activities?tab=pending"); }}>
           查看全部 ({notifications.length} 条)
         </Typography.Link>
       ),
-    });
+    } as any);
   }
 
   return (

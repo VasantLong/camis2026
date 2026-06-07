@@ -17,7 +17,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { authApi } from "@/api/auth";
 import { roleRequestApi } from "@/api/roleRequest";
 import { useAuthStore } from "@/stores/authStore";
-import { ROLE_LABEL_MAP, ROLE_DESC_MAP } from "@/utils/constants";
+import { ROLE_LABEL_MAP } from "@/utils/constants";
 
 export default function ProfilePage() {
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);

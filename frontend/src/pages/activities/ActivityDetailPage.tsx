@@ -23,7 +23,7 @@ import { materialsApi } from "@/api/materials";
 import { templatesApi } from "@/api/templates";
 import { useAuthStore } from "@/stores/authStore";
 import { STATUS_COLOR_MAP } from "@/utils/constants";
-import type { VersionItem, VersionDetail, VersionDiff, SchemaResponse } from "@/types/template";
+import type { VersionItem, SchemaResponse } from "@/types/template";
 
 export default function ActivityDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -87,13 +87,13 @@ export default function ActivityDetailPage() {
   const isManager = permissions.includes("review_security_plan");
   const isAdmin = permissions.includes("view_dashboard") && !canEditPlan && !canEditSecurity;
 
-  const { data: planSchema, refetch: refetchPlanSchema } = useQuery({
+  const { data: planSchema } = useQuery({
     queryKey: ["activities", id, "templates", "plan-schema"],
     queryFn: () => templatesApi.getPlanSchema(id!).then((r) => r.data),
     enabled: canViewPlan,
   });
 
-  const { data: planVersions = [], refetch: refetchPlanVersions } = useQuery({
+  const { data: planVersions = [] } = useQuery({
     queryKey: ["activities", id, "templates", "plan-versions"],
     queryFn: () => templatesApi.getPlanVersions(id!).then((r) => r.data),
     enabled: canViewPlan,
@@ -105,7 +105,7 @@ export default function ActivityDetailPage() {
     enabled: canViewSecurity,
   });
 
-  const { data: securityPlanVersions = [], refetch: refetchSecurityVersions } = useQuery({
+  const { data: securityPlanVersions = [] } = useQuery({
     queryKey: ["activities", id, "templates", "security-versions"],
     queryFn: () => templatesApi.getSecurityPlanVersions(id!).then((r) => r.data),
     enabled: canViewSecurity,
@@ -185,7 +185,6 @@ export default function ActivityDetailPage() {
   const canSign = permissions.includes("sign_document");
   const canAudit = permissions.includes("audit_material");
   const allSigned = materials.length > 0 && materials.every(m => m.sign_status === "signed");
-  const allQualified = materials.length > 0 && materials.every(m => m.is_qualified);
   const canPack = canOperateFiling && allSigned && !filingStatus?.packed;
 
   if (isLoading) {
@@ -649,7 +648,7 @@ export default function ActivityDetailPage() {
                           />
                           {(() => {
                             const auditStatus = securityPlan?.audit_status;
-                            const submitted = auditStatus && auditStatus !== "待编制";
+                            const submitted = !!(auditStatus && auditStatus !== "待编制");
                             const btnLabel = submitted ? (
                               auditStatus === "待签署" ? "已提交审核，等待负责人签署" : "负责人已签署"
                             ) : "提交审核";
