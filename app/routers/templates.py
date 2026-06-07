@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from pydantic import BaseModel
 
 from app.database import get_db
 from app.deps import get_current_user
@@ -197,6 +198,26 @@ async def security_plan_submit_review(
     """Submit security plan for SecurityManager review after content validation."""
     try:
         await svc.submit_security_plan_for_review(activity_id, current_user.id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"ok": True}
+
+
+class SignRequest(BaseModel):
+    manager_signature: str  # minio_path of signature image
+
+
+@router.post("/{activity_id}/security-plan/sign")
+async def security_plan_sign(
+    activity_id: UUID,
+    body: SignRequest,
+    current_user: User = Depends(get_current_user),
+    _=require_permission("manage_security"),
+    svc: TemplateService = Depends(_svc),
+):
+    """SecurityManager signs: generate signed DOCX, transition to 待备案申请."""
+    try:
+        await svc.sign_and_finalize(activity_id, current_user.id, body.manager_signature)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return {"ok": True}

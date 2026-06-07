@@ -17,6 +17,7 @@ class ResponsibilityLetterForm(BaseModel):
     security_leader_name: str = Field(default="", description="安全负责人姓名")
     security_leader_signature: str = Field(default="", description="安全负责人签字")
     sponsor_seal: str = Field(default="", description="主办单位公章")
+    manager_signature: str = Field(default="", description="安保负责人审核签名")
     confirm_date: str = Field(default="", description="确认日期")
     confirm_location: str = Field(default="", description="确认地点")
 
@@ -39,5 +40,6 @@ SCHEMA = {
         {"name": "sponsor_seal", "ui_label": "主办单位（公章）", "ui_type": "text", "required": True},
         {"name": "confirm_date", "ui_label": "确认日期", "ui_type": "date", "required": True},
         {"name": "confirm_location", "ui_label": "确认地点", "ui_type": "text", "required": True},
+        # manager_signature is NOT in fields — injected at Manager signing time
     ],
 }

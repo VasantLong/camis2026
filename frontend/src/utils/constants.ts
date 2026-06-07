@@ -74,8 +74,7 @@ export function getAvailableTransitions(
   if (status === "待安保方案设计") {
     if (has("reject_approval"))
       actions.push({ label: "驳回（内部循环）", mode: "reject", permission: "reject_approval" });
-    if (has("manage_security"))
-      actions.push({ label: "签署完成—提交备案", mode: "transition", toStatus: "待备案申请", permission: "manage_security" });
+    // "确认签署" is in the security plan tab, replacing "签署完成—提交备案"
   }
   if (status === "待备案申请") {
     // Filing phase — actions come from Filing components

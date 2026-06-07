@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Descriptions, Tabs, Button, Tag, Spin, Typography, Space, Modal, Input, message, List, Select } from "antd";
+import { Descriptions, Tabs, Button, Tag, Spin, Typography, Space, Modal, Input, message, List, Select, Upload } from "antd";
 import { ArrowLeftOutlined, CheckOutlined, CloseOutlined, EditOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -17,6 +17,7 @@ import VersionTimeline from "@/components/templates/VersionTimeline";
 import VersionSnapshot from "@/components/templates/VersionSnapshot";
 import { validateActivityPlan, validateSecurityPlan, type ValidationError } from "@/utils/templateValidation";
 import { filingsApi } from "@/api/filings";
+import { documentsApi } from "@/api/documents";
 import { activitiesApi } from "@/api/activities";
 import { materialsApi } from "@/api/materials";
 import { templatesApi } from "@/api/templates";
@@ -83,6 +84,7 @@ export default function ActivityDetailPage() {
   const canViewSecurity = permissions.includes("manage_security") || permissions.includes("view_owned_activity");
   const canEditPlan = permissions.includes("submit_plan");
   const canEditSecurity = permissions.includes("manage_security");
+  const isManager = permissions.includes("review_security_plan");
   const isAdmin = permissions.includes("view_dashboard") && !canEditPlan && !canEditSecurity;
 
   const { data: planSchema, refetch: refetchPlanSchema } = useQuery({
@@ -119,6 +121,7 @@ export default function ActivityDetailPage() {
   const [planFinalizeOpen, setPlanFinalizeOpen] = useState(false);
   const [securitySubmitOpen, setSecuritySubmitOpen] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
+  const [managerSignaturePath, setManagerSignaturePath] = useState<string | null>(null);
 
   const signMutation = useMutation({
     mutationFn: (matId: string) => materialsApi.sign(id!, matId),
@@ -498,6 +501,56 @@ export default function ActivityDetailPage() {
                           >
                             方案将提交给安保负责人审核签署，提交后不可修改。确认继续？
                           </Modal>
+                          {isManager && securityPlan?.audit_status === "待签署" && (
+                            <div style={{ marginTop: 24, padding: 16, border: "1px solid #1677ff", borderRadius: 8 }}>
+                              <Typography.Title level={5}>安保负责人签署确认</Typography.Title>
+                              <VersionSnapshot schema={securityPlanSchema!} />
+                              <div style={{ marginTop: 16 }}>
+                                <Space>
+                                  <Upload
+                                    accept="image/*"
+                                    maxCount={1}
+                                    customRequest={async ({ file, onSuccess, onError }) => {
+                                      try {
+                                        const res = await documentsApi.upload(id!, file as File, ["signature"]);
+                                        const doc = res.data;
+                                        setManagerSignaturePath(doc.minio_path);
+                                        onSuccess?.(doc);
+                                        message.success("已上传签名图片");
+                                      } catch {
+                                        onError?.(new Error("上传失败"));
+                                        message.error("签名上传失败");
+                                      }
+                                    }}
+                                  >
+                                    <Button icon={<UploadOutlined />}>上传签名图片</Button>
+                                  </Upload>
+                                  <Button
+                                    type="primary"
+                                    disabled={!managerSignaturePath}
+                                    onClick={async () => {
+                                      setFinalizing(true);
+                                      try {
+                                        await templatesApi.signSecurityPlan(id!, managerSignaturePath!);
+                                        message.success("已签署确认，方案已提交至备案申请");
+                                        setManagerSignaturePath(null);
+                                        queryClient.invalidateQueries({ queryKey: ["activities", id] });
+                                        queryClient.invalidateQueries({ queryKey: ["activities", id, "security-plan"] });
+                                        refetchSecuritySchema();
+                                      } catch (e: any) {
+                                        message.error(e?.response?.data?.detail || "签署失败");
+                                      } finally {
+                                        setFinalizing(false);
+                                      }
+                                    }}
+                                    loading={finalizing}
+                                  >
+                                    确认签署并提交备案
+                                  </Button>
+                                </Space>
+                              </div>
+                            </div>
+                          )}
                         </>
                       ) : isAdmin ? (
                         <VersionTimeline

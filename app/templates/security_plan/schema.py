@@ -12,6 +12,7 @@ class SecurityPlanForm(BaseModel):
     medical_plan: str = Field(default="", description="医疗救护措施")
     fire_plan: str = Field(default="", description="消防措施")
     crowd_control: str = Field(default="", description="人流管控方案")
+    manager_signature: str = Field(default="", description="安保负责人审核签名")
 
 
 # 条件段定义：risk_level 决定哪些字段可见
@@ -34,5 +35,6 @@ SCHEMA = {
         {"name": "medical_plan", "ui_label": "医疗救护措施", "ui_type": "textarea", "condition": "大型"},
         {"name": "fire_plan", "ui_label": "消防措施", "ui_type": "textarea", "condition": "大型/中型/高风险"},
         {"name": "crowd_control", "ui_label": "人流管控方案", "ui_type": "textarea", "condition": "大型/高风险"},
+        # manager_signature is NOT in fields — injected at Manager signing time, not shown in form
     ],
 }
