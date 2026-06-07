@@ -252,11 +252,17 @@ with sync_playwright() as p:
     page.wait_for_load_state("networkidle")
     check(True, "security plan submitted for review")
 
-    # After submission, button should be disabled
+    # After submission, form should be locked and button disabled
     page.wait_for_timeout(1000)
     submitted_btn = page.locator('button:has-text("已提交审核，等待负责人签署")').first
     check(submitted_btn.count() > 0, "button shows submitted state")
     check(submitted_btn.is_disabled(), "submit button disabled after submission")
+
+    # Form should be locked — no visible save/generate buttons
+    save_btn = page.locator('button:has-text("保存草稿")').first
+    gen_btn2 = page.locator('button:has-text("提交生成")').first
+    check(not save_btn.is_visible() if save_btn.count() > 0 else True, "save draft hidden after submit")
+    check(not gen_btn2.is_visible() if gen_btn2.count() > 0 else True, "generate hidden after submit")
 
     # ============================================================
     # Report

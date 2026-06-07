@@ -412,6 +412,7 @@ export default function ActivityDetailPage() {
                           <TemplateForm
                             activityId={id!}
                             schema={securityPlanSchema}
+                            disabled={!!(securityPlan?.audit_status && securityPlan.audit_status !== "待编制")}
                             onSaveDraft={async (data) => {
                               await templatesApi.saveSecurityPlanDraft(id!, data);
                             }}
