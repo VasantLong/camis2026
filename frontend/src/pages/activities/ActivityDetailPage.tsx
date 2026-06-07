@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Descriptions, Tabs, Button, Tag, Spin, Typography, Space, Modal, Input, message, List, Select, Upload, Checkbox } from "antd";
 import { ArrowLeftOutlined, CheckOutlined, CloseOutlined, EditOutlined, UploadOutlined } from "@ant-design/icons";
@@ -139,6 +139,27 @@ export default function ActivityDetailPage() {
     "人流管控方案不合理",
     "其他（需补充说明）",
   ];
+
+  const REJECT_FIELD_MAP: Record<string, string[]> = {
+    "安保人员配置不足或不当": ["security_staff_config", "security_staff_count"],
+    "动线设计不合理": ["movement_plan"],
+    "设备清单不完善": ["equipment_list"],
+    "应急预案不充分": ["emergency_plan"],
+    "医疗救护措施不完善": ["medical_plan"],
+    "消防措施不充分": ["fire_plan"],
+    "人流管控方案不合理": ["crowd_control"],
+  };
+
+  useEffect(() => {
+    if (securityPlan?.last_reject_reason && !isManager) {
+      const reason = securityPlan.last_reject_reason;
+      const fields: string[] = [];
+      for (const [preset, fieldNames] of Object.entries(REJECT_FIELD_MAP)) {
+        if (reason.includes(preset)) fields.push(...fieldNames);
+      }
+      if (fields.length > 0) setHighlightFields(fields);
+    }
+  }, [securityPlan?.last_reject_reason]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   const signMutation = useMutation({
     mutationFn: (matId: string) => materialsApi.sign(id!, matId),
@@ -410,6 +431,19 @@ export default function ActivityDetailPage() {
                   label: "安保方案",
                   children: securityPlanSchema ? (
                     <div>
+                      {securityPlan?.last_reject_reason && (
+                        <div style={{ marginBottom: 16, padding: "8px 16px", background: "#fff2f0", borderRadius: 4, border: "1px solid #ffccc7" }}>
+                          <Typography.Text strong style={{ color: "#ff4d4f" }}>
+                            {isManager ? "已驳回" : "被驳回"}（第{securityPlan.reject_count || 1}次）
+                          </Typography.Text>
+                          <Typography.Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
+                            {securityPlan.rejected_at ? new Date(securityPlan.rejected_at).toLocaleString("zh-CN") : ""}
+                          </Typography.Text>
+                          <div style={{ marginTop: 4 }}>
+                            <Typography.Text>{securityPlan.last_reject_reason}</Typography.Text>
+                          </div>
+                        </div>
+                      )}
                       {isManager && securityPlan?.audit_status === "待签署" ? (
                         <>
                           <div style={{ padding: 16, border: "1px solid #1677ff", borderRadius: 8 }}>
@@ -557,19 +591,6 @@ export default function ActivityDetailPage() {
                         />
                       ) : canEditSecurity ? (
                         <>
-                          {securityPlan?.last_reject_reason && (
-                            <div style={{ marginBottom: 16, padding: "8px 16px", background: "#fff2f0", borderRadius: 4, border: "1px solid #ffccc7" }}>
-                              <Typography.Text strong style={{ color: "#ff4d4f" }}>
-                                被驳回（第{securityPlan.reject_count || 1}次）
-                              </Typography.Text>
-                              <Typography.Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
-                                {securityPlan.rejected_at ? new Date(securityPlan.rejected_at).toLocaleString("zh-CN") : ""}
-                              </Typography.Text>
-                              <div style={{ marginTop: 4 }}>
-                                <Typography.Text>{securityPlan.last_reject_reason}</Typography.Text>
-                              </div>
-                            </div>
-                          )}
                           <div style={{ marginBottom: 16 }}>
                             <Typography.Text strong>风险等级</Typography.Text>
                             <Select
