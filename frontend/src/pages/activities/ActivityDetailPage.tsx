@@ -545,9 +545,19 @@ export default function ActivityDetailPage() {
                             }
                           />
                         </div>
+                      ) : isManager ? (
+                        <VersionTimeline
+                          versions={securityPlanVersions}
+                          onViewDetail={(v) =>
+                            templatesApi.getSecurityPlanVersionDetail(id!, v).then((r) => r.data)
+                          }
+                          onDiff={(v1, v2) =>
+                            templatesApi.getSecurityPlanVersionDiff(id!, v1, v2).then((r) => r.data)
+                          }
+                        />
                       ) : canEditSecurity ? (
                         <>
-                          {!isManager && securityPlan?.last_reject_reason && (
+                          {securityPlan?.last_reject_reason && (
                             <div style={{ marginBottom: 16, padding: "8px 16px", background: "#fff2f0", borderRadius: 4, border: "1px solid #ffccc7" }}>
                               <Typography.Text strong style={{ color: "#ff4d4f" }}>被驳回</Typography.Text>
                               <Typography.Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
