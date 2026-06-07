@@ -352,6 +352,7 @@ class TemplateService:
         entity.audit_status = "待编制"
         entity.last_reject_reason = full_reason
         entity.rejected_at = datetime.now(timezone.utc)
+        entity.reject_count = (entity.reject_count or 0) + 1
         await self.db.commit()
 
         ns = NotificationService(self.db)

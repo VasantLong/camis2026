@@ -80,6 +80,7 @@ class SecurityPlan(Base):
     sign_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_reject_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    reject_count: Mapped[int] = mapped_column(default=0, server_default="0")
     draft_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     current_filled_document_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("filled_documents.id", ondelete="SET NULL"), nullable=True

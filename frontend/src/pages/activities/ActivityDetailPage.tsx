@@ -559,7 +559,9 @@ export default function ActivityDetailPage() {
                         <>
                           {securityPlan?.last_reject_reason && (
                             <div style={{ marginBottom: 16, padding: "8px 16px", background: "#fff2f0", borderRadius: 4, border: "1px solid #ffccc7" }}>
-                              <Typography.Text strong style={{ color: "#ff4d4f" }}>被驳回</Typography.Text>
+                              <Typography.Text strong style={{ color: "#ff4d4f" }}>
+                                被驳回（第{securityPlan.reject_count || 1}次）
+                              </Typography.Text>
                               <Typography.Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
                                 {securityPlan.rejected_at ? new Date(securityPlan.rejected_at).toLocaleString("zh-CN") : ""}
                               </Typography.Text>

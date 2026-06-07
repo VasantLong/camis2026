@@ -329,6 +329,7 @@ class SecurityPlanResponse(BaseModel):
     sign_time: str | None = None
     last_reject_reason: str | None = None
     rejected_at: str | None = None
+    reject_count: int = 0
 
 
 class SecurityPlanUpdate(BaseModel):
