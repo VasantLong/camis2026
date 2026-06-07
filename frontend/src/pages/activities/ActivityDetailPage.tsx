@@ -14,6 +14,7 @@ import FilingPackModal from "@/components/filings/FilingPackModal";
 import HandoverConfirm from "@/components/filings/HandoverConfirm";
 import TemplateForm from "@/components/templates/TemplateForm";
 import VersionTimeline from "@/components/templates/VersionTimeline";
+import VersionSnapshot from "@/components/templates/VersionSnapshot";
 import { filingsApi } from "@/api/filings";
 import { activitiesApi } from "@/api/activities";
 import { materialsApi } from "@/api/materials";
@@ -81,6 +82,7 @@ export default function ActivityDetailPage() {
   const canViewSecurity = permissions.includes("manage_security") || permissions.includes("view_owned_activity");
   const canEditPlan = permissions.includes("submit_plan");
   const canEditSecurity = permissions.includes("manage_security");
+  const isAdmin = permissions.includes("view_dashboard") && !canEditPlan && !canEditSecurity;
 
   const { data: planSchema, refetch: refetchPlanSchema } = useQuery({
     queryKey: ["activities", id, "templates", "plan-schema"],
@@ -260,86 +262,104 @@ export default function ActivityDetailPage() {
                   label: "活动方案",
                   children: planSchema ? (
                     <div>
-                      <TemplateForm
-                        activityId={id!}
-                        schema={planSchema}
-                        readOnly={!canEditPlan}
-                        onSaveDraft={async (data) => {
-                          await templatesApi.savePlanDraft(id!, data);
-                        }}
-                        onSubmit={async (data) => {
-                          const res = await templatesApi.generatePlan(id!, data);
-                          const result = res.data;
-                          queryClient.setQueryData<VersionItem[]>(
-                            ["activities", id, "templates", "plan-versions"],
-                            (old) => {
-                              const prev = (old || []).map((v) => ({ ...v, is_current: false }));
-                              return [
-                                {
-                                  id: result.id,
-                                  version_number: result.version_number,
-                                  generated_by: "",
-                                  created_at: result.created_at,
-                                  is_current: true,
-                                  pdf_ready: result.pdf_ready,
+                      {canEditPlan ? (
+                        <>
+                          <TemplateForm
+                            activityId={id!}
+                            schema={planSchema}
+                            onSaveDraft={async (data) => {
+                              await templatesApi.savePlanDraft(id!, data);
+                            }}
+                            onSubmit={async (data) => {
+                              const res = await templatesApi.generatePlan(id!, data);
+                              const result = res.data;
+                              queryClient.setQueryData<VersionItem[]>(
+                                ["activities", id, "templates", "plan-versions"],
+                                (old) => {
+                                  const prev = (old || []).map((v) => ({ ...v, is_current: false }));
+                                  return [
+                                    {
+                                      id: result.id,
+                                      version_number: result.version_number,
+                                      generated_by: "",
+                                      created_at: result.created_at,
+                                      is_current: true,
+                                      pdf_ready: result.pdf_ready,
+                                    },
+                                    ...prev,
+                                  ];
                                 },
-                                ...prev,
-                              ];
-                            },
-                          );
-                          // Patch schema cache: update version + store generated data as snapshot
-                          queryClient.setQueryData<SchemaResponse>(
-                            ["activities", id, "templates", "plan-schema"],
-                            (old) => old ? { ...old, current_version: result.version_number, has_draft: false, draft_data: null, snapshot_data: data } : old as any,
-                          );
-                          return result;
-                        }}
-                      />
-                      <VersionTimeline
-                        versions={planVersions}
-                        onViewDetail={(v) =>
-                          templatesApi.getPlanVersionDetail(id!, v).then((r) => r.data)
-                        }
-                        onDiff={(v1, v2) =>
-                          templatesApi.getPlanVersionDiff(id!, v1, v2).then((r) => r.data)
-                        }
-                        onPreview={async (v) => {
-                          const r = await templatesApi.getPlanVersionPreview(id!, v);
-                          return r.data.url;
-                        }}
-                      />
-                      {(() => {
-                        const snap = planSchema?.snapshot_data;
-                        const canFinalize = snap && planSchema.fields
-                          .filter((f) => f.required)
-                          .every((f) => {
-                            const v = snap[f.name];
-                            if (v === null || v === undefined || v === "") return false;
-                            if (f.ui_type === "number" && (typeof v !== "number" || v <= 0)) return false;
-                            return true;
-                          });
-                        return planVersions.length > 0 && activity?.status === "待设计方案" && permissions.includes("submit_plan") && (
-                          <>
-                            <Button
-                              type="primary"
-                              style={{ marginTop: 16 }}
-                              disabled={!canFinalize}
-                              onClick={async () => {
-                                await templatesApi.finalizePlan(id!);
-                                message.success("方案已最终确定，已提交至安保方案设计");
-                                queryClient.invalidateQueries({ queryKey: ["activities", id] });
-                              }}
-                            >
-                              最终确定方案
-                            </Button>
-                            {!canFinalize && (
-                              <span style={{ marginLeft: 12, color: "#faad14", fontSize: 13 }}>
-                                请先完善活动方案必填字段后再最终确定
-                              </span>
-                            )}
-                          </>
-                        );
-                      })()}
+                              );
+                              queryClient.setQueryData<SchemaResponse>(
+                                ["activities", id, "templates", "plan-schema"],
+                                (old) => old ? { ...old, current_version: result.version_number, has_draft: false, draft_data: null, snapshot_data: data } : old as any,
+                              );
+                              return result;
+                            }}
+                          />
+                          <VersionTimeline
+                            versions={planVersions}
+                            onViewDetail={(v) =>
+                              templatesApi.getPlanVersionDetail(id!, v).then((r) => r.data)
+                            }
+                            onDiff={(v1, v2) =>
+                              templatesApi.getPlanVersionDiff(id!, v1, v2).then((r) => r.data)
+                            }
+                            onPreview={async (v) => {
+                              const r = await templatesApi.getPlanVersionPreview(id!, v);
+                              return r.data.url;
+                            }}
+                          />
+                          {(() => {
+                            const snap = planSchema?.snapshot_data;
+                            const canFinalize = snap && planSchema.fields
+                              .filter((f) => f.required)
+                              .every((f) => {
+                                const v = snap[f.name];
+                                if (v === null || v === undefined || v === "") return false;
+                                if (f.ui_type === "number" && (typeof v !== "number" || v <= 0)) return false;
+                                return true;
+                              });
+                            return planVersions.length > 0 && activity?.status === "待设计方案" && (
+                              <>
+                                <Button
+                                  type="primary"
+                                  style={{ marginTop: 16 }}
+                                  disabled={!canFinalize}
+                                  onClick={async () => {
+                                    await templatesApi.finalizePlan(id!);
+                                    message.success("方案已最终确定，已提交至安保方案设计");
+                                    queryClient.invalidateQueries({ queryKey: ["activities", id] });
+                                  }}
+                                >
+                                  最终确定方案
+                                </Button>
+                                {!canFinalize && (
+                                  <span style={{ marginLeft: 12, color: "#faad14", fontSize: 13 }}>
+                                    请先完善活动方案必填字段后再最终确定
+                                  </span>
+                                )}
+                              </>
+                            );
+                          })()}
+                        </>
+                      ) : isAdmin ? (
+                        <VersionTimeline
+                          versions={planVersions}
+                          onViewDetail={(v) =>
+                            templatesApi.getPlanVersionDetail(id!, v).then((r) => r.data)
+                          }
+                          onDiff={(v1, v2) =>
+                            templatesApi.getPlanVersionDiff(id!, v1, v2).then((r) => r.data)
+                          }
+                          onPreview={async (v) => {
+                            const r = await templatesApi.getPlanVersionPreview(id!, v);
+                            return r.data.url;
+                          }}
+                        />
+                      ) : (
+                        <VersionSnapshot schema={planSchema} />
+                      )}
                     </div>
                   ) : (
                     <Spin />
@@ -354,61 +374,76 @@ export default function ActivityDetailPage() {
                   label: "安保方案",
                   children: securityPlanSchema ? (
                     <div>
-                      {securityPlanSchema.risk_level === null && (
-                        <div style={{ marginBottom: 16 }}>
-                          <Typography.Text strong>请先选择风险等级</Typography.Text>
-                          <Select
-                            style={{ width: 200, marginLeft: 12 }}
-                            placeholder="选择风险等级"
-                            options={[
-                              { label: "大型", value: "大型" },
-                              { label: "中型", value: "中型" },
-                              { label: "高风险", value: "高风险" },
-                            ]}
-                            onChange={async (val) => {
-                              await activitiesApi.updateSecurityPlan(id!, { risk_level: val });
+                      {canEditSecurity ? (
+                        <>
+                          {securityPlanSchema.risk_level === null && (
+                            <div style={{ marginBottom: 16 }}>
+                              <Typography.Text strong>请先选择风险等级</Typography.Text>
+                              <Select
+                                style={{ width: 200, marginLeft: 12 }}
+                                placeholder="选择风险等级"
+                                options={[
+                                  { label: "大型", value: "大型" },
+                                  { label: "中型", value: "中型" },
+                                  { label: "高风险", value: "高风险" },
+                                ]}
+                                onChange={async (val) => {
+                                  await activitiesApi.updateSecurityPlan(id!, { risk_level: val });
+                                  refetchSecuritySchema();
+                                }}
+                              />
+                            </div>
+                          )}
+                          <TemplateForm
+                            activityId={id!}
+                            schema={securityPlanSchema}
+                            onSaveDraft={async (data) => {
+                              await templatesApi.saveSecurityPlanDraft(id!, data);
+                            }}
+                            onSubmit={async (data) => {
+                              const res = await templatesApi.generateSecurityPlan(id!, data);
+                              const result = res.data;
+                              queryClient.setQueryData<VersionItem[]>(
+                                ["activities", id, "templates", "security-versions"],
+                                (old = []) => [
+                                  {
+                                    id: result.id,
+                                    version_number: result.version_number,
+                                    generated_by: "",
+                                    created_at: result.created_at,
+                                    is_current: true,
+                                    pdf_ready: result.pdf_ready,
+                                  },
+                                  ...old.map((v) => ({ ...v, is_current: false })),
+                                ],
+                              );
                               refetchSecuritySchema();
+                              return result;
                             }}
                           />
-                        </div>
+                          <VersionTimeline
+                            versions={securityPlanVersions}
+                            onViewDetail={(v) =>
+                              templatesApi.getSecurityPlanVersionDetail(id!, v).then((r) => r.data)
+                            }
+                            onDiff={(v1, v2) =>
+                              templatesApi.getSecurityPlanVersionDiff(id!, v1, v2).then((r) => r.data)
+                            }
+                          />
+                        </>
+                      ) : isAdmin ? (
+                        <VersionTimeline
+                          versions={securityPlanVersions}
+                          onViewDetail={(v) =>
+                            templatesApi.getSecurityPlanVersionDetail(id!, v).then((r) => r.data)
+                          }
+                          onDiff={(v1, v2) =>
+                            templatesApi.getSecurityPlanVersionDiff(id!, v1, v2).then((r) => r.data)
+                          }
+                        />
+                      ) : (
+                        <VersionSnapshot schema={securityPlanSchema} />
                       )}
-                      <TemplateForm
-                        activityId={id!}
-                        schema={securityPlanSchema}
-                        readOnly={!canEditSecurity}
-                        onSaveDraft={async (data) => {
-                          await templatesApi.saveSecurityPlanDraft(id!, data);
-                        }}
-                        onSubmit={async (data) => {
-                          const res = await templatesApi.generateSecurityPlan(id!, data);
-                          const result = res.data;
-                          queryClient.setQueryData<VersionItem[]>(
-                            ["activities", id, "templates", "security-versions"],
-                            (old = []) => [
-                              {
-                                id: result.id,
-                                version_number: result.version_number,
-                                generated_by: "",
-                                created_at: result.created_at,
-                                is_current: true,
-                                pdf_ready: result.pdf_ready,
-                              },
-                              ...old.map((v) => ({ ...v, is_current: false })),
-                            ],
-                          );
-                          refetchSecuritySchema();
-                          return result;
-                        }}
-                      />
-                      <VersionTimeline
-                        versions={securityPlanVersions}
-                        onViewDetail={(v) =>
-                          templatesApi.getSecurityPlanVersionDetail(id!, v).then((r) => r.data)
-                        }
-                        onDiff={(v1, v2) =>
-                          templatesApi.getSecurityPlanVersionDiff(id!, v1, v2).then((r) => r.data)
-                        }
-                      />
                     </div>
                   ) : (
                     <Spin />
