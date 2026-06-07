@@ -457,6 +457,25 @@ export default function ActivityDetailPage() {
                             </Space>
                           </div>
                         </div>
+                      ) : isManager && securityPlan?.audit_status === "已签署" ? (
+                        <div>
+                          <div style={{ marginBottom: 16, padding: "8px 16px", background: "#f6ffed", borderRadius: 4, border: "1px solid #b7eb8f" }}>
+                            <Typography.Text strong style={{ color: "#52c41a" }}>已签署确认</Typography.Text>
+                            <Typography.Text type="secondary" style={{ marginLeft: 8 }}>
+                              {securityPlan?.sign_time ? new Date(securityPlan.sign_time).toLocaleString("zh-CN") : ""}
+                            </Typography.Text>
+                          </div>
+                          <VersionSnapshot schema={securityPlanSchema} />
+                          <VersionTimeline
+                            versions={securityPlanVersions}
+                            onViewDetail={(v) =>
+                              templatesApi.getSecurityPlanVersionDetail(id!, v).then((r) => r.data)
+                            }
+                            onDiff={(v1, v2) =>
+                              templatesApi.getSecurityPlanVersionDiff(id!, v1, v2).then((r) => r.data)
+                            }
+                          />
+                        </div>
                       ) : canEditSecurity ? (
                         <>
                           <div style={{ marginBottom: 16 }}>
