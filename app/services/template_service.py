@@ -49,11 +49,16 @@ class TemplateService:
         schema["has_draft"] = draft_data is not None
         schema["draft_data"] = draft_data
 
+        # latest version snapshot (pre-fill when no draft)
         current_version = None
+        snapshot_data = None
         if current_fd_id:
             fd = await self.db.get(FilledDocument, current_fd_id)
-            current_version = fd.version_number if fd else None
+            if fd:
+                current_version = fd.version_number
+                snapshot_data = fd.data_snapshot
         schema["current_version"] = current_version
+        schema["snapshot_data"] = snapshot_data
 
         # security plan: expose risk_level for conditional field filtering
         if template_type == "security_plan":
@@ -96,25 +101,14 @@ class TemplateService:
         minio_path = f"filled_documents/{activity_id}/{template_type}/v{version_number}.docx"
         await minio_client.upload_file(minio_path, docx_bytes, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
-        # convert to PDF
-        pdf_path = None
-        pdf_preview_url = None
-        try:
-            pdf_bytes = await self._docx_to_pdf(docx_bytes)
-            pdf_path = f"filled_documents/{activity_id}/{template_type}/v{version_number}.pdf"
-            await minio_client.upload_file(pdf_path, pdf_bytes, "application/pdf")
-            pdf_preview_url = await minio_client.get_presigned_url(pdf_path, inline=True)
-        except Exception:
-            logger.warning("pdf conversion failed type=%s activity=%s", template_type, activity_id)
-
-        # create FilledDocument
+        # create FilledDocument (pdf_path=None initially — filled by background task)
         fd = FilledDocument(
             activity_id=activity_id,
             template_type=template_type,
             version_number=version_number,
             data_snapshot=data,
             minio_path=minio_path,
-            pdf_path=pdf_path,
+            pdf_path=None,
             template_hash=template_hash,
             generated_by=user_id,
         )
@@ -126,20 +120,7 @@ class TemplateService:
         entity.draft_data = None
         entity.submit_time = datetime.now(timezone.utc)
         await self.db.flush()
-
-        # workflow trigger for activity plan (also commits)
-        if template_type == "activity_plan":
-            activity = await self.db.get(Activity, activity_id)
-            if activity and activity.status == "待设计方案":
-                from app.services.workflow_service import WorkflowService
-                from app.services.notification_service import NotificationService
-                ws = WorkflowService(self.db, NotificationService(self.db))
-                await ws.transition(
-                    activity_id, "待安保方案设计",
-                    await self.db.get(
-                        __import__("app.models.user", fromlist=["User"]).User, user_id,
-                    ),
-                )
+        await self.db.commit()
 
         logger.info(
             "generated type=%s activity=%s v%d",
@@ -150,9 +131,31 @@ class TemplateService:
             "template_type": fd.template_type,
             "version_number": fd.version_number,
             "minio_path": fd.minio_path,
-            "pdf_preview_url": pdf_preview_url,
+            "pdf_ready": False,
+            "pdf_preview_url": None,
+            "docx_bytes": docx_bytes,  # for background task (not exposed to client)
             "created_at": fd.created_at.isoformat() if fd.created_at else None,
         }
+
+    # ------------------------------------------------------------------
+    # finalize
+    # ------------------------------------------------------------------
+
+    async def finalize_plan(self, activity_id: UUID, user_id: UUID) -> None:
+        """Finalize the activity plan: check version exists, trigger workflow transition."""
+        entity = await self._get_entity("activity_plan", activity_id)
+        if not entity or not entity.current_filled_document_id:
+            raise ValueError("活动方案尚未生成，无法最终确定")
+
+        activity = await self.db.get(Activity, activity_id)
+        if not activity or activity.status != "待设计方案":
+            raise ValueError("当前状态不允许最终确定")
+
+        from app.services.workflow_service import WorkflowService
+        from app.services.notification_service import NotificationService
+        ws = WorkflowService(self.db, NotificationService(self.db))
+        User = __import__("app.models.user", fromlist=["User"]).User
+        await ws.transition(activity_id, "待安保方案设计", await self.db.get(User, user_id))
 
     # ------------------------------------------------------------------
     # versions
@@ -181,6 +184,7 @@ class TemplateService:
                 "generated_by": str(r.generated_by),
                 "created_at": r.created_at.isoformat() if r.created_at else None,
                 "is_current": r.id == current_id,
+                "pdf_ready": r.pdf_path is not None,
             }
             for r in rows
         ]
@@ -211,7 +215,16 @@ class TemplateService:
             "generated_by": str(fd.generated_by),
             "created_at": fd.created_at.isoformat() if fd.created_at else None,
             "is_current": fd.id == current_id,
+            "pdf_ready": fd.pdf_path is not None,
         }
+
+    async def get_version_preview_url(
+        self, template_type: str, activity_id: UUID, version_number: int,
+    ) -> str | None:
+        fd = await self._get_version_row(activity_id, template_type, version_number)
+        if not fd or not fd.pdf_path:
+            return None
+        return await minio_client.get_presigned_url(fd.pdf_path, inline=True)
 
     async def get_version_diff(
         self, template_type: str, activity_id: UUID, v1: int, v2: int,
@@ -265,27 +278,6 @@ class TemplateService:
         buf = BytesIO()
         doc.save(buf)
         return buf.getvalue()
-
-    async def _docx_to_pdf(self, docx_bytes: bytes) -> bytes:
-        with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as tf_in:
-            tf_in.write(docx_bytes)
-            in_path = tf_in.name
-
-        out_dir = tempfile.mkdtemp()
-        try:
-            subprocess.run(
-                ["soffice", "--headless", "--convert-to", "pdf", "--outdir", out_dir, in_path],
-                check=True, timeout=60, capture_output=True,
-            )
-            pdf_name = Path(in_path).stem + ".pdf"
-            pdf_path = Path(out_dir) / pdf_name
-            if not pdf_path.exists():
-                raise RuntimeError("pdf not produced by soffice")
-            return pdf_path.read_bytes()
-        finally:
-            Path(in_path).unlink(missing_ok=True)
-            import shutil
-            shutil.rmtree(out_dir, ignore_errors=True)
 
     async def _next_version(self, activity_id: UUID, template_type: str) -> int:
         result = await self.db.execute(
@@ -381,3 +373,54 @@ class TemplateService:
                 await self.db.flush()
             return entity
         raise ValueError(f"unknown entity type: {entity_type}")
+
+
+# ── background PDF renderer (standalone, own DB session) ──
+
+async def render_pdf_background(
+    fd_id: UUID, docx_bytes: bytes, activity_id: UUID,
+    template_type: str, version_number: int,
+) -> None:
+    """Generate PDF in background with its own DB session."""
+    from app.database import async_session
+
+    async with async_session() as db:
+        pdf_path = f"filled_documents/{activity_id}/{template_type}/v{version_number}.pdf"
+        try:
+            pdf_bytes = await _docx_to_pdf_sync(docx_bytes)
+            await minio_client.upload_file(pdf_path, pdf_bytes, "application/pdf")
+            fd = await db.get(FilledDocument, fd_id)
+            if fd:
+                fd.pdf_path = pdf_path
+                await db.commit()
+            logger.info("pdf background render ok fd=%s", fd_id)
+        except Exception:
+            logger.warning("pdf background render failed fd=%s", fd_id)
+
+
+async def _docx_to_pdf_sync(docx_bytes: bytes) -> bytes:
+    """Convert DOCX to PDF via LibreOffice in a thread — must not block event loop."""
+    import asyncio
+
+    def _convert() -> bytes:
+        with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as tf_in:
+            tf_in.write(docx_bytes)
+            in_path = tf_in.name
+
+        out_dir = tempfile.mkdtemp()
+        try:
+            subprocess.run(
+                ["soffice", "--headless", "--convert-to", "pdf", "--outdir", out_dir, in_path],
+                check=True, timeout=60, capture_output=True,
+            )
+            pdf_name = Path(in_path).stem + ".pdf"
+            pdf_path = Path(out_dir) / pdf_name
+            if not pdf_path.exists():
+                raise RuntimeError("pdf not produced by soffice")
+            return pdf_path.read_bytes()
+        finally:
+            Path(in_path).unlink(missing_ok=True)
+            import shutil
+            shutil.rmtree(out_dir, ignore_errors=True)
+
+    return await asyncio.to_thread(_convert)

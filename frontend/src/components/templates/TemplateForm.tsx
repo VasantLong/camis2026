@@ -29,21 +29,61 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [changedFields, setChangedFields] = useState<Set<string>>(new Set());
+  const [isDirty, setIsDirty] = useState(false);
+
+  // Track changed fields vs snapshot
+  const handleValuesChange = (_changed: Record<string, unknown>, allValues: Record<string, unknown>) => {
+    let hasAnyChange = false;
+    const diff = new Set<string>();
+    for (const f of schema.fields) {
+      const cur = serializeFieldValue(allValues[f.name], f);
+      const snap = snapshot ? snapshot[f.name] : undefined;
+      if (snap !== undefined && cur !== snap && cur !== "") {
+        diff.add(f.name);
+        hasAnyChange = true;
+      }
+    }
+    setChangedFields(diff);
+    setIsDirty(hasAnyChange || schema.has_draft === true);
+  };
+
+  function serializeFieldValue(v: unknown, f: FieldDef): unknown {
+    if (v === undefined || v === null || v === "") return f.ui_type === "repeater" ? undefined : f.ui_type === "number" ? undefined : "";
+    if (f.ui_type === "date") return dayjs.isDayjs(v) ? (v as dayjs.Dayjs).format("YYYY-MM-DD") : String(v);
+    if (f.ui_type === "number") return typeof v === "number" ? v : Number(v) || 0;
+    if (f.ui_type === "repeater") return JSON.stringify(v);
+    return v;
+  }
+
+  // pre-fill: draft first, then snapshot
+  const prefillData = schema.has_draft && schema.draft_data
+    ? schema.draft_data
+    : schema.snapshot_data;
+  const snapshot = schema.snapshot_data;
+  const hasDraft = schema.has_draft === true;
 
   useEffect(() => {
-    if (schema.has_draft && schema.draft_data) {
-      const draft: Record<string, unknown> = {};
+    if (prefillData) {
+      const vals: Record<string, unknown> = {};
       for (const f of schema.fields) {
-        const val = schema.draft_data[f.name];
+        const val = prefillData[f.name];
         if (val !== undefined) {
-          draft[f.name] = f.ui_type === "date" && typeof val === "string" ? dayjs(val) : val;
+          if (f.ui_type === "date" && typeof val === "string") {
+        if (val) vals[f.name] = dayjs(val);  // skip empty strings (dayjs("") → Invalid Date)
+      } else {
+        vals[f.name] = val;
+      }
         }
       }
-      form.setFieldsValue(draft);
+      form.setFieldsValue(vals);
     }
-  }, [schema, form]);
+    setIsDirty(hasDraft);
+  }, [schema, form]);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  const buttonsEnabled = !loading && !submitting && (isDirty || !snapshot);
 
   const visibleFields = useCallback(
     (fields: FieldDef[]) => {
@@ -66,32 +106,28 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
     [form, schema.risk_level]
   );
 
-  const renderField = (field: FieldDef) => {
-    const common = {
-      key: field.name,
-      name: field.name,
-      label: field.ui_label,
-      rules: field.required
-        ? [{ required: true, message: `请填写${field.ui_label}` }]
-        : undefined,
-    };
+  const renderField = (field: FieldDef, changed: boolean) => {
+    const itemStyle = changed ? { background: "#fffbe6", padding: 8, borderRadius: 4 } : undefined;
+    const rules = field.required
+      ? [{ required: true, message: `请填写${field.ui_label}` }]
+      : undefined;
 
     switch (field.ui_type) {
       case "text":
         return (
-          <Form.Item {...common}>
+          <Form.Item key={field.name} name={field.name} label={field.ui_label} rules={rules} style={itemStyle}>
             <Input placeholder={field.ui_label} />
           </Form.Item>
         );
       case "textarea":
         return (
-          <Form.Item {...common}>
+          <Form.Item key={field.name} name={field.name} label={field.ui_label} rules={rules} style={itemStyle}>
             <Input.TextArea rows={4} placeholder={field.ui_label} />
           </Form.Item>
         );
       case "number":
         return (
-          <Form.Item {...common}>
+          <Form.Item key={field.name} name={field.name} label={field.ui_label} rules={rules} style={itemStyle}>
             <InputNumber
               min={field.min ?? 0}
               style={{ width: "100%" }}
@@ -101,13 +137,13 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
         );
       case "date":
         return (
-          <Form.Item {...common}>
+          <Form.Item key={field.name} name={field.name} label={field.ui_label} rules={rules} style={itemStyle}>
             <DatePicker style={{ width: "100%" }} />
           </Form.Item>
         );
       case "select":
         return (
-          <Form.Item {...common}>
+          <Form.Item key={field.name} name={field.name} label={field.ui_label} rules={rules} style={itemStyle}>
             <Select
               placeholder={field.ui_label}
               options={(field.options || []).map((o) => ({ label: o, value: o }))}
@@ -116,7 +152,7 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
         );
       case "checkbox":
         return (
-          <Form.Item {...common} valuePropName="checked">
+          <Form.Item key={field.name} name={field.name} label={field.ui_label} rules={rules} style={itemStyle} valuePropName="checked">
             <Checkbox>{field.ui_label}</Checkbox>
           </Form.Item>
         );
@@ -130,21 +166,25 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
                     添加
                   </Button>
                 </Form.Item>
-                {items.map(({ key, name, ...rest }) => (
-                  <Space key={key} style={{ display: "flex", marginBottom: 8 }} align="baseline">
-                    <Form.Item {...rest} name={name} rules={[{ required: true, message: "必填" }]}>
-                      <Input placeholder={`${field.ui_label} #${name + 1}`} />
-                    </Form.Item>
-                    <DeleteOutlined onClick={() => remove(name)} style={{ color: "#ff4d4f" }} />
-                  </Space>
-                ))}
+                {(items as any[]).map(({ key, name, ...rest }) => {
+                  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                  const { key: _k, ...fieldProps } = rest as any;
+                  return (
+                    <Space key={key} style={{ display: "flex", marginBottom: 8 }} align="baseline">
+                      <Form.Item {...fieldProps} name={name} rules={[{ required: true, message: "必填" }]}>
+                        <Input placeholder={`${field.ui_label} #${(name as number) + 1}`} />
+                      </Form.Item>
+                      <DeleteOutlined onClick={() => remove(name as number)} style={{ color: "#ff4d4f" }} />
+                    </Space>
+                  );
+                })}
               </>
             )}
           </Form.List>
         );
       case "signature":
         return (
-          <Form.Item {...common}>
+          <Form.Item key={field.name} name={field.name} label={field.ui_label} rules={rules} style={itemStyle}>
             <Upload
               accept="image/*"
               maxCount={1}
@@ -184,65 +224,53 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
     }
   };
 
-  const handleSubmit = () => {
-    form.validateFields().then(() => {
-      const nextVersion = (schema.current_version ?? 0) + 1;
-      modal.confirm({
-        title: "确认生成",
-        content: `将生成 v${nextVersion} 版本，生成后不可撤销。确认继续？`,
-        okText: "确认生成",
-        cancelText: "取消",
-        onOk: async () => {
-          setSubmitting(true);
-          try {
-            const values = form.getFieldsValue();
-            const data = serializeFormData(values, schema.fields);
-            const result = await onSubmit(data);
-            message.success(`已生成 v${nextVersion}`);
-            if (result.pdf_preview_url) {
-              setPreviewUrl(result.pdf_preview_url);
-            }
-          } catch {
-            message.error("生成失败");
-          } finally {
-            setSubmitting(false);
-          }
-        },
-      });
-    }).catch(() => {});
+  const doGenerate = async () => {
+    setSubmitting(true);
+    const nextVersion = (schema.current_version ?? 0) + 1;
+    try {
+      const values = form.getFieldsValue();
+      const data = serializeFormData(values, schema.fields);
+      await onSubmit(data);
+      message.success(`已生成 v${nextVersion}`);
+    } catch {
+      message.error("生成失败");
+    } finally {
+      setSubmitting(false);
+      setConfirmOpen(false);
+    }
   };
+
+  const handleSubmit = () => {
+    form.validateFields().then(() => setConfirmOpen(true)).catch(() => {});
+  };
+
+  const nextVersion = (schema.current_version ?? 0) + 1;
 
   return (
     <>
-      <Form form={form} layout="vertical" disabled={loading || submitting}>
-        {visibleFields(schema.fields).map(renderField)}
+      <Form form={form} layout="vertical" disabled={loading || submitting} onValuesChange={handleValuesChange}>
+        {visibleFields(schema.fields).map((f) => renderField(f, changedFields.has(f.name)))}
         <Form.Item>
           <Space>
-            <Button onClick={handleSaveDraft} loading={saving}>
+            <Button onClick={handleSaveDraft} loading={saving} disabled={!buttonsEnabled}>
               保存草稿
             </Button>
-            <Button type="primary" onClick={handleSubmit} loading={submitting}>
+            <Button type="primary" onClick={handleSubmit} loading={submitting} disabled={!buttonsEnabled}>
               提交生成
             </Button>
           </Space>
         </Form.Item>
       </Form>
       <Modal
-        title="PDF 预览"
-        open={!!previewUrl}
-        onCancel={() => setPreviewUrl(null)}
-        footer={null}
-        width="90%"
-        style={{ top: 20 }}
-        destroyOnClose
+        title="确认生成"
+        open={confirmOpen}
+        onOk={doGenerate}
+        onCancel={() => setConfirmOpen(false)}
+        okText="确认生成"
+        cancelText="取消"
+        confirmLoading={submitting}
       >
-        {previewUrl && (
-          <iframe
-            src={previewUrl}
-            style={{ width: "100%", height: "75vh", border: "none" }}
-            title="PDF 预览"
-          />
-        )}
+        将生成 v{nextVersion} 版本，生成后不可撤销。确认继续？
       </Modal>
     </>
   );

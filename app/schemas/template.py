@@ -8,6 +8,7 @@ class SchemaResponse(BaseModel):
     display_name: str
     has_draft: bool = False
     draft_data: dict | None = None
+    snapshot_data: dict | None = None
     current_version: int | None = None
     risk_level: str | None = None  # security plan only
     fields: list[dict]
@@ -26,6 +27,7 @@ class GenerateResponse(BaseModel):
     template_type: str
     version_number: int
     minio_path: str
+    pdf_ready: bool = False
     pdf_preview_url: str | None = None
     created_at: str | None
 
@@ -36,6 +38,7 @@ class VersionItem(BaseModel):
     generated_by: str
     created_at: str | None
     is_current: bool
+    pdf_ready: bool = False
 
 
 class VersionDetail(BaseModel):
@@ -46,6 +49,7 @@ class VersionDetail(BaseModel):
     generated_by: str
     created_at: str | None
     is_current: bool
+    pdf_ready: bool = False
 
 
 class VersionDiff(BaseModel):

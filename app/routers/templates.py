@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 
 from app.database import get_db
 from app.deps import get_current_user
@@ -10,7 +10,7 @@ from app.schemas.template import (
     DraftRequest, GenerateRequest, GenerateResponse,
     SchemaResponse, VersionDetail, VersionDiff, VersionItem,
 )
-from app.services.template_service import TemplateService
+from app.services.template_service import TemplateService, render_pdf_background
 
 router = APIRouter(prefix="/activities", tags=["templates"])
 
@@ -58,12 +58,19 @@ async def plan_save_draft(
 async def plan_generate(
     activity_id: UUID,
     body: GenerateRequest,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     _=require_permission("submit_plan"),
     svc: TemplateService = Depends(_svc),
 ):
-    """Generate activity plan DOCX+PDF from template."""
+    """Generate activity plan DOCX+PDF from template. PDF rendered in background."""
     result = await svc.generate("activity_plan", activity_id, body.data, current_user.id)
+    docx_bytes = result.pop("docx_bytes", None)
+    if docx_bytes:
+        background_tasks.add_task(
+            render_pdf_background, result["id"], docx_bytes,
+            activity_id, "activity_plan", result["version_number"],
+        )
     return GenerateResponse(**result)
 
 
@@ -86,6 +93,31 @@ async def plan_version_detail(
     if not detail:
         raise HTTPException(status_code=404, detail="Version not found")
     return VersionDetail(**detail)
+
+
+@router.post("/{activity_id}/plan/finalize")
+async def plan_finalize(
+    activity_id: UUID,
+    current_user: User = Depends(get_current_user),
+    _=require_permission("submit_plan"),
+    svc: TemplateService = Depends(_svc),
+):
+    """Finalize activity plan: submit to 安保方案设计 stage."""
+    await svc.finalize_plan(activity_id, current_user.id)
+    return {"ok": True}
+
+
+@router.get("/{activity_id}/plan/versions/{version_number}/preview")
+async def plan_version_preview(
+    activity_id: UUID, version_number: int,
+    current_user: User = Depends(get_current_user),
+    svc: TemplateService = Depends(_svc),
+):
+    """Return pre-signed URL for a specific plan version's PDF."""
+    url = await svc.get_version_preview_url("activity_plan", activity_id, version_number)
+    if not url:
+        raise HTTPException(status_code=404, detail="PDF not available for this version")
+    return {"url": url}
 
 
 @router.get("/{activity_id}/plan/versions/{v1}/diff/{v2}", response_model=list[VersionDiff])
@@ -135,11 +167,18 @@ async def security_plan_save_draft(
 async def security_plan_generate(
     activity_id: UUID,
     body: GenerateRequest,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     _=require_permission("manage_security"),
     svc: TemplateService = Depends(_svc),
 ):
     result = await svc.generate("security_plan", activity_id, body.data, current_user.id)
+    docx_bytes = result.pop("docx_bytes", None)
+    if docx_bytes:
+        background_tasks.add_task(
+            render_pdf_background, result["id"], docx_bytes,
+            activity_id, "security_plan", result["version_number"],
+        )
     return GenerateResponse(**result)
 
 
@@ -235,6 +274,12 @@ async def material_generate(
     result = await svc.generate(
         mat.material_type, activity_id, body.data, current_user.id, mat.material_type,
     )
+    docx_bytes = result.pop("docx_bytes", None)
+    if docx_bytes:
+        background_tasks.add_task(
+            render_pdf_background, result["id"], docx_bytes,
+            activity_id, mat.material_type, result["version_number"],
+        )
     return GenerateResponse(**result)
 
 

@@ -1,6 +1,6 @@
 # CAMIS — 活动合规审批管理系统
 
-> **v0.21.0** — 企业部门活动合规审批 MIS。技术栈：**Python (FastAPI)** + **React SPA** + **PostgreSQL 17** + **MinIO** + **Redis 7.4**，Docker Compose 本地编排，模块化单体架构。
+> **v0.22.1** — 企业部门活动合规审批 MIS。技术栈：**Python (FastAPI)** + **React SPA** + **PostgreSQL 17** + **MinIO** + **Redis 7.4**，Docker Compose 本地编排，模块化单体架构。新增文档模板生成系统（DOCX 渲染 + 版本管理）。
 
 ## 快速启动
 
@@ -66,6 +66,7 @@ camis2026/
 │   ├── schemas/                    # Pydantic 请求/响应
 │   ├── routers/                    # REST 端点 (auth, activities, filings, dashboard, admin)
 │   └── services/                   # 业务逻辑层
+│   └── templates/                  # 文档模板 (DOCX + Pydantic schema)
 ├── tests/                          # pytest + Playwright 浏览器测试
 ├── frontend/                       # React SPA
 │   └── src/ (pages/, api/, components/, stores/, hooks/, types/)

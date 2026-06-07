@@ -20,7 +20,7 @@ import { materialsApi } from "@/api/materials";
 import { templatesApi } from "@/api/templates";
 import { useAuthStore } from "@/stores/authStore";
 import { STATUS_COLOR_MAP } from "@/utils/constants";
-import type { VersionItem, VersionDetail, VersionDiff } from "@/types/template";
+import type { VersionItem, VersionDetail, VersionDiff, SchemaResponse } from "@/types/template";
 
 export default function ActivityDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -266,9 +266,30 @@ export default function ActivityDetailPage() {
                         }}
                         onSubmit={async (data) => {
                           const res = await templatesApi.generatePlan(id!, data);
-                          refetchPlanSchema();
-                          refetchPlanVersions();
-                          return res.data;
+                          const result = res.data;
+                          queryClient.setQueryData<VersionItem[]>(
+                            ["activities", id, "templates", "plan-versions"],
+                            (old) => {
+                              const prev = (old || []).map((v) => ({ ...v, is_current: false }));
+                              return [
+                                {
+                                  id: result.id,
+                                  version_number: result.version_number,
+                                  generated_by: "",
+                                  created_at: result.created_at,
+                                  is_current: true,
+                                  pdf_ready: result.pdf_ready,
+                                },
+                                ...prev,
+                              ];
+                            },
+                          );
+                          // Patch schema cache: update version + store generated data as snapshot
+                          queryClient.setQueryData<SchemaResponse>(
+                            ["activities", id, "templates", "plan-schema"],
+                            (old) => old ? { ...old, current_version: result.version_number, has_draft: false, draft_data: null, snapshot_data: data } : old as any,
+                          );
+                          return result;
                         }}
                       />
                       <VersionTimeline
@@ -279,7 +300,24 @@ export default function ActivityDetailPage() {
                         onDiff={(v1, v2) =>
                           templatesApi.getPlanVersionDiff(id!, v1, v2).then((r) => r.data)
                         }
+                        onPreview={async (v) => {
+                          const r = await templatesApi.getPlanVersionPreview(id!, v);
+                          return r.data.url;
+                        }}
                       />
+                      {planVersions.length > 0 && activity?.status === "待设计方案" && permissions.includes("submit_plan") && (
+                        <Button
+                          type="primary"
+                          style={{ marginTop: 16 }}
+                          onClick={async () => {
+                            await templatesApi.finalizePlan(id!);
+                            message.success("方案已最终确定，已提交至安保方案设计");
+                            queryClient.invalidateQueries({ queryKey: ["activities", id] });
+                          }}
+                        >
+                          最终确定方案
+                        </Button>
+                      )}
                     </div>
                   ) : (
                     <Spin />
@@ -320,9 +358,23 @@ export default function ActivityDetailPage() {
                         }}
                         onSubmit={async (data) => {
                           const res = await templatesApi.generateSecurityPlan(id!, data);
+                          const result = res.data;
+                          queryClient.setQueryData<VersionItem[]>(
+                            ["activities", id, "templates", "security-versions"],
+                            (old = []) => [
+                              {
+                                id: result.id,
+                                version_number: result.version_number,
+                                generated_by: "",
+                                created_at: result.created_at,
+                                is_current: true,
+                                pdf_ready: result.pdf_ready,
+                              },
+                              ...old.map((v) => ({ ...v, is_current: false })),
+                            ],
+                          );
                           refetchSecuritySchema();
-                          refetchSecurityVersions();
-                          return res.data;
+                          return result;
                         }}
                       />
                       <VersionTimeline

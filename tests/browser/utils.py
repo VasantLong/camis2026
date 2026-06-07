@@ -123,6 +123,29 @@ def setup_logging(name: str) -> None:
     sys.stdout = _TeeWriter(sys.__stdout__, log_file)
 
 
+def capture_console(page: Page, name: str) -> list[str]:
+    """Capture browser console messages and page errors, write to logs/{name}_console.log."""
+    LOGS.mkdir(exist_ok=True)
+    logf = open(LOGS / f"{name}_console.log", "w")
+    errors: list[str] = []
+
+    def on_console(msg):
+        line = f"[{msg.type}] {msg.text}"
+        errors.append(line)
+        logf.write(line + "\n")
+        logf.flush()
+
+    def on_pageerror(err):
+        line = f"PAGE_ERROR: {err}"
+        errors.append(line)
+        logf.write(line + "\n")
+        logf.flush()
+
+    page.on("console", on_console)
+    page.on("pageerror", on_pageerror)
+    return errors
+
+
 def create_page(browser: Browser, viewport: dict | None = None) -> Page:
     if len(browser.contexts) > 0:
         context = browser.contexts[0]
