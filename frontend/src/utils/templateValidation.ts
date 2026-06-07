@@ -56,6 +56,7 @@ export function validateSecurityPlan(
 ): ValidationError[] {
   const errors: ValidationError[] = [];
   if (!snapshot) return [{ field: "", label: "安保方案", reason: "尚未生成任何版本" }];
+  if (!riskLevel) return [{ field: "risk_level", label: "风险等级", reason: "请先选择风险等级" }];
 
   if (!snapshot.security_staff_config)
     errors.push({ field: "security_staff_config", label: "安保人员配置", reason: "不能为空" });

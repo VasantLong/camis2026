@@ -392,24 +392,23 @@ export default function ActivityDetailPage() {
                     <div>
                       {canEditSecurity ? (
                         <>
-                          {securityPlanSchema.risk_level === null && (
-                            <div style={{ marginBottom: 16 }}>
-                              <Typography.Text strong>请先选择风险等级</Typography.Text>
-                              <Select
-                                style={{ width: 200, marginLeft: 12 }}
-                                placeholder="选择风险等级"
-                                options={[
-                                  { label: "大型", value: "大型" },
-                                  { label: "中型", value: "中型" },
-                                  { label: "高风险", value: "高风险" },
-                                ]}
-                                onChange={async (val) => {
-                                  await activitiesApi.updateSecurityPlan(id!, { risk_level: val });
-                                  refetchSecuritySchema();
-                                }}
-                              />
-                            </div>
-                          )}
+                          <div style={{ marginBottom: 16 }}>
+                            <Typography.Text strong>风险等级</Typography.Text>
+                            <Select
+                              style={{ width: 200, marginLeft: 12 }}
+                              placeholder="选择风险等级"
+                              value={securityPlanSchema.risk_level || undefined}
+                              options={[
+                                { label: "大型", value: "大型" },
+                                { label: "中型", value: "中型" },
+                                { label: "高风险", value: "高风险" },
+                              ]}
+                              onChange={async (val) => {
+                                await activitiesApi.updateSecurityPlan(id!, { risk_level: val });
+                                refetchSecuritySchema();
+                              }}
+                            />
+                          </div>
                           <TemplateForm
                             activityId={id!}
                             schema={securityPlanSchema}

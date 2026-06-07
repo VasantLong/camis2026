@@ -202,17 +202,15 @@ with sync_playwright() as p:
     page.wait_for_timeout(1500)
     page.wait_for_load_state("networkidle")
 
-    # Select risk level (shown because SecurityPlan starts with null risk_level)
-    risk_sel = page.locator('.ant-form-item:has-text("请先选择风险等级") .ant-select-selector').first
-    if risk_sel.count() > 0:
-        risk_sel.click()
-        page.wait_for_timeout(300)
-        page.keyboard.type("大型")
-        page.wait_for_timeout(200)
-        page.keyboard.press("Enter")
-        page.wait_for_timeout(1500)
-        page.wait_for_load_state("networkidle")
-        check(True, "risk level set to 大型")
+    # Select risk level — standalone Select, combobox is first on the page
+    page.locator('input[role="combobox"]').first.click()
+    page.wait_for_timeout(300)
+    page.keyboard.type("大型")
+    page.wait_for_timeout(200)
+    page.keyboard.press("Enter")
+    page.wait_for_timeout(1500)
+    page.wait_for_load_state("networkidle")
+    check(True, "risk level set to 大型")
 
     # Fill required textareas for security plan
     sp_textareas = page.locator('textarea').all()

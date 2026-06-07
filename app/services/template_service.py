@@ -211,6 +211,9 @@ class TemplateService:
         if not entity or not entity.current_filled_document_id:
             raise ValueError("安保方案尚未生成，无法提交审核")
 
+        if not getattr(entity, "risk_level", None):
+            raise ValueError("请先选择风险等级")
+
         fd = await self.db.get(FilledDocument, entity.current_filled_document_id)
         if not fd or not fd.data_snapshot:
             raise ValueError("未找到当前版本数据")
