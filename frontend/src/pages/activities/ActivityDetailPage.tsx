@@ -398,6 +398,7 @@ export default function ActivityDetailPage() {
                               style={{ width: 200, marginLeft: 12 }}
                               placeholder="选择风险等级"
                               value={securityPlanSchema.risk_level || undefined}
+                              disabled={!!(securityPlan?.audit_status && securityPlan.audit_status !== "待编制")}
                               options={[
                                 { label: "大型", value: "大型" },
                                 { label: "中型", value: "中型" },
