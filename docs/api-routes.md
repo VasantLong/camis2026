@@ -30,9 +30,13 @@
 | `GET`  | `/activities/{id}/plan/versions` | 登录用户 |
 | `GET`  | `/activities/{id}/plan/versions/{vn}` | 登录用户 |
 | `GET`  | `/activities/{id}/plan/versions/{v1}/diff/{v2}` | 登录用户 |
+| `POST` | `/activities/{id}/plan/finalize` | `submit_plan` |
 | `GET`  | `/activities/{id}/security-plan/schema` | 登录用户 |
 | `PUT`  | `/activities/{id}/security-plan/draft` | `manage_security` |
 | `POST` | `/activities/{id}/security-plan/generate` | `manage_security` |
+| `POST` | `/activities/{id}/security-plan/submit-review` | `manage_security` |
+| `POST` | `/activities/{id}/security-plan/sign` | `manage_security` |
+| `POST` | `/activities/{id}/security-plan/reject` | `reject_approval` |
 | `GET`  | `/activities/{id}/security-plan/versions` | 登录用户 |
 | `GET`  | `/activities/{id}/security-plan/versions/{vn}` | 登录用户 |
 | `GET`  | `/activities/{id}/security-plan/versions/{v1}/diff/{v2}` | 登录用户 |
