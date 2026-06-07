@@ -445,23 +445,32 @@ export default function ActivityDetailPage() {
                               templatesApi.getSecurityPlanVersionDiff(id!, v1, v2).then((r) => r.data)
                             }
                           />
-                          {securityPlanVersions.length > 0 && activity?.status === "待安保方案设计" && (
-                            <Button
-                              type="primary"
-                              style={{ marginTop: 16 }}
-                              onClick={() => {
-                                const errs = validateSecurityPlan(securityPlanSchema?.snapshot_data, securityPlanSchema?.risk_level);
-                                if (errs.length > 0) {
-                                  setValidationErrors(errs);
-                                  setValidationModalOpen(true);
-                                } else {
-                                  setSecuritySubmitOpen(true);
-                                }
-                              }}
-                            >
-                              提交审核
-                            </Button>
-                          )}
+                          {(() => {
+                            const auditStatus = securityPlan?.audit_status;
+                            const submitted = auditStatus && auditStatus !== "待编制";
+                            const btnLabel = submitted ? (
+                              auditStatus === "待签署" ? "已提交审核，等待负责人签署" : "负责人已签署"
+                            ) : "提交审核";
+
+                            return securityPlanVersions.length > 0 && activity?.status === "待安保方案设计" && (
+                              <Button
+                                type="primary"
+                                style={{ marginTop: 16 }}
+                                disabled={submitted}
+                                onClick={() => {
+                                  const errs = validateSecurityPlan(securityPlanSchema?.snapshot_data, securityPlanSchema?.risk_level);
+                                  if (errs.length > 0) {
+                                    setValidationErrors(errs);
+                                    setValidationModalOpen(true);
+                                  } else {
+                                    setSecuritySubmitOpen(true);
+                                  }
+                                }}
+                              >
+                                {btnLabel}
+                              </Button>
+                            );
+                          })()}
                           <Modal
                             title="确认提交审核"
                             open={securitySubmitOpen}
@@ -470,6 +479,7 @@ export default function ActivityDetailPage() {
                               try {
                                 await templatesApi.submitSecurityPlanReview(id!);
                                 message.success("安保方案已提交审核，等待负责人签署");
+                                queryClient.invalidateQueries({ queryKey: ["activities", id, "security-plan"] });
                                 setSecuritySubmitOpen(false);
                                 queryClient.invalidateQueries({ queryKey: ["activities", id] });
                                 refetchSecuritySchema();

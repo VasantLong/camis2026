@@ -252,6 +252,12 @@ with sync_playwright() as p:
     page.wait_for_load_state("networkidle")
     check(True, "security plan submitted for review")
 
+    # After submission, button should be disabled
+    page.wait_for_timeout(1000)
+    submitted_btn = page.locator('button:has-text("已提交审核，等待负责人签署")').first
+    check(submitted_btn.count() > 0, "button shows submitted state")
+    check(submitted_btn.is_disabled(), "submit button disabled after submission")
+
     # ============================================================
     # Report
     # ============================================================
