@@ -18,9 +18,9 @@ class FilledDocument(Base):
     template_type: Mapped[str] = mapped_column(String(64), nullable=False)
     version_number: Mapped[int] = mapped_column(nullable=False)
     data_snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False)
-    minio_path: Mapped[str] = mapped_column(String(2048), nullable=False)
+    minio_path: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     pdf_path: Mapped[str | None] = mapped_column(String(2048), nullable=True)
-    template_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    template_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     generated_by: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
     )

@@ -30,6 +30,7 @@ class RiskAssessmentForm(BaseModel):
     contact_person: str = Field(default="", description="联系人")
     contact_phone: str = Field(default="", description="联系电话")
     assessor_signature: str = Field(default="", description="评估主体负责人签名")
+    manager_signature: str = Field(default="", description="安保负责人审核签名")
 
 
 SCHEMA = {
@@ -69,5 +70,6 @@ SCHEMA = {
         {"name": "contact_person", "ui_label": "联系人", "ui_type": "text", "required": True},
         {"name": "contact_phone", "ui_label": "联系电话", "ui_type": "text", "required": True},
         {"name": "assessor_signature", "ui_label": "评估主体负责人签字", "ui_type": "signature", "required": True},
+        # manager_signature is NOT in fields — injected at Manager signing time
     ],
 }

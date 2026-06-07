@@ -11,7 +11,7 @@ from app.database import get_db
 from app.deps import get_current_user
 from app.models.activity import Activity
 from app.models.user import User
-from app.rbac import require_permission
+from app.rbac import require_any_permission, require_permission
 from app.services.document_service import DocumentService
 from app.services.redis_client import get_redis
 
@@ -54,7 +54,7 @@ async def upload_document(
     current_user: User = Depends(get_current_user),
     svc: DocumentService = Depends(_service),
     db=Depends(get_db),
-    _perm: None = require_permission("upload_document"),
+    _perm: None = require_any_permission("upload_document", "upload_security_material"),
 ):
     activity = await db.get(Activity, activity_id)
     if activity is None:

@@ -45,3 +45,16 @@ def require_permission(perm: str):
                 detail=f"缺少权限: {perm}",
             )
     return Depends(check)
+
+
+def require_any_permission(*perms: str):
+    """Require at least one of the given permissions."""
+    async def check(
+        permissions: set[str] = Depends(get_user_permissions),
+    ):
+        if not any(p in permissions for p in perms):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"缺少权限，需要以下之一: {', '.join(perms)}",
+            )
+    return Depends(check)

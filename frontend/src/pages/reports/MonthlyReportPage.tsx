@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { Button, Card, Col, Row, Statistic, Table, Tag, Typography, Spin, Empty, Result, Space } from "antd";
+import { Button, Card, Col, Row, Statistic, Table, Tag, Typography, Spin, Empty, Result } from "antd";
 import { DownloadOutlined } from "@ant-design/icons";
 import { Pie, Column, Line } from "@ant-design/charts";
 import { useAuthStore } from "@/stores/authStore";

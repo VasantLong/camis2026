@@ -86,6 +86,7 @@ docker exec <name> netstat -tlnp | grep <port>
 - **禁止 `page.goto()` 跨页面导航**：CDP 模式下全页面刷新丢失 Zustand auth 状态，用侧边栏点击、表格链接等客户端导航
 - **测试从用户行为出发**：点击 → 等待 → 观察，不绕过 UI 直接调 API
 - **antd v6 选择器优先用文本/图标**：`get_by_text()`、`filter(has_text=...)`、`has(.anticon-user)`，不依赖 CSS 类名（v6 的 CSS-in-JS 生成 hash 类名）
+- **antd Select 用 `keyboard.type()` 操作**：v6 Select 的 input 是 `readonly` 的 `role="combobox"`，不能用 `fill()`。先 `click()` 打开下拉，再 `keyboard.type(option)` + `Enter` 完成选择
 - **测试邮箱必须有标准 TLD**：Ant Design email 验证器拒绝 `@localhost`
 - **DOM 变更后重新查询元素**：`.all()` 返回的引用在 render 后过期，用 `while` 循环 + 重新查询
 - **`docker compose down -v` 后重跑 seed**：`seed_test_users.py` + `seed_test_activities.py` + `create_devtest_user.py`

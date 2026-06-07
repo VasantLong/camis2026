@@ -13,9 +13,9 @@
 |---|------|------|
 | `activities` | Activity | 聚合根，FK owner_id + designer_id → users |
 | `activity_plans` | ActivityPlan | 活动方案，CASCADE activity，**UNIQUE(activity_id)**，含 draft_data + current_filled_document_id |
-| `security_plans` | SecurityPlan | 安保方案，CASCADE activity，**UNIQUE(activity_id)**，FK manager_id → users，含 draft_data + current_filled_document_id |
+| `security_plans` | SecurityPlan | 安保方案，CASCADE activity，**UNIQUE(activity_id)**，FK manager_id → users，含 draft_data + current_filled_document_id + sign_time + last_reject_reason + rejected_at + reject_count |
 | `filing_docs` | FilingDoc | 备案材料包，CASCADE activity，**UNIQUE(activity_id)** |
-| `filled_documents` | FilledDocument | 模板生成版本记录，CASCADE activity，**UNIQUE(activity_id, template_type, version_number)** |
+| `filled_documents` | FilledDocument | 模板生成版本记录，CASCADE activity，**UNIQUE(activity_id, template_type, version_number)**。minio_path 可为 NULL（安保方案+双表延迟生成） |
 | `approval_records` | ApprovalRecord | 政府批文，CASCADE activity，FK liaison_id → users |
 | `implementation_records` | ImplementationRecord | 实施记录，CASCADE activity，FK admin_id → users |
 | `activity_status_log` | ActivityStatusLog | 追加式审计日志，CASCADE activity |

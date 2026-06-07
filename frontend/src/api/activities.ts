@@ -30,6 +30,9 @@ export const activitiesApi = {
       audit_status: string | null;
       manager_name: string | null;
       sign_time: string | null;
+      last_reject_reason: string | null;
+      rejected_at: string | null;
+      reject_count: number;
     }>(`/activities/${id}/security-plan`),
 
   updateSecurityPlan: (id: string, data: { risk_level?: string }) =>
@@ -38,6 +41,9 @@ export const activitiesApi = {
       audit_status: string | null;
       manager_name: string | null;
       sign_time: string | null;
+      last_reject_reason: string | null;
+      rejected_at: string | null;
+      reject_count: number;
     }>(`/activities/${id}/security-plan`, data),
 
   fetchCounts: () =>

@@ -91,17 +91,23 @@ class TemplateService:
         version_number = await self._next_version(activity_id, template_type)
         risk_level = getattr(entity, "risk_level", None)
 
-        # render DOCX
-        docx_bytes = await self._render_docx(template_type, data, risk_level)
-        template_hash = hashlib.sha256(
-            (TEMPLATES_ROOT / template_type / "template.docx").read_bytes()
-        ).hexdigest()
+        # DOCX deferred for types that require Manager signing
+        DEFERRED_TYPES = {"security_plan", "risk_assessment", "responsibility_letter"}
+        is_deferred = template_type in DEFERRED_TYPES
 
-        # upload DOCX
-        minio_path = f"filled_documents/{activity_id}/{template_type}/v{version_number}.docx"
-        await minio_client.upload_file(minio_path, docx_bytes, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+        docx_bytes = None
+        minio_path = None
+        template_hash = ""
 
-        # create FilledDocument (pdf_path=None initially — filled by background task)
+        if not is_deferred:
+            docx_bytes = await self._render_docx(template_type, data, risk_level)
+            template_hash = hashlib.sha256(
+                (TEMPLATES_ROOT / template_type / "template.docx").read_bytes()
+            ).hexdigest()
+            minio_path = f"filled_documents/{activity_id}/{template_type}/v{version_number}.docx"
+            await minio_client.upload_file(minio_path, docx_bytes, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+        # create FilledDocument
         fd = FilledDocument(
             activity_id=activity_id,
             template_type=template_type,
@@ -123,8 +129,8 @@ class TemplateService:
         await self.db.commit()
 
         logger.info(
-            "generated type=%s activity=%s v%d",
-            template_type, activity_id, version_number,
+            "generated type=%s activity=%s v%d deferred=%s",
+            template_type, activity_id, version_number, is_deferred,
         )
         return {
             "id": fd.id,
@@ -133,7 +139,7 @@ class TemplateService:
             "minio_path": fd.minio_path,
             "pdf_ready": False,
             "pdf_preview_url": None,
-            "docx_bytes": docx_bytes,  # for background task (not exposed to client)
+            "docx_bytes": docx_bytes,
             "created_at": fd.created_at.isoformat() if fd.created_at else None,
         }
 
@@ -255,11 +261,104 @@ class TemplateService:
             raise ValueError("当前状态不允许提交审核")
 
         entity.audit_status = "待签署"
+        entity.last_reject_reason = None
+        entity.rejected_at = None
         await self.db.commit()
 
         from app.services.notification_service import NotificationService
         ns = NotificationService(self.db)
         await ns.notify_role("SecurityManager", "安保方案已提交，请审核签署",
+            reference_id=activity_id, reference_type="activity")
+
+    async def sign_and_finalize(self, activity_id: UUID, user_id: UUID,
+                                manager_signature: str) -> None:
+        """SecurityManager signs: inject signature, generate DOCX, transition to 待备案申请."""
+        from app.models.rbac import Role, UserRole
+        from app.services.workflow_service import WorkflowService
+        from app.services.notification_service import NotificationService
+
+        # Verify SecurityManager role
+        role_rows = await self.db.execute(
+            select(Role.name).join(UserRole, UserRole.role_id == Role.id)
+            .where(UserRole.user_id == user_id)
+        )
+        roles = {row[0] for row in role_rows.all()}
+        if "SecurityManager" not in roles:
+            raise ValueError("仅安保负责人可签署确认")
+
+        entity = await self._get_entity("security_plan", activity_id)
+        if not entity or entity.audit_status != "待签署":
+            raise ValueError("当前状态不允许签署")
+
+        activity = await self.db.get(Activity, activity_id)
+        if not activity or activity.status != "待安保方案设计":
+            raise ValueError("当前活动状态不允许签署")
+
+        # Generate DOCX for all deferred types linked to this activity
+        DEFERRED_TYPES = ["security_plan", "risk_assessment", "responsibility_letter"]
+        for ttype in DEFERRED_TYPES:
+            fds = await self.db.execute(
+                select(FilledDocument).where(
+                    FilledDocument.activity_id == activity_id,
+                    FilledDocument.template_type == ttype,
+                    FilledDocument.minio_path.is_(None),
+                )
+            )
+            for fd in fds.scalars().all():
+                data = dict(fd.data_snapshot or {})
+                data["manager_signature"] = manager_signature
+                fd.data_snapshot = data
+
+                risk_level = getattr(entity, "risk_level", None)
+                docx_bytes = await self._render_docx(ttype, data, risk_level)
+                fd.template_hash = hashlib.sha256(
+                    (TEMPLATES_ROOT / ttype / "template.docx").read_bytes()
+                ).hexdigest()
+                minio_path = f"filled_documents/{activity_id}/{ttype}/v{fd.version_number}.docx"
+                await minio_client.upload_file(minio_path, docx_bytes, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+                fd.minio_path = minio_path
+
+        # Update SecurityPlan
+        entity.audit_status = "已签署"
+        entity.manager_id = user_id
+        entity.sign_time = datetime.now(timezone.utc)
+        await self.db.commit()
+
+        # Transition workflow
+        ws = WorkflowService(self.db, NotificationService(self.db))
+        User = __import__("app.models.user", fromlist=["User"]).User
+        await ws.transition(activity_id, "待备案申请", await self.db.get(User, user_id))
+
+    async def reject_security_plan(self, activity_id: UUID, user_id: UUID,
+                                   reasons: list[str], comment: str | None = None) -> None:
+        """SecurityManager rejects the security plan back to SecurityOfficer."""
+        from app.models.rbac import Role, UserRole
+        from app.services.notification_service import NotificationService
+
+        role_rows = await self.db.execute(
+            select(Role.name).join(UserRole, UserRole.role_id == Role.id)
+            .where(UserRole.user_id == user_id)
+        )
+        roles = {row[0] for row in role_rows.all()}
+        if "SecurityManager" not in roles:
+            raise ValueError("仅安保负责人可驳回")
+
+        entity = await self._get_entity("security_plan", activity_id)
+        if not entity or entity.audit_status != "待签署":
+            raise ValueError("当前状态不允许驳回")
+
+        full_reason = "；".join(reasons)
+        if comment:
+            full_reason += f"（补充：{comment}）"
+
+        entity.audit_status = "待编制"
+        entity.last_reject_reason = full_reason
+        entity.rejected_at = datetime.now(timezone.utc)
+        entity.reject_count = (entity.reject_count or 0) + 1
+        await self.db.commit()
+
+        ns = NotificationService(self.db)
+        await ns.notify_role("SecurityOfficer", f"安保方案被驳回需修改：{full_reason}",
             reference_id=activity_id, reference_type="activity")
 
     # ------------------------------------------------------------------

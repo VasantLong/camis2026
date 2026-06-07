@@ -15,7 +15,7 @@
 1. **模板格式**：DOCX（`docxtpl` 库，Jinja2 语法占位符 `{{ field_name }}`），存储于代码仓库 `app/templates/{type}/template.docx`，随应用部署
 2. **表单字段**：每个模板类型对应一个 Pydantic schema（`app/templates/{type}/schema.py`），字段名与 DOCX 占位符一一对应。前端通过 `GET /activities/{id}/plan/schema` 获取字段定义，通用 `TemplateForm` 组件动态渲染
 3. **版本管理**：统一实体 `filled_documents` 管理所有模板产物的版本（含表单快照、DOCX/PDF 产物、模板 hash），通过 `(activity_id, template_type, version_number)` 唯一约束。现有实体（activity_plans/security_plans/key_materials）通过 `current_filled_document_id` 指向当前版本
-4. **生成时机**：用户手动触发——"保存草稿"（`draft_data JSONB`）和"提交生成"（创建 `filled_documents` 版本），驳回修正产生新版本
+4. **生成时机**：用户手动触发——"保存草稿"（`draft_data JSONB`）和"提交生成"（创建 `filled_documents` 版本），驳回修正产生新版本。**安保方案 + 双表（风险评估/责任书）采用延迟生成**：SecurityOfficer 提交生成时仅保存 `data_snapshot`（`minio_path=NULL`），Manager 签署确认后一次性批量生成含签名 DOCX
 5. **模板类型**：5 个内置模板——活动方案、安保方案（风险等级决定条件段）、风险评估表、安全消防责任确认书、备案承诺书
 6. **电子签名**：用户上传签名/印章图片，渲染时嵌入 DOCX 签名占位符
 7. **附件分类**：附件挂到 `filled_documents.id`（版本级附件），通用活动附件通过 `activity_id IS NOT NULL AND filled_document_id IS NULL` 区分

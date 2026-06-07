@@ -71,12 +71,8 @@ export function getAvailableTransitions(
   const actions: TransitionDef[] = [];
 
   // "最终确定方案" in the plan tab replaces the generic workflow transition
-  if (status === "待安保方案设计") {
-    if (has("reject_approval"))
-      actions.push({ label: "驳回（内部循环）", mode: "reject", permission: "reject_approval" });
-    if (has("manage_security"))
-      actions.push({ label: "签署完成—提交备案", mode: "transition", toStatus: "待备案申请", permission: "manage_security" });
-  }
+  // "确认签署" + "驳回" are in the security plan tab
+  // (Manager signing section), replacing workflow buttons
   if (status === "待备案申请") {
     // Filing phase — actions come from Filing components
   }

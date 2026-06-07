@@ -164,20 +164,23 @@ python scripts/create_devtest_user.py   # 创建 devtest（全角色全能用户
 
 ## 测试场景
 
-### 场景 A：宣策部（Promoter）— 立项 + 方案上传
+### 场景 A：宣策部（Promoter）— 立项 + 编制活动方案
 
-1. 用 `promoter@test.com / pass123` 登录 → 进入工作台首页（`/index`）
+1. 用 `promoter@test.com / pass123` 登录 → 进入工作台（`/index`）
 2. 查看「待设计方案」和「我的活动」计数卡片
 3. 点击「新建立项」→ 填写活动信息并提交 → 跳转详情页，状态为「待设计方案」
-4. 通过侧边栏「我的活动」返回列表，验证新活动出现
-5. 点击活动进入详情，在文档 tab 上传方案文件（PDF/JPG/PNG/DOC，≤50MB）
+4. 进入「活动方案」tab → 填写结构化表单（主要内容、时间、人数等）→ 保存草稿或提交生成
+5. 可生成多个版本 → 版本对比差异 → 点击「最终确定方案」
+6. 系统校验字段完整性 → 不通过弹窗列出问题 → 通过则确认弹窗 → 提交后状态变为「待安保方案设计」
 
-### 场景 B：安保部（SecurityOfficer + SecurityManager）— 审批流转
+### 场景 B：安保部（SecurityOfficer + SecurityManager）— 编制 + 签署驳回
 
-1. 用 `promoter@test.com` 登录，打开「待设计方案」活动，点击「提交到安保方案设计」
-2. 用 `security@test.com` (SecurityOfficer) 登录，侧边栏「待编制安保方案」出现该活动
-3. 编制完成后点击「签署完成—提交备案」→ 状态变为「待备案申请」
-4. 如需驳回，用 `security_mgr@test.com` (SecurityManager) 登录 → 点击「驳回」
+1. 用 `security@test.com` (SecurityOfficer) 登录 → 工作台「待编制安保方案」显示新活动
+2. 进入活动「安保方案」tab → 选择风险等级 → 填写表单 → 提交生成（保存数据快照）
+3. 点击「提交审核」→ 校验 → 确认弹窗 → 提交后表单锁定
+4. 用 `security_mgr@test.com` (SecurityManager) 登录 → 进入同一活动 → 安保方案 tab 显示签署确认区
+5. 审阅方案内容 → 上传签名图片 → 点击「确认签署并提交备案」→ 生成含签名 DOCX → 状态变为「待备案申请」
+6. 如需驳回：点击「驳回」→ 勾选预设原因 → 确认 → SecurityOfficer 表单解锁 + 红色横幅提示
 
 ### 场景 C：政府对接（GovLiaison）— 批文上传
 

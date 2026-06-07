@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Descriptions, Tabs, Button, Tag, Spin, Typography, Space, Modal, Input, message, List, Select } from "antd";
-import { ArrowLeftOutlined, CheckOutlined, CloseOutlined, EditOutlined } from "@ant-design/icons";
+import { Descriptions, Tabs, Button, Tag, Spin, Typography, Space, Modal, Input, message, List, Select, Upload, Checkbox } from "antd";
+import { ArrowLeftOutlined, CheckOutlined, CloseOutlined, EditOutlined, UploadOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useActivity, useActivityHistory, useActivityDocuments } from "@/hooks/useActivityQueries";
@@ -17,12 +17,13 @@ import VersionTimeline from "@/components/templates/VersionTimeline";
 import VersionSnapshot from "@/components/templates/VersionSnapshot";
 import { validateActivityPlan, validateSecurityPlan, type ValidationError } from "@/utils/templateValidation";
 import { filingsApi } from "@/api/filings";
+import { documentsApi } from "@/api/documents";
 import { activitiesApi } from "@/api/activities";
 import { materialsApi } from "@/api/materials";
 import { templatesApi } from "@/api/templates";
 import { useAuthStore } from "@/stores/authStore";
 import { STATUS_COLOR_MAP } from "@/utils/constants";
-import type { VersionItem, VersionDetail, VersionDiff, SchemaResponse } from "@/types/template";
+import type { VersionItem, SchemaResponse } from "@/types/template";
 
 export default function ActivityDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -83,15 +84,16 @@ export default function ActivityDetailPage() {
   const canViewSecurity = permissions.includes("manage_security") || permissions.includes("view_owned_activity");
   const canEditPlan = permissions.includes("submit_plan");
   const canEditSecurity = permissions.includes("manage_security");
+  const isManager = permissions.includes("review_security_plan");
   const isAdmin = permissions.includes("view_dashboard") && !canEditPlan && !canEditSecurity;
 
-  const { data: planSchema, refetch: refetchPlanSchema } = useQuery({
+  const { data: planSchema } = useQuery({
     queryKey: ["activities", id, "templates", "plan-schema"],
     queryFn: () => templatesApi.getPlanSchema(id!).then((r) => r.data),
     enabled: canViewPlan,
   });
 
-  const { data: planVersions = [], refetch: refetchPlanVersions } = useQuery({
+  const { data: planVersions = [] } = useQuery({
     queryKey: ["activities", id, "templates", "plan-versions"],
     queryFn: () => templatesApi.getPlanVersions(id!).then((r) => r.data),
     enabled: canViewPlan,
@@ -103,7 +105,7 @@ export default function ActivityDetailPage() {
     enabled: canViewSecurity,
   });
 
-  const { data: securityPlanVersions = [], refetch: refetchSecurityVersions } = useQuery({
+  const { data: securityPlanVersions = [] } = useQuery({
     queryKey: ["activities", id, "templates", "security-versions"],
     queryFn: () => templatesApi.getSecurityPlanVersions(id!).then((r) => r.data),
     enabled: canViewSecurity,
@@ -119,6 +121,45 @@ export default function ActivityDetailPage() {
   const [planFinalizeOpen, setPlanFinalizeOpen] = useState(false);
   const [securitySubmitOpen, setSecuritySubmitOpen] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
+  const [managerSignaturePath, setManagerSignaturePath] = useState<string | null>(null);
+  const [signaturePreview, setSignaturePreview] = useState<string | null>(null);
+  const [signatureUploadTime, setSignatureUploadTime] = useState<string | null>(null);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectReasons, setRejectReasons] = useState<string[]>([]);
+  const [rejectComment, setRejectComment] = useState("");
+  const [rejecting, setRejecting] = useState(false);
+
+  const REJECT_PRESETS = [
+    "安保人员配置不足或不当",
+    "动线设计不合理",
+    "设备清单不完善",
+    "应急预案不充分",
+    "医疗救护措施不完善",
+    "消防措施不充分",
+    "人流管控方案不合理",
+    "其他（需补充说明）",
+  ];
+
+  const REJECT_FIELD_MAP: Record<string, string[]> = {
+    "安保人员配置不足或不当": ["security_staff_config", "security_staff_count"],
+    "动线设计不合理": ["movement_plan"],
+    "设备清单不完善": ["equipment_list"],
+    "应急预案不充分": ["emergency_plan"],
+    "医疗救护措施不完善": ["medical_plan"],
+    "消防措施不充分": ["fire_plan"],
+    "人流管控方案不合理": ["crowd_control"],
+  };
+
+  useEffect(() => {
+    if (securityPlan?.last_reject_reason && !isManager) {
+      const reason = securityPlan.last_reject_reason;
+      const fields: string[] = [];
+      for (const [preset, fieldNames] of Object.entries(REJECT_FIELD_MAP)) {
+        if (reason.includes(preset)) fields.push(...fieldNames);
+      }
+      if (fields.length > 0) setHighlightFields(fields);
+    }
+  }, [securityPlan?.last_reject_reason, securityPlan]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   const signMutation = useMutation({
     mutationFn: (matId: string) => materialsApi.sign(id!, matId),
@@ -144,7 +185,6 @@ export default function ActivityDetailPage() {
   const canSign = permissions.includes("sign_document");
   const canAudit = permissions.includes("audit_material");
   const allSigned = materials.length > 0 && materials.every(m => m.sign_status === "signed");
-  const allQualified = materials.length > 0 && materials.every(m => m.is_qualified);
   const canPack = canOperateFiling && allSigned && !filingStatus?.packed;
 
   if (isLoading) {
@@ -390,7 +430,165 @@ export default function ActivityDetailPage() {
                   label: "安保方案",
                   children: securityPlanSchema ? (
                     <div>
-                      {canEditSecurity ? (
+                      {securityPlan?.last_reject_reason && (
+                        <div style={{ marginBottom: 16, padding: "8px 16px", background: "#fff2f0", borderRadius: 4, border: "1px solid #ffccc7" }}>
+                          <Typography.Text strong style={{ color: "#ff4d4f" }}>
+                            {isManager ? "已驳回" : "被驳回"}（第{securityPlan.reject_count || 1}次）
+                          </Typography.Text>
+                          <Typography.Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
+                            {securityPlan.rejected_at ? new Date(securityPlan.rejected_at).toLocaleString("zh-CN") : ""}
+                          </Typography.Text>
+                          <div style={{ marginTop: 4 }}>
+                            <Typography.Text>{securityPlan.last_reject_reason}</Typography.Text>
+                          </div>
+                        </div>
+                      )}
+                      {isManager && securityPlan?.audit_status === "待签署" ? (
+                        <>
+                          <div style={{ padding: 16, border: "1px solid #1677ff", borderRadius: 8 }}>
+                            <Typography.Title level={5}>安保负责人签署确认</Typography.Title>
+                            <VersionSnapshot schema={securityPlanSchema} />
+                          <div style={{ marginTop: 16 }}>
+                            <Space>
+                              <Upload
+                                accept="image/*"
+                                maxCount={1}
+                                showUploadList={false}
+                                customRequest={async ({ file, onSuccess, onError }) => {
+                                  try {
+                                    const f = file as File;
+                                    const ext = f.name.split(".").pop() || "png";
+                                    const ts = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 14);
+                                    const renamed = new File([f], `manager_sign_${ts}.${ext}`, { type: f.type });
+                                    const res = await documentsApi.upload(id!, renamed, ["signature"]);
+                                    const doc = res.data;
+                                    setManagerSignaturePath(doc.minio_path);
+                                    setSignaturePreview(URL.createObjectURL(f));
+                                    setSignatureUploadTime(new Date().toLocaleString("zh-CN"));
+                                    onSuccess?.(doc);
+                                    message.success("已上传签名图片");
+                                  } catch {
+                                    onError?.(new Error("上传失败"));
+                                    message.error("签名上传失败");
+                                  }
+                                }}
+                              >
+                                <Button icon={<UploadOutlined />}>上传签名图片</Button>
+                              </Upload>
+                              {signaturePreview && (
+                                <div>
+                                  <img src={signaturePreview} alt="签名预览" style={{ maxWidth: 200, maxHeight: 80, borderRadius: 4, border: "1px solid #d9d9d9", display: "block" }} />
+                                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>上传时间：{signatureUploadTime}</Typography.Text>
+                                </div>
+                              )}
+                              <Button
+                                type="primary"
+                                disabled={!managerSignaturePath}
+                                onClick={async () => {
+                                  setFinalizing(true);
+                                  try {
+                                    await templatesApi.signSecurityPlan(id!, managerSignaturePath!);
+                                    message.success("已签署确认，方案已提交至备案申请");
+                                    setManagerSignaturePath(null);
+                                    queryClient.invalidateQueries({ queryKey: ["activities", id] });
+                                    queryClient.invalidateQueries({ queryKey: ["activities", id, "security-plan"] });
+                                    refetchSecuritySchema();
+                                  } catch (e: any) {
+                                    message.error(e?.response?.data?.detail || "签署失败");
+                                  } finally {
+                                    setFinalizing(false);
+                                  }
+                                }}
+                                loading={finalizing}
+                              >
+                                确认签署并提交备案
+                              </Button>
+                              <Button
+                                danger
+                                onClick={() => {
+                                  setRejectReasons([]);
+                                  setRejectComment("");
+                                  setRejectOpen(true);
+                                }}
+                              >
+                                驳回
+                              </Button>
+                            </Space>
+                          </div>
+                        </div>
+                        <Modal
+                          title="驳回安保方案"
+                          open={rejectOpen}
+                          onCancel={() => setRejectOpen(false)}
+                          onOk={async () => {
+                            if (rejectReasons.length === 0 && !rejectComment) return;
+                            setRejecting(true);
+                            try {
+                              await templatesApi.rejectSecurityPlan(id!, rejectReasons, rejectComment || undefined);
+                              message.success("已驳回");
+                              setRejectOpen(false);
+                              queryClient.invalidateQueries({ queryKey: ["activities", id] });
+                              queryClient.invalidateQueries({ queryKey: ["activities", id, "security-plan"] });
+                              refetchSecuritySchema();
+                            } catch (e: any) {
+                              message.error(e?.response?.data?.detail || "驳回失败");
+                            } finally {
+                              setRejecting(false);
+                            }
+                          }}
+                          okText="确认驳回"
+                          okButtonProps={{ danger: true, loading: rejecting }}
+                          cancelText="取消"
+                        >
+                          <div style={{ marginBottom: 12 }}>
+                            <Typography.Text strong>驳回原因</Typography.Text>
+                          </div>
+                          <Checkbox.Group
+                            options={REJECT_PRESETS}
+                            value={rejectReasons}
+                            onChange={(v) => setRejectReasons(v as string[])}
+                            style={{ display: "flex", flexDirection: "column", gap: 8 }}
+                          />
+                          <div style={{ marginTop: 12 }}>
+                            <Input.TextArea
+                              placeholder="补充说明（可选）"
+                              rows={2}
+                              value={rejectComment}
+                              onChange={(e) => setRejectComment(e.target.value)}
+                            />
+                          </div>
+                        </Modal>
+                        </>
+                      ) : isManager && securityPlan?.audit_status === "已签署" ? (
+                        <div>
+                          <div style={{ marginBottom: 16, padding: "8px 16px", background: "#f6ffed", borderRadius: 4, border: "1px solid #b7eb8f" }}>
+                            <Typography.Text strong style={{ color: "#52c41a" }}>已签署确认</Typography.Text>
+                            <Typography.Text type="secondary" style={{ marginLeft: 8 }}>
+                              {securityPlan?.sign_time ? new Date(securityPlan.sign_time).toLocaleString("zh-CN") : ""}
+                            </Typography.Text>
+                          </div>
+                          <VersionSnapshot schema={securityPlanSchema} />
+                          <VersionTimeline
+                            versions={securityPlanVersions}
+                            onViewDetail={(v) =>
+                              templatesApi.getSecurityPlanVersionDetail(id!, v).then((r) => r.data)
+                            }
+                            onDiff={(v1, v2) =>
+                              templatesApi.getSecurityPlanVersionDiff(id!, v1, v2).then((r) => r.data)
+                            }
+                          />
+                        </div>
+                      ) : isManager ? (
+                        <VersionTimeline
+                          versions={securityPlanVersions}
+                          onViewDetail={(v) =>
+                            templatesApi.getSecurityPlanVersionDetail(id!, v).then((r) => r.data)
+                          }
+                          onDiff={(v1, v2) =>
+                            templatesApi.getSecurityPlanVersionDiff(id!, v1, v2).then((r) => r.data)
+                          }
+                        />
+                      ) : canEditSecurity ? (
                         <>
                           <div style={{ marginBottom: 16 }}>
                             <Typography.Text strong>风险等级</Typography.Text>
@@ -414,6 +612,7 @@ export default function ActivityDetailPage() {
                             activityId={id!}
                             schema={securityPlanSchema}
                             disabled={!!(securityPlan?.audit_status && securityPlan.audit_status !== "待编制")}
+                            highlightFields={highlightFields}
                             onSaveDraft={async (data) => {
                               await templatesApi.saveSecurityPlanDraft(id!, data);
                             }}
@@ -449,7 +648,7 @@ export default function ActivityDetailPage() {
                           />
                           {(() => {
                             const auditStatus = securityPlan?.audit_status;
-                            const submitted = auditStatus && auditStatus !== "待编制";
+                            const submitted = !!(auditStatus && auditStatus !== "待编制");
                             const btnLabel = submitted ? (
                               auditStatus === "待签署" ? "已提交审核，等待负责人签署" : "负责人已签署"
                             ) : "提交审核";
