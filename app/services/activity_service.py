@@ -241,6 +241,9 @@ class ActivityService:
             "audit_status": sp.audit_status,
             "manager_name": manager_name,
             "sign_time": sp.sign_time.isoformat() if sp.sign_time else None,
+            "last_reject_reason": sp.last_reject_reason,
+            "rejected_at": sp.rejected_at.isoformat() if sp.rejected_at else None,
+            "reject_count": sp.reject_count or 0,
         }
 
     async def set_security_risk_level(self, activity_id: UUID, risk_level: str) -> None:
