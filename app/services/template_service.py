@@ -142,10 +142,58 @@ class TemplateService:
     # ------------------------------------------------------------------
 
     async def finalize_plan(self, activity_id: UUID, user_id: UUID) -> None:
-        """Finalize the activity plan: check version exists, trigger workflow transition."""
+        """Finalize the activity plan: validate content, trigger workflow transition."""
         entity = await self._get_entity("activity_plan", activity_id)
         if not entity or not entity.current_filled_document_id:
             raise ValueError("活动方案尚未生成，无法最终确定")
+
+        fd = await self.db.get(FilledDocument, entity.current_filled_document_id)
+        if not fd or not fd.data_snapshot:
+            raise ValueError("未找到当前版本数据")
+
+        from app.templates.activity_plan.schema import ActivityPlanForm
+
+        try:
+            ActivityPlanForm(**fd.data_snapshot)
+        except Exception as e:
+            raise ValueError(f"活动方案内容不完整: {e}")
+
+        data = fd.data_snapshot
+        import re
+
+        errors: list[str] = []
+        if not data.get("activity_content"):
+            errors.append("活动主要内容不能为空")
+        if not data.get("start_time"):
+            errors.append("开始时间未填写")
+        if not data.get("end_time"):
+            errors.append("结束时间未填写")
+        if data.get("start_time") and data.get("end_time") and data["start_time"] >= data["end_time"]:
+            errors.append("结束时间必须晚于开始时间")
+        if not data.get("staff_count") or data["staff_count"] <= 0:
+            errors.append("工作人员数量必须大于0")
+        if not data.get("construction_plan"):
+            errors.append("搭建方案不能为空")
+        if not data.get("regular_crowd"):
+            errors.append("平日人数范围未选择")
+        phone = data.get("contact_phone", "")
+        if not re.match(r"^1[3-9]\d{9}$", str(phone)):
+            errors.append("负责人联系方式须为11位手机号码")
+        if data.get("has_opening") == "是":
+            if not data.get("opening_start"):
+                errors.append("开幕式开始时间未填写")
+            if not data.get("opening_end"):
+                errors.append("开幕式结束时间未填写")
+            if not data.get("opening_crowd"):
+                errors.append("主要活动日人数范围未选择")
+        if data.get("has_performers") == "是":
+            if not data.get("performer_count") or data["performer_count"] <= 0:
+                errors.append("演员数量必须大于0")
+            if not data.get("guest_count") or data["guest_count"] <= 0:
+                errors.append("嘉宾数量必须大于0")
+
+        if errors:
+            raise ValueError("; ".join(errors))
 
         activity = await self.db.get(Activity, activity_id)
         if not activity or activity.status != "待设计方案":
@@ -156,6 +204,63 @@ class TemplateService:
         ws = WorkflowService(self.db, NotificationService(self.db))
         User = __import__("app.models.user", fromlist=["User"]).User
         await ws.transition(activity_id, "待安保方案设计", await self.db.get(User, user_id))
+
+    async def submit_security_plan_for_review(self, activity_id: UUID, user_id: UUID) -> None:
+        """Submit security plan for SecurityManager review. Validate content, set audit_status=待签署."""
+        entity = await self._get_entity("security_plan", activity_id)
+        if not entity or not entity.current_filled_document_id:
+            raise ValueError("安保方案尚未生成，无法提交审核")
+
+        if not getattr(entity, "risk_level", None):
+            raise ValueError("请先选择风险等级")
+
+        fd = await self.db.get(FilledDocument, entity.current_filled_document_id)
+        if not fd or not fd.data_snapshot:
+            raise ValueError("未找到当前版本数据")
+
+        from app.templates.security_plan.schema import SecurityPlanForm
+        import re
+
+        try:
+            SecurityPlanForm(**fd.data_snapshot)
+        except Exception as e:
+            raise ValueError(f"安保方案内容不完整: {e}")
+
+        data = fd.data_snapshot
+        errors: list[str] = []
+        if not data.get("security_staff_config"):
+            errors.append("安保人员配置不能为空")
+        if not data.get("movement_plan"):
+            errors.append("动线设计不能为空")
+        if not data.get("equipment_list"):
+            errors.append("安保设备清单不能为空")
+        if not data.get("emergency_plan"):
+            errors.append("应急预案不能为空")
+        if not data.get("security_staff_count") or data["security_staff_count"] <= 0:
+            errors.append("安保人员数量必须大于0")
+
+        risk_level = getattr(entity, "risk_level", "") or ""
+        if risk_level == "大型" and not data.get("medical_plan"):
+            errors.append("医疗救护措施不能为空（风险等级：大型）")
+        if risk_level in ("大型", "中型", "高风险") and not data.get("fire_plan"):
+            errors.append("消防措施不能为空")
+        if risk_level in ("大型", "高风险") and not data.get("crowd_control"):
+            errors.append("人流管控方案不能为空")
+
+        if errors:
+            raise ValueError("; ".join(errors))
+
+        activity = await self.db.get(Activity, activity_id)
+        if not activity or activity.status != "待安保方案设计":
+            raise ValueError("当前状态不允许提交审核")
+
+        entity.audit_status = "待签署"
+        await self.db.commit()
+
+        from app.services.notification_service import NotificationService
+        ns = NotificationService(self.db)
+        await ns.notify_role("SecurityManager", "安保方案已提交，请审核签署",
+            reference_id=activity_id, reference_type="activity")
 
     # ------------------------------------------------------------------
     # versions

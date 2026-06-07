@@ -88,11 +88,6 @@ class ActivityService:
         self.db.add(log)
         await self.db.commit()
 
-        from app.services.notification_service import NotificationService
-        ns = NotificationService(self.db)
-        if data.designer_id:
-            await ns.send_reminder(data.designer_id, f"新活动待设计方案: {activity.name}")
-
         return ActivityResponse.model_validate(activity)
 
     async def get(self, activity_id: UUID, user_id: UUID | None = None,

@@ -63,23 +63,49 @@ with sync_playwright() as p:
     page.wait_for_load_state("networkidle")
     page.wait_for_selector('textarea', timeout=5000)
 
-    # Fill required fields
-    ta = page.locator('textarea').first
-    ta.fill("浏览器测试：活动主要内容填写验证——文艺汇演")
-
-    num_inputs = page.locator('input[type="text"][role="spinbutton"]').all()
-    for inp in num_inputs:
-        inp.fill("3")
-        break
-
-    date_inputs = page.locator('.ant-picker input').all()
-    if len(date_inputs) >= 2:
-        date_inputs[0].fill("2026-08-01")
-        date_inputs[0].press("Enter")
+    def select_antd(label: str, option: str) -> None:
+        """Select an antd Select option via keyboard (readonly combobox needs keyboard.type)."""
+        item = page.locator('.ant-form-item').filter(has_text=label).first
+        cb = item.locator('input[role="combobox"]').first
+        cb.click()
         page.wait_for_timeout(300)
-        date_inputs[1].fill("2026-08-03")
-        date_inputs[1].press("Enter")
+        page.keyboard.type(option)
+        page.wait_for_timeout(200)
+        page.keyboard.press("Enter")
         page.wait_for_timeout(300)
+
+    # Textareas
+    page.locator('textarea').first.fill("浏览器测试：活动主要内容填写验证——文艺汇演")
+    page.locator('.ant-form-item:has-text("搭建方案") textarea').first.fill("浏览器测试：搭建方案——含材料明细、平面图")
+    page.wait_for_timeout(200)
+
+    # Dates: start_time, end_time (first, so auto_calc total_days settles)
+    dps = page.locator('.ant-picker input').all()
+    dps[0].fill("2026-08-01"); dps[0].press("Enter"); page.wait_for_timeout(400)
+    dps[1].fill("2026-08-03"); dps[1].press("Enter"); page.wait_for_timeout(500)
+
+    # Selects (reliable: click .ant-select-item-option-content)
+    select_antd("平日人数", "1000-3000")
+    select_antd("是否有开幕式", "是")
+    select_antd("是否有演员嘉宾", "是")
+
+    # Conditional fields now visible — fill them
+    page.wait_for_timeout(500)
+    dps2 = page.locator('.ant-picker input').all()
+    if len(dps2) >= 4:
+        dps2[2].fill("2026-08-01"); dps2[2].press("Enter"); page.wait_for_timeout(200)
+        dps2[3].fill("2026-08-02"); dps2[3].press("Enter"); page.wait_for_timeout(300)
+
+    select_antd("主要活动日人数", "1000-3000")
+
+    # Enabled number inputs
+    for i, inp in enumerate(page.locator('input[role="spinbutton"]:not([disabled])').all()):
+        if inp.is_visible():
+            inp.fill(str(3 + i))
+            page.wait_for_timeout(100)
+
+    # Phone
+    page.locator('.ant-form-item:has-text("负责人联系方式") input').first.fill("13800138001")
 
     # Save draft
     draft_btn = page.locator('button:has-text("保存草稿")').first
@@ -141,12 +167,18 @@ with sync_playwright() as p:
     diff_modal.locator('.ant-modal-close').first.click()
     page.wait_for_timeout(500)
 
-    # Finalize plan (triggers workflow → 待安保方案设计)
+    # Finalize plan: click → confirm modal → submit
     finalize_btn = page.locator('button:has-text("最终确定方案")').first
     check(finalize_btn.count() > 0, "finalize button visible")
     finalize_btn.click()
+    page.wait_for_timeout(500)
+
+    # Confirm modal
+    check(page.locator('.ant-modal:has-text("确认最终确定方案")').count() > 0, "finalize confirm modal")
+    page.locator('.ant-modal button:has-text("确认提交")').first.click()
     page.wait_for_timeout(2000)
     page.wait_for_load_state("networkidle")
+    check(True, "plan finalized → workflow transition")
 
     # ============================================================
     # 3. SecurityOfficer: risk level → security plan → generate
@@ -170,17 +202,15 @@ with sync_playwright() as p:
     page.wait_for_timeout(1500)
     page.wait_for_load_state("networkidle")
 
-    # Select risk level if needed
-    risk_selector = page.locator('.ant-select-selector').first
-    if risk_selector.count() > 0:
-        risk_selector.click()
-        page.wait_for_timeout(500)
-        option = page.locator('.ant-select-item-option:has-text("大型")').first
-        if option.count() > 0:
-            option.click()
-            page.wait_for_timeout(1500)
-            page.wait_for_load_state("networkidle")
-            check(True, "risk level set to 大型")
+    # Select risk level — standalone Select, combobox is first on the page
+    page.locator('input[role="combobox"]').first.click()
+    page.wait_for_timeout(300)
+    page.keyboard.type("大型")
+    page.wait_for_timeout(200)
+    page.keyboard.press("Enter")
+    page.wait_for_timeout(1500)
+    page.wait_for_load_state("networkidle")
+    check(True, "risk level set to 大型")
 
     # Fill required textareas for security plan
     sp_textareas = page.locator('textarea').all()
@@ -188,6 +218,12 @@ with sync_playwright() as p:
         if ta_el.is_visible():
             ta_el.fill(f"浏览器测试安保方案字段{i+1}")
     page.wait_for_timeout(300)
+
+    # Fill security_staff_count
+    sp_count = page.locator('.ant-form-item:has-text("安保人员数量") input[role="spinbutton"]').first
+    if sp_count.count() > 0:
+        sp_count.fill("10")
+        page.wait_for_timeout(100)
 
     # Generate security plan
     sp_gen = page.locator('button:has-text("提交生成")').first
@@ -203,6 +239,30 @@ with sync_playwright() as p:
         check(True, "security plan v1 generated")
     else:
         check(False, "confirmation modal not shown for security plan")
+
+    # Submit for review
+    submit_btn = page.locator('button:has-text("提交审核")').first
+    check(submit_btn.count() > 0, "submit review button visible")
+    submit_btn.click()
+    page.wait_for_timeout(500)
+
+    check(page.locator('.ant-modal:has-text("确认提交审核")').count() > 0, "submit confirm modal")
+    page.locator('.ant-modal button:has-text("确认提交")').first.click()
+    page.wait_for_timeout(2000)
+    page.wait_for_load_state("networkidle")
+    check(True, "security plan submitted for review")
+
+    # After submission, form should be locked and button disabled
+    page.wait_for_timeout(1000)
+    submitted_btn = page.locator('button:has-text("已提交审核，等待负责人签署")').first
+    check(submitted_btn.count() > 0, "button shows submitted state")
+    check(submitted_btn.is_disabled(), "submit button disabled after submission")
+
+    # Form should be locked — no visible save/generate buttons
+    save_btn = page.locator('button:has-text("保存草稿")').first
+    gen_btn2 = page.locator('button:has-text("提交生成")').first
+    check(not save_btn.is_visible() if save_btn.count() > 0 else True, "save draft hidden after submit")
+    check(not gen_btn2.is_visible() if gen_btn2.count() > 0 else True, "generate hidden after submit")
 
     # ============================================================
     # Report

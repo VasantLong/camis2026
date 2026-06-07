@@ -21,11 +21,13 @@ interface Props {
   activityId: string;
   schema: SchemaResponse;
   loading?: boolean;
+  disabled?: boolean;
+  highlightFields?: string[];
   onSaveDraft: (data: Record<string, unknown>) => Promise<void>;
   onSubmit: (data: Record<string, unknown>) => Promise<GenerateResponse>;
 }
 
-export default function TemplateForm({ activityId, schema, loading, onSaveDraft, onSubmit }: Props) {
+export default function TemplateForm({ activityId, schema, loading, disabled, highlightFields, onSaveDraft, onSubmit }: Props) {
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -33,9 +35,37 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [changedFields, setChangedFields] = useState<Set<string>>(new Set());
   const [isDirty, setIsDirty] = useState(false);
+  const [highlightSet, setHighlightSet] = useState<Set<string>>(new Set());
+
+  // Sync highlightFields prop
+  useEffect(() => {
+    if (highlightFields && highlightFields.length > 0) {
+      setHighlightSet(new Set(highlightFields));
+    }
+  }, [highlightFields]);
+
+  // Clear highlights when form values change (user started editing)
+  const clearHighlights = () => {
+    if (highlightSet.size > 0) setHighlightSet(new Set());
+  };
 
   // Track changed fields vs snapshot
   const handleValuesChange = (_changed: Record<string, unknown>, allValues: Record<string, unknown>) => {
+    clearHighlights();
+
+    // auto_calc: total_days from start_time/end_time
+    for (const f of schema.fields) {
+      if (f.auto_calc === "end_time - start_time") {
+        const s = allValues["start_time"];
+        const e = allValues["end_time"];
+        if (s && e && dayjs.isDayjs(s) && dayjs.isDayjs(e)) {
+          const days = (e as dayjs.Dayjs).diff(s as dayjs.Dayjs, "day") + 1;
+          if (days > 0 && (allValues as any)["total_days"] !== days) {
+            form.setFieldValue("total_days", days);
+          }
+        }
+      }
+    }
     let hasAnyChange = false;
     const diff = new Set<string>();
     for (const f of schema.fields) {
@@ -107,25 +137,39 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
   );
 
   const renderField = (field: FieldDef, changed: boolean) => {
-    const itemStyle = changed ? { background: "#fffbe6", padding: 8, borderRadius: 4 } : undefined;
+    const isHighlighted = highlightSet.has(field.name);
+    const itemStyle = isHighlighted
+      ? { background: "#fff2f0", padding: 8, borderRadius: 4, border: "1px solid #ff4d4f" }
+      : changed ? { background: "#fffbe6", padding: 8, borderRadius: 4 } : undefined;
     const rules = field.required
       ? [{ required: true, message: `请填写${field.ui_label}` }]
       : undefined;
 
     switch (field.ui_type) {
-      case "text":
+      case "text": {{
+        const extraRules = field.validate
+          ? [{ pattern: new RegExp(field.validate.pattern), message: field.validate.message }]
+          : [];
         return (
-          <Form.Item key={field.name} name={field.name} label={field.ui_label} rules={rules} style={itemStyle}>
+          <Form.Item key={field.name} name={field.name} label={field.ui_label} rules={[...(rules || []), ...extraRules]} style={itemStyle}>
             <Input placeholder={field.ui_label} />
           </Form.Item>
         );
+      }}
       case "textarea":
         return (
           <Form.Item key={field.name} name={field.name} label={field.ui_label} rules={rules} style={itemStyle}>
             <Input.TextArea rows={4} placeholder={field.ui_label} />
           </Form.Item>
         );
-      case "number":
+      case "number": {{
+        if (field.auto_calc) {
+          return (
+            <Form.Item key={field.name} name={field.name} label={field.ui_label} style={itemStyle}>
+              <InputNumber disabled style={{ width: "100%" }} />
+            </Form.Item>
+          );
+        }
         return (
           <Form.Item key={field.name} name={field.name} label={field.ui_label} rules={rules} style={itemStyle}>
             <InputNumber
@@ -135,10 +179,14 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
             />
           </Form.Item>
         );
+      }}
       case "date":
         return (
           <Form.Item key={field.name} name={field.name} label={field.ui_label} rules={rules} style={itemStyle}>
-            <DatePicker style={{ width: "100%" }} />
+            <DatePicker
+              style={{ width: "100%" }}
+              disabledDate={field.name === "end_time" ? (d) => d && d.isBefore(dayjs(form.getFieldValue("start_time"))) : undefined}
+            />
           </Form.Item>
         );
       case "select":
@@ -248,18 +296,20 @@ export default function TemplateForm({ activityId, schema, loading, onSaveDraft,
 
   return (
     <>
-      <Form form={form} layout="vertical" disabled={loading || submitting} onValuesChange={handleValuesChange}>
+      <Form form={form} layout="vertical" disabled={loading || submitting || disabled} onValuesChange={handleValuesChange}>
         {visibleFields(schema.fields).map((f) => renderField(f, changedFields.has(f.name)))}
-        <Form.Item>
-          <Space>
-            <Button onClick={handleSaveDraft} loading={saving} disabled={!buttonsEnabled}>
-              保存草稿
-            </Button>
-            <Button type="primary" onClick={handleSubmit} loading={submitting} disabled={!buttonsEnabled}>
-              提交生成
-            </Button>
-          </Space>
-        </Form.Item>
+        {!disabled && (
+          <Form.Item>
+            <Space>
+              <Button onClick={handleSaveDraft} loading={saving} disabled={!buttonsEnabled}>
+                保存草稿
+              </Button>
+              <Button type="primary" onClick={handleSubmit} loading={submitting} disabled={!buttonsEnabled}>
+                提交生成
+              </Button>
+            </Space>
+          </Form.Item>
+        )}
       </Form>
       <Modal
         title="确认生成"

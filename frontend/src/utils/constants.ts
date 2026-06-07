@@ -70,10 +70,7 @@ export function getAvailableTransitions(
   const has = (p: string) => permissions.includes(p);
   const actions: TransitionDef[] = [];
 
-  if (status === "待设计方案") {
-    if (has("submit_plan"))
-      actions.push({ label: "提交到安保方案设计", mode: "transition", toStatus: "待安保方案设计", permission: "submit_plan" });
-  }
+  // "最终确定方案" in the plan tab replaces the generic workflow transition
   if (status === "待安保方案设计") {
     if (has("reject_approval"))
       actions.push({ label: "驳回（内部循环）", mode: "reject", permission: "reject_approval" });

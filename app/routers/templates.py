@@ -36,6 +36,7 @@ async def plan_schema(
         display_name="活动方案",
         has_draft=s.get("has_draft", False),
         draft_data=s.get("draft_data"),
+        snapshot_data=s.get("snapshot_data"),
         current_version=s.get("current_version"),
         fields=s.get("fields", []),
     )
@@ -103,7 +104,10 @@ async def plan_finalize(
     svc: TemplateService = Depends(_svc),
 ):
     """Finalize activity plan: submit to 安保方案设计 stage."""
-    await svc.finalize_plan(activity_id, current_user.id)
+    try:
+        await svc.finalize_plan(activity_id, current_user.id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     return {"ok": True}
 
 
@@ -145,6 +149,7 @@ async def security_plan_schema(
         display_name="安保方案",
         has_draft=s.get("has_draft", False),
         draft_data=s.get("draft_data"),
+        snapshot_data=s.get("snapshot_data"),
         current_version=s.get("current_version"),
         risk_level=s.get("risk_level"),
         fields=s.get("fields", []),
@@ -180,6 +185,21 @@ async def security_plan_generate(
             activity_id, "security_plan", result["version_number"],
         )
     return GenerateResponse(**result)
+
+
+@router.post("/{activity_id}/security-plan/submit-review")
+async def security_plan_submit_review(
+    activity_id: UUID,
+    current_user: User = Depends(get_current_user),
+    _=require_permission("manage_security"),
+    svc: TemplateService = Depends(_svc),
+):
+    """Submit security plan for SecurityManager review after content validation."""
+    try:
+        await svc.submit_security_plan_for_review(activity_id, current_user.id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"ok": True}
 
 
 @router.get("/{activity_id}/security-plan/versions", response_model=list[VersionItem])
@@ -236,6 +256,7 @@ async def material_schema(
         display_name=s.get("display_name", template_type),
         has_draft=s.get("has_draft", False),
         draft_data=s.get("draft_data"),
+        snapshot_data=s.get("snapshot_data"),
         current_version=s.get("current_version"),
         fields=s.get("fields", []),
     )

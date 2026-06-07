@@ -5,6 +5,7 @@ class SecurityPlanForm(BaseModel):
     """安保方案表单数据"""
 
     security_staff_config: str = Field(default="", description="安保人员配置")
+    security_staff_count: int = Field(default=0, description="安保人员数量")
     movement_plan: str = Field(default="", description="动线设计")
     equipment_list: str = Field(default="", description="安保设备清单")
     emergency_plan: str = Field(default="", description="应急预案")
@@ -26,6 +27,7 @@ SCHEMA = {
     "conditional_fields": CONDITIONAL_FIELDS,
     "fields": [
         {"name": "security_staff_config", "ui_label": "安保人员配置", "ui_type": "textarea", "required": True},
+        {"name": "security_staff_count", "ui_label": "安保人员数量", "ui_type": "number", "min": 0, "required": True},
         {"name": "movement_plan", "ui_label": "动线设计", "ui_type": "textarea", "required": True},
         {"name": "equipment_list", "ui_label": "安保设备清单", "ui_type": "textarea", "required": True},
         {"name": "emergency_plan", "ui_label": "应急预案", "ui_type": "textarea", "required": True},
