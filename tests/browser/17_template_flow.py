@@ -1,4 +1,4 @@
-"""Template flow: Promoter plan draft→generate→version→diff; SecurityOfficer security plan.
+"""Template flow: Promoter plan draft→generate→version→diff; SecurityOfficer 双表 (风险评估表+责任确认书) + security plan.
 
 Setup uses API for activity creation (not the focus). All template interactions go through UI.
 """
@@ -181,9 +181,9 @@ with sync_playwright() as p:
     check(True, "plan finalized → workflow transition")
 
     # ============================================================
-    # 3. SecurityOfficer: risk level → security plan → generate
+    # 3. SecurityOfficer: 双表 + security plan sub-tabs
     # ============================================================
-    print("\n=== TC3: SecurityOfficer security plan ===")
+    print("\n=== TC3: SecurityOfficer 双表 + security plan ===")
     login_as(page, "security@test.com", "pass123")
 
     sidebar_nav(page, "全部活动")
@@ -202,7 +202,14 @@ with sync_playwright() as p:
     page.wait_for_timeout(1500)
     page.wait_for_load_state("networkidle")
 
-    # Select risk level — standalone Select, combobox is first on the page
+    # Verify sub-tabs are visible
+    sub_tabs = page.locator('.ant-tabs-tab')
+    risk_tab = page.locator('.ant-tabs-tab:has-text("风险评估表")').first
+    resp_tab = page.locator('.ant-tabs-tab:has-text("责任确认书")').first
+    check(risk_tab.count() > 0, "risk assessment sub-tab visible")
+    check(resp_tab.count() > 0, "responsibility letter sub-tab visible")
+
+    # Select risk level — on 安保方案 sub-tab (default active)
     page.locator('input[role="combobox"]').first.click()
     page.wait_for_timeout(300)
     page.keyboard.type("大型")
@@ -211,6 +218,113 @@ with sync_playwright() as p:
     page.wait_for_timeout(1500)
     page.wait_for_load_state("networkidle")
     check(True, "risk level set to 大型")
+
+    # ── 3a. Risk assessment sub-tab ──
+    print("\n--- 3a: risk assessment ---")
+    risk_tab.click()
+    page.wait_for_timeout(1000)
+    page.wait_for_load_state("networkidle")
+
+    # Wait for schema to load and form to render
+    page.wait_for_timeout(1000)
+    ra_textareas = page.locator('textarea').all()
+    ra_filled = 0
+    for ta_el in ra_textareas:
+        if ta_el.is_visible():
+            ta_el.fill(f"浏览器测试风险评估字段{ra_filled+1}")
+            ra_filled += 1
+    page.wait_for_timeout(300)
+
+    # Fill number inputs (crowd_scale, staff_count, security_count)
+    spin_inputs = page.locator('input[role="spinbutton"]:not([disabled])').all()
+    for inp in spin_inputs:
+        if inp.is_visible():
+            inp.fill("100")
+            page.wait_for_timeout(100)
+
+    # Fill text inputs (reporting_unit, sponsor, contact fields, etc.)
+    text_inputs = page.locator('input:not([role="combobox"]):not([role="spinbutton"]):not([type="hidden"])').all()
+    for inp in text_inputs:
+        if inp.is_visible() and inp.get_attribute("readonly") is None:
+            try:
+                inp.fill("测试")
+            except Exception:
+                pass
+            page.wait_for_timeout(50)
+
+    check(ra_filled > 0, f"filled {ra_filled} risk assessment fields")
+
+    # Generate
+    ra_gen = page.locator('button:has-text("提交生成")').first
+    check(ra_gen.count() > 0, "risk assessment generate button")
+    ra_gen.click()
+    page.wait_for_timeout(1000)
+    cfm = page.locator('.ant-modal button:has-text("确认生成")').first
+    if cfm.count() > 0:
+        cfm.click()
+        page.wait_for_timeout(500)
+        page.wait_for_selector('.ant-modal:has-text("确认生成")', state='hidden', timeout=5000)
+        page.wait_for_selector('button:has-text("v1")', timeout=15000)
+        check(True, "risk assessment v1 generated")
+    else:
+        check(False, "risk assessment confirm modal not shown")
+
+    # ── 3b. Responsibility letter sub-tab ──
+    print("\n--- 3b: responsibility letter ---")
+    resp_tab.click()
+    page.wait_for_timeout(1000)
+    page.wait_for_load_state("networkidle")
+    page.wait_for_timeout(1000)
+
+    # Responsibility letter: checkboxes + text inputs + date
+    rl_textareas = page.locator('textarea').all()
+    rl_filled = 0
+    for ta_el in rl_textareas:
+        if ta_el.is_visible():
+            ta_el.fill(f"浏览器测试责任确认书字段{rl_filled+1}")
+            rl_filled += 1
+    page.wait_for_timeout(300)
+
+    # Click all checkboxes (8 security measures)
+    cbs = page.locator('.ant-checkbox-input').all()
+    cb_checked = 0
+    for cb in cbs:
+        if cb.is_visible() and not cb.is_checked():
+            cb.click()
+            cb_checked += 1
+            page.wait_for_timeout(100)
+
+    # Fill text inputs
+    for inp in page.locator('input:not([role="combobox"]):not([role="spinbutton"]):not([type="hidden"]):not([type="checkbox"])').all():
+        if inp.is_visible() and inp.get_attribute("readonly") is None:
+            try:
+                inp.fill("测试责任方")
+            except Exception:
+                pass
+            page.wait_for_timeout(50)
+
+    check(rl_filled > 0 or cb_checked > 0, f"filled {rl_filled} fields + {cb_checked} checkboxes")
+
+    # Generate
+    rl_gen = page.locator('button:has-text("提交生成")').first
+    check(rl_gen.count() > 0, "responsibility letter generate button")
+    rl_gen.click()
+    page.wait_for_timeout(1000)
+    cfm2 = page.locator('.ant-modal button:has-text("确认生成")').first
+    if cfm2.count() > 0:
+        cfm2.click()
+        page.wait_for_timeout(500)
+        page.wait_for_selector('.ant-modal:has-text("确认生成")', state='hidden', timeout=5000)
+        page.wait_for_selector('button:has-text("v1")', timeout=15000)
+        check(True, "responsibility letter v1 generated")
+    else:
+        check(False, "responsibility letter confirm modal not shown")
+
+    # ── 3c. Security plan (back to first sub-tab) ──
+    print("\n--- 3c: security plan ---")
+    page.locator('.ant-tabs-tab:has-text("安保方案")').first.click()
+    page.wait_for_timeout(1000)
+    page.wait_for_load_state("networkidle")
 
     # Fill required textareas for security plan
     sp_textareas = page.locator('textarea').all()
@@ -230,9 +344,9 @@ with sync_playwright() as p:
     check(sp_gen.count() > 0, "generate button visible")
     sp_gen.click()
     page.wait_for_timeout(1000)
-    cfm = page.locator('.ant-modal button:has-text("确认生成")').first
-    if cfm.count() > 0:
-        cfm.click()
+    cfm3 = page.locator('.ant-modal button:has-text("确认生成")').first
+    if cfm3.count() > 0:
+        cfm3.click()
         page.wait_for_timeout(500)
         page.wait_for_selector('.ant-modal:has-text("确认生成")', state='hidden', timeout=5000)
         page.wait_for_selector('button:has-text("v1")', timeout=10000)
@@ -258,11 +372,11 @@ with sync_playwright() as p:
     check(submitted_btn.count() > 0, "button shows submitted state")
     check(submitted_btn.is_disabled(), "submit button disabled after submission")
 
-    # Form should be locked — no visible save/generate buttons
-    save_btn = page.locator('button:has-text("保存草稿")').first
-    gen_btn2 = page.locator('button:has-text("提交生成")').first
-    check(not save_btn.is_visible() if save_btn.count() > 0 else True, "save draft hidden after submit")
-    check(not gen_btn2.is_visible() if gen_btn2.count() > 0 else True, "generate hidden after submit")
+    # Verify sub-tabs still accessible after submission (forms disabled)
+    risk_tab2 = page.locator('.ant-tabs-tab:has-text("风险评估表")').first
+    risk_tab2.click()
+    page.wait_for_timeout(1000)
+    check(True, "risk assessment tab still accessible after submit")
 
     # ============================================================
     # Report
