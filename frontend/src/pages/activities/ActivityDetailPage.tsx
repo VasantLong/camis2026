@@ -1198,7 +1198,7 @@ export default function ActivityDetailPage() {
                                 {m.sign_status === "signed" ? "已签署" : "未签署"}
                               </Tag>
                             )},
-                            ...(isGovLiaisonFilingPhase ? [
+                            ...(isGovLiaisonFilingPhase && isGovLiaison ? [
                               { title: "合规", key: "qual", width: 80, render: (_: unknown, m: any) => (
                                 <Tag color={m.is_qualified ? "green" : "red"}>{m.is_qualified ? "合格" : "不合格"}</Tag>
                               )},
