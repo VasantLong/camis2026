@@ -1294,38 +1294,54 @@ export default function ActivityDetailPage() {
                       })()}
                       {/* materials table for non-GovLiaison roles */}
                       {materials.length > 0 && !(isGovLiaison && (activity?.status === "备案材料已交接" || activity?.status === "待补充备案材料")) && (
-                        <Table
-                          dataSource={materials}
-                          rowKey="id"
-                          size="small"
-                          style={{ marginTop: 16 }}
-                          pagination={false}
-                          locale={{ emptyText: <Empty description="暂无备案材料" /> }}
-                          columns={[
-                            { title: "材料名称", dataIndex: "name", key: "name" },
-                            { title: "签署状态", key: "sign", width: 100, render: (_: unknown, m: any) => (
-                              <Tag color={m.sign_status === "signed" ? "green" : "default"}>
-                                {m.sign_status === "signed" ? "已签署" : "未签署"}
-                              </Tag>
-                            )},
-                            { title: "操作", key: "actions", width: 160, render: (_: unknown, m: any) => (
-                              <Space size={4}>
-                                <Button size="small" type="link" icon={<EyeOutlined />}
-                                  onClick={async () => {
-                                    try {
-                                      const mAny = m as any;
-                                      const path = mAny.pdf_path || mAny.minio_path;
-                                      if (path) { const r = await documentsApi.getPresignedByPath(path); if (r.data.url) { setPreviewUrl(r.data.url); return; } }
-                                      message.warning("暂无预览文件");
-                                    } catch { message.error("预览失败"); }
-                                  }}>预览</Button>
-                                {isOfficerFilingPhase && canSign && m.sign_status !== "signed" && (
-                                  <Button size="small" onClick={() => signMutation.mutate(m.id)} loading={signMutation.isPending}>签署</Button>
-                                )}
-                              </Space>
-                            )},
-                          ]}
-                        />
+                        <>
+                          {activity?.status === "待补充备案材料" && (
+                            <Alert type="warning" showIcon title="需补充材料"
+                              description="政府审查发现不合格材料，请修改后重新打包提交。" style={{ marginTop: 16, marginBottom: 8 }} />
+                          )}
+                          <Table
+                            dataSource={materials}
+                            rowKey="id"
+                            size="small"
+                            style={{ marginTop: 16 }}
+                            pagination={false}
+                            locale={{ emptyText: <Empty description="暂无备案材料" /> }}
+                            columns={[
+                              { title: "材料名称", dataIndex: "name", key: "name" },
+                              { title: "签署状态", key: "sign", width: 100, render: (_: unknown, m: any) => (
+                                <Tag color={m.sign_status === "signed" ? "green" : "default"}>
+                                  {m.sign_status === "signed" ? "已签署" : "未签署"}
+                                </Tag>
+                              )},
+                              ...(activity?.status === "待补充备案材料" ? [
+                                { title: "合规", key: "qual", width: 80, render: (_: unknown, m: any) => (
+                                  m.audit_round > 0
+                                    ? <Tag color={m.is_qualified ? "green" : "red"}>{m.is_qualified ? "合格" : "不合格"}</Tag>
+                                    : <Tag color="default">待审查</Tag>
+                                )},
+                                { title: "审查轮次", key: "audit", width: 80, render: (_: unknown, m: any) => (
+                                  m.audit_round > 0 ? <Tag>{m.audit_round} 轮</Tag> : <Typography.Text type="secondary">—</Typography.Text>
+                                )},
+                              ] : []),
+                              { title: "操作", key: "actions", width: 160, render: (_: unknown, m: any) => (
+                                <Space size={4}>
+                                  <Button size="small" type="link" icon={<EyeOutlined />}
+                                    onClick={async () => {
+                                      try {
+                                        const mAny = m as any;
+                                        const path = mAny.pdf_path || mAny.minio_path;
+                                        if (path) { const r = await documentsApi.getPresignedByPath(path); if (r.data.url) { setPreviewUrl(r.data.url); return; } }
+                                        message.warning("暂无预览文件");
+                                      } catch { message.error("预览失败"); }
+                                    }}>预览</Button>
+                                  {isOfficerFilingPhase && canSign && m.sign_status !== "signed" && (
+                                    <Button size="small" onClick={() => signMutation.mutate(m.id)} loading={signMutation.isPending}>签署</Button>
+                                  )}
+                                </Space>
+                              )},
+                            ]}
+                          />
+                        </>
                       )}
 
                       {/* audit history */}
@@ -1404,9 +1420,9 @@ export default function ActivityDetailPage() {
                               需全部材料签署后方可打包
                             </Typography.Text>
                           )}
-                          {filingStatus.packed && !filingStatus.handed_over && (
-                            <>
-                              <Tag color="blue" style={{ marginRight: 8 }}>已打包 ✓</Tag>
+                          {(filingStatus.packed || activity?.status === "待补充备案材料") && (
+                            <div style={{ marginTop: 8 }}>
+                              <Tag color="blue" style={{ marginRight: 8 }}>已打包</Tag>
                               {(filingStatus as any).pack_url && (
                                 <Button size="small" type="link" style={{ marginRight: 8 }}
                                   onClick={async () => {
@@ -1419,9 +1435,9 @@ export default function ActivityDetailPage() {
                               <Button onClick={() => setFilingModal("handover")}>
                                 确认纸质交接
                               </Button>
-                            </>
+                            </div>
                           )}
-                          {filingStatus.handed_over && (
+                          {filingStatus.handed_over && activity?.status !== "待补充备案材料" && (
                             <Tag color="green">已交接 ✓</Tag>
                           )}
                         </div>
