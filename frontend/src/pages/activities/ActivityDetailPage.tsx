@@ -87,7 +87,7 @@ export default function ActivityDetailPage() {
   useEffect(() => {
     if (materials.length > 0) console.table(materials.map((m: any) => ({
       name: m.name, material_type: m.material_type, sign_status: m.sign_status,
-      pdf_path: (m as any).pdf_path?.substring(0, 40) || "", version: m.current_version,
+      pdf_path: (m as any).pdf_path?.substring(0, 40) || "✗", version: m.current_version,
     })));
   }, [materials]);
 
