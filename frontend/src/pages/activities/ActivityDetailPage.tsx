@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Descriptions, Tabs, Button, Tag, Spin, Typography, Space, Modal, Input, message, Table, Select, Upload, Checkbox, Empty, Alert, Timeline } from "antd";
+import { Descriptions, Tabs, Button, Tag, Spin, Typography, Space, Modal, Input, message, Table, Select, Upload, Checkbox, Empty, Alert, Timeline, Tooltip } from "antd";
 import { ArrowLeftOutlined, UploadOutlined, EyeOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -831,18 +831,24 @@ export default function ActivityDetailPage() {
                                 return (
                                   <div style={{ marginTop: 8, marginBottom: 8, padding: "4px 12px", background: "#fafafa", borderRadius: 4, display: "flex", alignItems: "center", gap: 8 }}>
                                     <Typography.Text type="secondary" style={{ fontSize: 12 }}>完成进度：</Typography.Text>
-                                    <Tag color={
-                                      materials.some((m: any) => m.name === "安保方案" && m.audit_round > 0 && !m.is_qualified) ? "orange"
-                                      : securityPlanVersions.length > 0 ? "green" : "default"
-                                    } style={{ margin: 0 }}>安保方案</Tag>
-                                    <Tag color={
-                                      materials.some((m: any) => m.name === "风险评估报备表" && m.audit_round > 0 && !m.is_qualified) ? "orange"
-                                      : riskVersions.length > 0 ? "green" : "default"
-                                    } style={{ margin: 0 }}>风险评估表</Tag>
-                                    <Tag color={
-                                      materials.some((m: any) => m.name === "安全消防责任确认书" && m.audit_round > 0 && !m.is_qualified) ? "orange"
-                                      : respVersions.length > 0 ? "green" : "default"
-                                    } style={{ margin: 0 }}>责任确认书</Tag>
+                                    <Tooltip title={materials.some((m: any) => m.name === "安保方案" && m.audit_round > 0 && !m.is_qualified) ? "审查不合格，需修改" : securityPlanVersions.length > 0 ? "已完成" : "尚未生成版本"}>
+                                      <Tag color={
+                                        materials.some((m: any) => m.name === "安保方案" && m.audit_round > 0 && !m.is_qualified) ? "orange"
+                                        : securityPlanVersions.length > 0 ? "green" : "default"
+                                      } style={{ margin: 0 }}>安保方案</Tag>
+                                    </Tooltip>
+                                    <Tooltip title={materials.some((m: any) => m.name === "风险评估报备表" && m.audit_round > 0 && !m.is_qualified) ? "审查不合格，需修改" : riskVersions.length > 0 ? "已完成" : "尚未生成版本"}>
+                                      <Tag color={
+                                        materials.some((m: any) => m.name === "风险评估报备表" && m.audit_round > 0 && !m.is_qualified) ? "orange"
+                                        : riskVersions.length > 0 ? "green" : "default"
+                                      } style={{ margin: 0 }}>风险评估表</Tag>
+                                    </Tooltip>
+                                    <Tooltip title={materials.some((m: any) => m.name === "安全消防责任确认书" && m.audit_round > 0 && !m.is_qualified) ? "审查不合格，需修改" : respVersions.length > 0 ? "已完成" : "尚未生成版本"}>
+                                      <Tag color={
+                                        materials.some((m: any) => m.name === "安全消防责任确认书" && m.audit_round > 0 && !m.is_qualified) ? "orange"
+                                        : respVersions.length > 0 ? "green" : "default"
+                                      } style={{ margin: 0 }}>责任确认书</Tag>
+                                    </Tooltip>
                                     <span style={{ flex: 1 }} />
                                     {submitted ? (
                                       <Tag color="blue" style={{ margin: 0 }}>已提交审核</Tag>
