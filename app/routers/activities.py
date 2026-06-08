@@ -29,7 +29,7 @@ def _service(db=Depends(get_db)) -> ActivityService:
 
 
 PROMOTER_STATUSES = {"待设计方案"}
-SECURITY_OFFICER_STATUSES = {"待安保方案设计", "待备案申请"}
+SECURITY_OFFICER_STATUSES = {"待安保方案设计", "待备案申请", "待补充备案材料"}
 SECURITY_MANAGER_STATUSES = {
     "待安保方案设计", "待备案申请", "备案材料已交接",
     "审批通过", "待补充备案材料",

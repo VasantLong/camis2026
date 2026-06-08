@@ -218,9 +218,24 @@ async def security_plan_sign(
     _=require_permission("manage_security"),
     svc: TemplateService = Depends(_svc),
 ):
-    """SecurityManager signs: generate signed DOCX, transition to 待备案申请."""
+    """SecurityManager step 1: sign 3 files (security plan + 双表), generate DOCX."""
     try:
         await svc.sign_and_finalize(activity_id, current_user.id, body.manager_signature)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"ok": True}
+
+
+@router.post("/{activity_id}/security-plan/commitment-sign")
+async def security_plan_commitment_sign(
+    activity_id: UUID,
+    current_user: User = Depends(get_current_user),
+    _=require_permission("manage_security"),
+    svc: TemplateService = Depends(_svc),
+):
+    """SecurityManager step 2: sign filing commitment, transition to 待备案申请."""
+    try:
+        await svc.sign_manager_commitment(activity_id, current_user.id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return {"ok": True}
