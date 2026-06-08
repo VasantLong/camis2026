@@ -581,6 +581,7 @@ export default function ActivityDetailPage() {
                           </Tag>
                         </div>
                       )}
+                      {(() => { console.log("[安保tab-branch] isManager:", isManager, "audit_status:", securityPlan?.audit_status, "canEditSecurity:", canEditSecurity, "status:", activity?.status); return null; })()}
                       {isManager && securityPlan?.audit_status === "待签署" ? (
                         <>
                           <div style={{ padding: 16, border: "1px solid #1677ff", borderRadius: 8 }}>
