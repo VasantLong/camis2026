@@ -1184,16 +1184,19 @@ export default function ActivityDetailPage() {
                       {isGovLiaison && activity?.status === "备案材料已交接" && (() => {
                         const auditedCount = materials.filter(m => m.audit_round > 0).length;
                         const allAudited = materials.length > 0 && auditedCount === materials.length;
+                        const allQualified = allAudited && materials.every(m => m.is_qualified);
                         const targetStatus = approvalAction === "approve" ? "审批通过" : approvalAction === "revise" ? "待补充备案材料" : "不通过/已终止";
                         return (
                           <div style={{ marginBottom: 16, padding: 16, border: "1px solid #1677ff", borderRadius: 8 }}>
                             <Typography.Title level={5}>政府对接 — 审批决策</Typography.Title>
                             <div style={{ marginBottom: 16 }}>
                               <Typography.Text strong>材料审查状态：</Typography.Text>
-                              {allAudited ? (
-                                <Tag color="green">全部材料已审查（{materials.length}项）</Tag>
+                              {allQualified ? (
+                                <Tag color="green">全部材料合格 — 可审批通过</Tag>
+                              ) : allAudited ? (
+                                <Tag color="orange">有不合格材料 — 可要求补件或驳回</Tag>
                               ) : (
-                                <Tag color="orange">尚有 {materials.length - auditedCount} 项材料待审查</Tag>
+                                <Tag color="default">尚有 {materials.length - auditedCount} 项材料待审查</Tag>
                               )}
                             </div>
                             <div style={{ marginBottom: 16 }}>
@@ -1212,9 +1215,9 @@ export default function ActivityDetailPage() {
                               {approvalDocPath && <Tag color="blue" style={{ marginTop: 8 }}>已上传</Tag>}
                             </div>
                             <Space>
-                              <Button type="primary" disabled={!allAudited}
+                              <Button type="primary" disabled={!allQualified}
                                 onClick={() => { setApprovalAction("approve"); setApprovalComment(""); setApprovalModalOpen(true); }}>审批通过</Button>
-                              <Button disabled={!allAudited}
+                              <Button disabled={!allAudited || allQualified}
                                 onClick={() => { setApprovalAction("revise"); setApprovalComment(""); setApprovalModalOpen(true); }}>要求补件</Button>
                               <Button danger
                                 onClick={() => { setApprovalAction("reject"); setApprovalComment(""); setApprovalModalOpen(true); }}>驳回—不通过</Button>
