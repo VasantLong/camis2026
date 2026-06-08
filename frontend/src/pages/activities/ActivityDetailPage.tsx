@@ -889,7 +889,10 @@ export default function ActivityDetailPage() {
                               }} items={[
                               {
                                 key: "security_plan",
-                                label: "安保方案",
+                                label: (() => {
+                                  const unqual = activity?.status === "待补充备案材料" && materials.some((m: any) => m.name === "安保方案" && m.audit_round > 0 && !m.is_qualified);
+                                  return <span>{unqual && <span style={{ color: "#ff4d4f", marginRight: 4 }}>●</span>}安保方案</span>;
+                                })(),
                                 children: (
                                   <>
                                     <div style={{ marginBottom: 16 }}>
@@ -964,7 +967,10 @@ export default function ActivityDetailPage() {
                               },
                               {
                                 key: "risk_assessment",
-                                label: "风险评估表",
+                                label: (() => {
+                                  const unqual = activity?.status === "待补充备案材料" && materials.some((m: any) => m.name === "风险评估报备表" && m.audit_round > 0 && !m.is_qualified);
+                                  return <span>{unqual && <span style={{ color: "#ff4d4f", marginRight: 4 }}>●</span>}风险评估表</span>;
+                                })(),
                                 children: riskMaterial.isLoading ? (
                                   <Spin />
                                 ) : riskSchema ? (
@@ -1014,7 +1020,10 @@ export default function ActivityDetailPage() {
                               },
                               {
                                 key: "responsibility_letter",
-                                label: "责任确认书",
+                                label: (() => {
+                                  const unqual = activity?.status === "待补充备案材料" && materials.some((m: any) => m.name === "安全消防责任确认书" && m.audit_round > 0 && !m.is_qualified);
+                                  return <span>{unqual && <span style={{ color: "#ff4d4f", marginRight: 4 }}>●</span>}责任确认书</span>;
+                                })(),
                                 children: respMaterial.isLoading ? (
                                   <Spin />
                                 ) : respMaterial.schema ? (
