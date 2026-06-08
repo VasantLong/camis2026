@@ -322,11 +322,19 @@ class TemplateService:
         if not fd or not fd.data_snapshot:
             raise ValueError("未找到当前版本数据")
 
-        from app.templates.security_plan.schema import SecurityPlanForm
+        from app.templates.security_plan.schema import SecurityPlanForm, CONDITIONAL_FIELDS as SP_CONDITIONAL
         import re
 
+        # strip conditional fields not applicable to current risk_level
+        cleaned = dict(fd.data_snapshot)
+        risk_level = getattr(entity, "risk_level", "") or ""
+        allowed = set(SP_CONDITIONAL.get(risk_level, []))
+        for cond_field in {"medical_plan", "fire_plan", "crowd_control"}:
+            if cond_field not in allowed:
+                cleaned.pop(cond_field, None)
+
         try:
-            SecurityPlanForm(**fd.data_snapshot)
+            SecurityPlanForm(**cleaned)
         except Exception as e:
             raise ValueError(f"安保方案内容不完整: {e}")
 
