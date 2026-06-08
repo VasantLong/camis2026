@@ -1221,7 +1221,7 @@ export default function ActivityDetailPage() {
                             {/* materials audit table inside review card */}
                             {materials.length > 0 && (
                               <Table
-                                dataSource={materials} rowKey="id" size="small" style={{ marginBottom: 12 }} pagination={false}
+                                dataSource={materials.filter(m => (m as any).material_type !== "activity_plan" && (m as any).material_type !== "filing_commitment")} rowKey="id" size="small" style={{ marginBottom: 12 }} pagination={false}
                                 locale={{ emptyText: <Empty description="暂无备案材料" /> }}
                                 rowSelection={isActive ? { selectedRowKeys, onChange: (keys) => setSelectedRowKeys(keys as string[]) } : undefined}
                                 columns={[
@@ -1345,6 +1345,7 @@ export default function ActivityDetailPage() {
                             style={{ marginTop: 16 }}
                             pagination={false}
                             locale={{ emptyText: <Empty description="暂无备案材料" /> }}
+                            onRow={(m: any) => activity?.status === "待补充备案材料" && m.audit_round > 0 && !m.is_qualified ? { style: { background: "#fff2f0" } } : {}}
                             columns={[
                               { title: "材料名称", dataIndex: "name", key: "name" },
                               { title: "签署状态", key: "sign", width: 100, render: (_: unknown, m: any) => (
