@@ -404,12 +404,11 @@ class TemplateService:
 
     async def sign_and_finalize(self, activity_id: UUID, user_id: UUID,
                                 manager_signature: str) -> None:
-        """SecurityManager signs: inject signature, generate DOCX, transition to 待备案申请."""
-        from app.models.rbac import Role, UserRole
-        from app.services.workflow_service import WorkflowService
-        from app.services.notification_service import NotificationService
+        """SecurityManager step 1: sign 3 files (security_plan + 双表), generate DOCX.
 
-        # Verify SecurityManager role
+        Does NOT transition — waits for sign_manager_commitment (step 2)."""
+        from app.models.rbac import Role, UserRole
+
         role_rows = await self.db.execute(
             select(Role.name).join(UserRole, UserRole.role_id == Role.id)
             .where(UserRole.user_id == user_id)
@@ -426,9 +425,9 @@ class TemplateService:
         if not activity or activity.status != "待安保方案设计":
             raise ValueError("当前活动状态不允许签署")
 
-        # Generate DOCX for all deferred types linked to this activity
-        DEFERRED_TYPES = ["security_plan", "risk_assessment", "responsibility_letter", "filing_commitment"]
-        for ttype in DEFERRED_TYPES:
+        # Generate DOCX for the 3 deferred types (NOT filing_commitment)
+        SIGN_TYPES = ["security_plan", "risk_assessment", "responsibility_letter"]
+        for ttype in SIGN_TYPES:
             fds = await self.db.execute(
                 select(FilledDocument).where(
                     FilledDocument.activity_id == activity_id,
@@ -450,10 +449,103 @@ class TemplateService:
                 await minio_client.upload_file(minio_path, docx_bytes, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
                 fd.minio_path = minio_path
 
+            # Mark KeyMaterial as signed
+            km_result = await self.db.execute(
+                select(KeyMaterial).where(
+                    KeyMaterial.activity_id == activity_id,
+                    KeyMaterial.material_type == ttype,
+                )
+            )
+            km = km_result.scalar_one_or_none()
+            if km:
+                km.sign_status = "signed"
+
+        # Also mark activity_plan KeyMaterial as signed (generated during UC2 finalize)
+        ap_km_result = await self.db.execute(
+            select(KeyMaterial).where(
+                KeyMaterial.activity_id == activity_id,
+                KeyMaterial.material_type == "activity_plan",
+            )
+        )
+        ap_km = ap_km_result.scalar_one_or_none()
+        if ap_km:
+            ap_km.sign_status = "signed"
+
         # Update SecurityPlan
         entity.audit_status = "已签署"
         entity.manager_id = user_id
         entity.sign_time = datetime.now(timezone.utc)
+        await self.db.commit()
+
+    async def sign_manager_commitment(self, activity_id: UUID, user_id: UUID) -> None:
+        """SecurityManager step 2: sign filing commitment, generate DOCX, transition to 待备案申请."""
+        from app.models.rbac import Role, UserRole
+        from app.services.workflow_service import WorkflowService
+        from app.services.notification_service import NotificationService
+
+        role_rows = await self.db.execute(
+            select(Role.name).join(UserRole, UserRole.role_id == Role.id)
+            .where(UserRole.user_id == user_id)
+        )
+        roles = {row[0] for row in role_rows.all()}
+        if "SecurityManager" not in roles:
+            raise ValueError("仅安保负责人可签署确认")
+
+        entity = await self._get_entity("security_plan", activity_id)
+        if not entity or entity.audit_status != "已签署":
+            raise ValueError("请先签署安保方案、风险评估表和责任确认书")
+
+        activity = await self.db.get(Activity, activity_id)
+        if not activity or activity.status != "待安保方案设计":
+            raise ValueError("当前活动状态不允许签署")
+
+        # Get manager signature from any signed FilledDocument
+        mgr_sig = ""
+        for ttype in ["security_plan", "risk_assessment", "responsibility_letter"]:
+            fd_result = await self.db.execute(
+                select(FilledDocument).where(
+                    FilledDocument.activity_id == activity_id,
+                    FilledDocument.template_type == ttype,
+                ).order_by(FilledDocument.version_number.desc()).limit(1)
+            )
+            fd = fd_result.scalar_one_or_none()
+            if fd and fd.data_snapshot:
+                mgr_sig = fd.data_snapshot.get("manager_signature", "")
+                if mgr_sig:
+                    break
+
+        # Generate filing_commitment DOCX
+        fds = await self.db.execute(
+            select(FilledDocument).where(
+                FilledDocument.activity_id == activity_id,
+                FilledDocument.template_type == "filing_commitment",
+                FilledDocument.minio_path.is_(None),
+            )
+        )
+        for fd in fds.scalars().all():
+            data = dict(fd.data_snapshot or {})
+            data["manager_signature"] = mgr_sig
+            fd.data_snapshot = data
+
+            docx_bytes = await self._render_docx("filing_commitment", data, None)
+            fd.template_hash = hashlib.sha256(
+                (TEMPLATES_ROOT / "filing_commitment" / "template.docx").read_bytes()
+            ).hexdigest()
+            minio_path = f"filled_documents/{activity_id}/filing_commitment/v{fd.version_number}.docx"
+            await minio_client.upload_file(minio_path, docx_bytes, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+            fd.minio_path = minio_path
+
+        # Mark filing_commitment KeyMaterial as signed
+        km_result = await self.db.execute(
+            select(KeyMaterial).where(
+                KeyMaterial.activity_id == activity_id,
+                KeyMaterial.material_type == "filing_commitment",
+            )
+        )
+        km = km_result.scalar_one_or_none()
+        if km:
+            km.sign_status = "signed"
+
         await self.db.commit()
 
         # Transition workflow
