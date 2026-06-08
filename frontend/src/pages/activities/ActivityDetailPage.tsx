@@ -257,7 +257,6 @@ export default function ActivityDetailPage() {
   });
 
   const canSign = permissions.includes("sign_document");
-  const canAudit = permissions.includes("audit_material");
   const allSigned = materials.length > 0 && materials.every(m => m.sign_status === "signed");
   const canPack = canOperateFiling && allSigned && !filingStatus?.packed;
 
