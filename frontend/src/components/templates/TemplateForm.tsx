@@ -456,9 +456,17 @@ function serializeFormData(values: Record<string, unknown>, fields: FieldDef[]):
     } else if (f.ui_type === "number") {
       out[f.name] = typeof v === "number" ? v : Number(v) || 0;
     } else if (f.ui_type === "signature") {
-      // stored as fileList array; extract URL string for backend DOCX rendering
-      const files = Array.isArray(v) ? v : [];
-      out[f.name] = files.length > 0 ? (files[0].url || "") : "";
+      // extract URL from fileList array (or antd v6 {fileList:[...]} wrapper, or raw string)
+      let url = "";
+      if (Array.isArray(v)) {
+        url = v.length > 0 ? (v[0]?.url || "") : "";
+      } else if (v && typeof v === "object" && Array.isArray((v as any).fileList)) {
+        const fl = (v as any).fileList;
+        url = fl.length > 0 ? (fl[0]?.url || "") : "";
+      } else if (typeof v === "string" && v) {
+        url = v;
+      }
+      out[f.name] = url;
     } else {
       out[f.name] = v;
     }
