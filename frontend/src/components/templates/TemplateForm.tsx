@@ -12,9 +12,10 @@ import {
   Modal,
   Typography,
   Tooltip,
+  Image,
   App,
 } from "antd";
-import { PlusOutlined, DeleteOutlined, UploadOutlined, QuestionCircleOutlined } from "@ant-design/icons";
+import { PlusOutlined, DeleteOutlined, UploadOutlined, QuestionCircleOutlined, CloseOutlined } from "@ant-design/icons";
 import type { SchemaResponse, FieldDef, GenerateResponse } from "@/types/template";
 import { documentsApi } from "@/api/documents";
 import dayjs from "dayjs";
@@ -38,6 +39,7 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
   const [changedFields, setChangedFields] = useState<Set<string>>(new Set());
   const [isDirty, setIsDirty] = useState(false);
   const [highlightSet, setHighlightSet] = useState<Set<string>>(new Set());
+  const [sigPreviews, setSigPreviews] = useState<Record<string, string>>({});
 
   // Sync highlightFields prop
   useEffect(() => {
@@ -275,7 +277,8 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
             )}
           </Form.List>
         );
-      case "signature":
+      case "signature": {
+        const previewUrl = sigPreviews[field.name];
         return (
           <Fragment key={field.name}>
           <Form.Item
@@ -297,7 +300,8 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
                   const res = await documentsApi.upload(activityId, file as File, ["signature"]);
                   const doc = res.data;
                   const previewUrl = URL.createObjectURL(file as File);
-                  form.setFieldValue(field.name, [{ uid: "-1", name: (file as File).name, status: "done", url: doc.minio_path, thumbUrl: previewUrl }]);
+                  form.setFieldValue(field.name, [{ uid: "-1", name: (file as File).name, status: "done", url: doc.minio_path }]);
+                  setSigPreviews(prev => ({ ...prev, [field.name]: previewUrl }));
                   onSuccess?.(doc);
                   message.success(`已上传签名图片`);
                 } catch {
@@ -309,16 +313,19 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
               <Button icon={<UploadOutlined />}>上传签名图片</Button>
             </Upload>
           </Form.Item>
-          <Form.Item shouldUpdate noStyle>
-            {() => {
-              const fileList = form.getFieldValue(field.name) as any[] | undefined;
-              const thumbUrl = fileList?.[0]?.thumbUrl;
-              if (!thumbUrl) return null;
-              return <img src={thumbUrl} alt="签名预览" style={{ maxWidth: 200, maxHeight: 80, marginTop: -8, marginBottom: 24, borderRadius: 4, border: "1px solid #d9d9d9", display: "block" }} />;
-            }}
-          </Form.Item>
+          {previewUrl && (
+            <div style={{ marginTop: -4, marginBottom: 24, display: "flex", alignItems: "flex-start", gap: 8 }}>
+              <Image src={previewUrl} alt="签名预览" width={120} style={{ borderRadius: 4, border: "1px solid #d9d9d9" }} />
+              <Button size="small" icon={<CloseOutlined />} danger
+                onClick={() => {
+                  form.setFieldValue(field.name, []);
+                  setSigPreviews(prev => { const next = { ...prev }; delete next[field.name]; return next; });
+                }} />
+            </div>
+          )}
           </Fragment>
         );
+      }
       case "autofill":
         return (
           <Form.Item key={field.name} name={field.name} label={field.ui_label} rules={rules} style={itemStyle}>
