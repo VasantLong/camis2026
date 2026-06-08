@@ -165,13 +165,10 @@ export default function ActivityDetailPage() {
   });
 
   const queryClient = useQueryClient();
-  const [auditTarget, setAuditTarget] = useState<{ id: string; name: string } | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [batchUnqualOpen, setBatchUnqualOpen] = useState(false);
   const [batchUnqualReason, setBatchUnqualReason] = useState("");
-  const [auditConclusion, setAuditConclusion] = useState<string>("qualified");
-  const [auditOpinion, setAuditOpinion] = useState("");
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [validationModalOpen, setValidationModalOpen] = useState(false);
   const [validationContext, setValidationContext] = useState<"finalize" | "submit">("finalize");
@@ -244,18 +241,6 @@ export default function ActivityDetailPage() {
       refetchMaterials();
     },
     onError: (err: any) => message.error(err?.detail || "签署失败"),
-  });
-
-  const auditMutation = useMutation({
-    mutationFn: ({ matId, conclusion, opinion }: { matId: string; conclusion: string; opinion?: string }) =>
-      materialsApi.audit(id!, matId, conclusion, opinion),
-    onSuccess: () => {
-      message.success("审核完成");
-      setAuditTarget(null);
-      refetchMaterials();
-      queryClient.invalidateQueries({ queryKey: ["activities", id, "materials", "audit-history"] });
-    },
-    onError: (err: any) => message.error(err?.detail || "审核失败"),
   });
 
   const canSign = permissions.includes("sign_document");
@@ -1441,45 +1426,6 @@ export default function ActivityDetailPage() {
                         <Input.TextArea rows={3} value={batchUnqualReason}
                           onChange={(e) => setBatchUnqualReason(e.target.value)}
                           placeholder="不合格原因..." />
-                      </Modal>
-                      {/* audit modal */}
-                      <Modal
-                        title={`审查: ${auditTarget?.name}`}
-                        open={!!auditTarget}
-                        onCancel={() => setAuditTarget(null)}
-                        onOk={() => {
-                          if (auditTarget) {
-                            auditMutation.mutate({
-                              matId: auditTarget.id,
-                              conclusion: auditConclusion,
-                              opinion: auditOpinion || undefined,
-                            });
-                          }
-                        }}
-                        confirmLoading={auditMutation.isPending}
-                        okText="提交审查"
-                        cancelText="取消"
-                      >
-                        <div style={{ marginBottom: 8 }}>
-                          <Tag
-                            color={auditConclusion === "qualified" ? "green" : "red"}
-                            style={{ cursor: "pointer" }}
-                            onClick={() => setAuditConclusion(
-                              auditConclusion === "qualified" ? "unqualified" : "qualified"
-                            )}
-                          >
-                            {auditConclusion === "qualified" ? "合格" : "不合格"}
-                          </Tag>
-                          <Typography.Text type="secondary" style={{ marginLeft: 8 }}>
-                            点击切换结论
-                          </Typography.Text>
-                        </div>
-                        <Input.TextArea
-                          placeholder="审查意见（可选）"
-                          rows={2}
-                          value={auditOpinion}
-                          onChange={(e) => setAuditOpinion(e.target.value)}
-                        />
                       </Modal>
                       {/* PDF preview modal */}
                       <Modal
