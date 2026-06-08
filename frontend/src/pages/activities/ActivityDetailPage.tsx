@@ -55,8 +55,6 @@ export default function ActivityDetailPage() {
   const showFiling = activity?.status
     ? FILING_STATUSES.includes(activity.status)
     : false;
-  const canOperateFiling =
-    showFiling && (activity?.status === "待备案申请" || activity?.status === "待补充备案材料") && permissions.includes("pack_filing");
   const isOfficerFilingPhase = activity?.status === "待备案申请" || activity?.status === "待补充备案材料";
   const isGovLiaisonFilingPhase = activity?.status === "备案材料已交接";
 
@@ -65,6 +63,12 @@ export default function ActivityDetailPage() {
     queryFn: () => activitiesApi.getSecurityPlan(id!).then((r) => r.data),
     enabled: !!id,
   });
+
+  const canOperateFiling =
+    showFiling && permissions.includes("pack_filing") && (
+      activity?.status === "待备案申请"
+      || (activity?.status === "待补充备案材料" && securityPlan?.audit_status === "已签署")
+    );
 
   const { data: filingStatus, refetch: refetchFilingStatus } = useQuery({
     queryKey: ["activities", id, "filing", "status"],
