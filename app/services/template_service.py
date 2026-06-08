@@ -236,6 +236,18 @@ class TemplateService:
         entity.submit_time = datetime.now(timezone.utc)
         await self.db.flush()
 
+        # also link KeyMaterial so list_materials can find the minio_path for preview
+        km_result = await self.db.execute(
+            select(KeyMaterial).where(
+                KeyMaterial.activity_id == activity_id,
+                KeyMaterial.material_type == template_type,
+            )
+        )
+        km = km_result.scalar_one_or_none()
+        if km:
+            km.current_filled_document_id = fd.id
+            await self.db.flush()
+
         # cross-template sync: security_staff_count → risk_assessment.security_count
         if template_type == "security_plan" and "security_staff_count" in data:
             for mt in ["risk_assessment", "filing_commitment"]:
@@ -484,27 +496,13 @@ class TemplateService:
                 await minio_client.upload_file(minio_path, docx_bytes, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
                 fd.minio_path = minio_path
 
-            # Mark KeyMaterial as signed
-            km_result = await self.db.execute(
-                select(KeyMaterial).where(
-                    KeyMaterial.activity_id == activity_id,
-                    KeyMaterial.material_type == ttype,
-                )
-            )
-            km = km_result.scalar_one_or_none()
-            if km:
-                km.sign_status = "signed"
+            # Ensure KeyMaterial exists and mark as signed
+            km = await self.get_or_create_material(activity_id, ttype)
+            km.sign_status = "signed"
 
-        # Also mark activity_plan KeyMaterial as signed (generated during UC2 finalize)
-        ap_km_result = await self.db.execute(
-            select(KeyMaterial).where(
-                KeyMaterial.activity_id == activity_id,
-                KeyMaterial.material_type == "activity_plan",
-            )
-        )
-        ap_km = ap_km_result.scalar_one_or_none()
-        if ap_km:
-            ap_km.sign_status = "signed"
+        # Ensure activity_plan KeyMaterial exists and mark as signed
+        ap_km = await self.get_or_create_material(activity_id, "activity_plan")
+        ap_km.sign_status = "signed"
 
         # Update SecurityPlan
         entity.audit_status = "已签署"
@@ -845,6 +843,8 @@ class TemplateService:
                 entity = ActivityPlan(activity_id=activity_id, designer_id=user_id)
                 self.db.add(entity)
                 await self.db.flush()
+            # Ensure KeyMaterial exists and material_id is backfilled
+            if not entity.material_id:
                 km = await self.get_or_create_material(activity_id, "activity_plan")
                 entity.material_id = km.id
                 await self.db.flush()
@@ -858,6 +858,7 @@ class TemplateService:
                 entity = SecurityPlan(activity_id=activity_id)
                 self.db.add(entity)
                 await self.db.flush()
+            if not entity.material_id:
                 km = await self.get_or_create_material(activity_id, "security_plan")
                 entity.material_id = km.id
                 await self.db.flush()
