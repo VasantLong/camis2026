@@ -39,6 +39,20 @@ docker exec <name> netstat -tlnp | grep <port>
 - 宿主机端口冲突：换一个宿主机端口（如 `18025:8025`），同步更新 `app/config.py`、浏览器测试脚本和文档中的端口引用
 - 重建容器：`docker compose stop <svc> && docker compose rm -f <svc> && docker compose up -d <svc>`
 
+## WSL2 端口排除
+
+uvicorn 报 `[Errno 98]` 但 `ss -tlnp` 显示端口空闲 → Windows 宿主 WinNAT 端口排除范围覆盖了该端口。
+
+```powershell
+# 确认排除范围（非管理员）
+netsh.exe interface ipv4 show excludedportrange protocol=tcp
+
+# 管理员 PowerShell — 重置排除范围
+net stop winnat && net start winnat
+```
+
+若频繁复发：`netsh int ipv4 set dynamicport tcp start=20000 num=50000`（扩大临时端口池，WinNAT 不再挤占低端口）。
+
 ## Schema 迁移
 
 - **改模型 = 必须生成 Alembic migration**：修改 `app/models/*.py` 中的列/表/约束后，必须 `alembic revision --autogenerate`，审查后提交

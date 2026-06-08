@@ -36,6 +36,7 @@ export default function ActivityDetailPage() {
   const [filingModal, setFilingModal] = useState<"pack" | "handover" | null>(
     null
   );
+  const [activeTab, setActiveTab] = useState("detail");
   const userPermissions = useAuthStore((s) => s.user?.permissions);
   const permissions = userPermissions ?? [];
 
@@ -231,7 +232,8 @@ export default function ActivityDetailPage() {
       />
 
       <Tabs
-        defaultActiveKey="detail"
+        activeKey={activeTab}
+        onChange={setActiveTab}
         items={[
           {
             key: "detail",
@@ -588,6 +590,32 @@ export default function ActivityDetailPage() {
                             templatesApi.getSecurityPlanVersionDiff(id!, v1, v2).then((r) => r.data)
                           }
                         />
+                      ) : canEditSecurity && securityPlan?.audit_status === "已签署" ? (
+                        <div>
+                          <div style={{ marginBottom: 16, padding: "8px 16px", background: "#f6ffed", borderRadius: 4, border: "1px solid #b7eb8f" }}>
+                            <Typography.Text strong style={{ color: "#52c41a" }}>已签署确认</Typography.Text>
+                            <Typography.Text type="secondary" style={{ marginLeft: 8 }}>
+                              {securityPlan?.sign_time ? new Date(securityPlan.sign_time).toLocaleString("zh-CN") : ""}
+                            </Typography.Text>
+                          </div>
+                          <VersionSnapshot schema={securityPlanSchema} />
+                          <VersionTimeline
+                            versions={securityPlanVersions}
+                            onViewDetail={(v) =>
+                              templatesApi.getSecurityPlanVersionDetail(id!, v).then((r) => r.data)
+                            }
+                            onDiff={(v1, v2) =>
+                              templatesApi.getSecurityPlanVersionDiff(id!, v1, v2).then((r) => r.data)
+                            }
+                          />
+                          <Button
+                            type="primary"
+                            style={{ marginTop: 16 }}
+                            onClick={() => setActiveTab("filing")}
+                          >
+                            前往备案材料打包
+                          </Button>
+                        </div>
                       ) : canEditSecurity ? (
                         <>
                           <div style={{ marginBottom: 16 }}>
@@ -649,15 +677,24 @@ export default function ActivityDetailPage() {
                           {(() => {
                             const auditStatus = securityPlan?.audit_status;
                             const submitted = !!(auditStatus && auditStatus !== "待编制");
-                            const btnLabel = submitted ? (
-                              auditStatus === "待签署" ? "已提交审核，等待负责人签署" : "负责人已签署"
-                            ) : "提交审核";
+                            const rejectedAt = securityPlan?.rejected_at ? new Date(securityPlan.rejected_at).getTime() : 0;
+                            const latestVersionAfterReject = rejectedAt
+                              ? securityPlanVersions.some((v) => v.created_at && new Date(v.created_at).getTime() > rejectedAt)
+                              : true;
+                            const blockedByReject = !!rejectedAt && !latestVersionAfterReject;
+                            const btnLabel = submitted
+                              ? auditStatus === "待签署"
+                                ? "已提交审核，等待负责人签署"
+                                : "负责人已签署"
+                              : blockedByReject
+                                ? "被驳回，请先生成新版本后再提交审核"
+                                : "提交审核";
 
                             return securityPlanVersions.length > 0 && activity?.status === "待安保方案设计" && (
                               <Button
                                 type="primary"
                                 style={{ marginTop: 16 }}
-                                disabled={submitted}
+                                disabled={submitted || blockedByReject}
                                 onClick={() => {
                                   const errs = validateSecurityPlan(securityPlanSchema?.snapshot_data, securityPlanSchema?.risk_level);
                                   if (errs.length > 0) {
