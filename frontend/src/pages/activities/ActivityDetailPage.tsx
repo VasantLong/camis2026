@@ -1226,7 +1226,7 @@ export default function ActivityDetailPage() {
                       {/* GovLiaison review panel — right below alert */}
                       {isGovLiaison && (activity?.status === "备案材料已交接" || activity?.status === "待补充备案材料") && (() => {
                         const isActive = activity?.status === "备案材料已交接";
-                        const auditMaterials = materials.filter((m: any) => m.material_type !== "activity_plan" && m.material_type !== "filing_commitment");
+                        const auditMaterials = materials.filter((m: any) => ["security_plan", "risk_assessment", "responsibility_letter"].includes(m.material_type));
                         const auditedCount = auditMaterials.filter(m => m.audit_round > 0).length;
                         const allAudited = auditMaterials.length > 0 && auditedCount === auditMaterials.length;
                         const allQualified = allAudited && auditMaterials.every(m => m.is_qualified);
