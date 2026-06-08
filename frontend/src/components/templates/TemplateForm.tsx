@@ -84,7 +84,7 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
     if (!isDirty || !onSaveDraft) return;
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(async () => {
-      const data = serializeFormData(form, visibleFields(schema.fields));
+      const data = serializeFormData(form, visibleFields(schema.fields), (schema as any).risk_level);
       try { await onSaveDraft(data); } catch { /* best-effort */ }
     }, 2000);
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
@@ -114,6 +114,10 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
         const cur = serializeFieldValue(allValues[f.name], f);
         const snap = snapshot[f.name];
         if (snap !== undefined && cur !== snap && cur !== "") {
+          diff.add(f.name);
+          hasAnyChange = true;
+        } else if (snap === undefined && f.ui_type !== "autofill" && f.ui_type !== "declarations" && cur !== undefined && cur !== "" && cur !== 0 && cur !== false) {
+          // field not in snapshot but user filled it
           diff.add(f.name);
           hasAnyChange = true;
         }
@@ -416,7 +420,7 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
   const handleSaveDraft = async () => {
     setSaving(true);
     try {
-      const data = serializeFormData(form, schema.fields);
+      const data = serializeFormData(form, schema.fields, (schema as any).risk_level);
       await onSaveDraft(data);
       message.success("草稿已保存");
     } catch {
@@ -430,7 +434,7 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
     setSubmitting(true);
     const nextVersion = (schema.current_version ?? 0) + 1;
     try {
-      const data = serializeFormData(form, schema.fields);
+      const data = serializeFormData(form, schema.fields, (schema as any).risk_level);
       await onSubmit(data);
       message.success(`已生成 v${nextVersion}`);
     } catch {
@@ -444,7 +448,7 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
   const handleSubmit = () => {
     form.validateFields().then(() => {
       if (onValidate) {
-        const data = serializeFormData(form, schema.fields);
+        const data = serializeFormData(form, schema.fields, (schema as any).risk_level);
         // debug: log signature fields for troubleshooting
         for (const f of schema.fields) {
           if (f.ui_type === "signature") {
@@ -495,27 +499,27 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
   );
 }
 
-function evalFieldCondition(cond: string | undefined, allValues: Record<string, unknown>): boolean {
+function evalFieldCondition(cond: string | undefined, allValues: Record<string, unknown>, riskLevel?: string | null): boolean {
   if (!cond) return true;
   const parts = cond.split(/\s*(==|!=)\s*/);
   if (parts.length === 3) {
     const key = parts[0].trim();
     const op = parts[1].trim();
     const val = parts[2].trim().replace(/['"]/g, "");
-    const cur = allValues[key];
+    const cur = key === "risk_level" ? (riskLevel || allValues[key]) : allValues[key];
     if (op === "==") return cur === val;
     if (op === "!=") return cur !== val;
   }
   return true;
 }
 
-function serializeFormData(form: any, fields: FieldDef[]): Record<string, unknown> {
+function serializeFormData(form: any, fields: FieldDef[], riskLevel?: string | null): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   const allValues = form.getFieldsValue();
   const skipped: string[] = [];
   for (const f of fields) {
     if (f.ui_type === "declarations") continue;
-    if (!evalFieldCondition(f.condition, allValues)) { skipped.push(f.name); continue; }
+    if (!evalFieldCondition(f.condition, allValues, riskLevel)) { skipped.push(f.name); continue; }
     const v = form.getFieldValue(f.name);
     if (v === undefined || v === null || v === "") {
       out[f.name] = f.ui_type === "repeater" ? [] : f.ui_type === "number" ? 0 : "";
