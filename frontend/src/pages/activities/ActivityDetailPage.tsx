@@ -178,6 +178,7 @@ export default function ActivityDetailPage() {
   const [signaturePreview, setSignaturePreview] = useState<string | null>(null);
   const [signatureUploadTime, setSignatureUploadTime] = useState<string | null>(null);
   const [step1Done, setStep1Done] = useState(false);
+  useEffect(() => { console.log("[signaturePreview changed]", signaturePreview); }, [signaturePreview]);
   const [crossSyncOpen, setCrossSyncOpen] = useState(false);
   const [crossSyncData, setCrossSyncData] = useState<{
     data: Record<string, unknown>;
@@ -646,6 +647,7 @@ export default function ActivityDetailPage() {
                             </Space>
                           </div>
                         </div>
+                        {step1Done && (() => { console.log("[step1Done] signaturePreview:", signaturePreview, "managerSignaturePath:", managerSignaturePath); return null; })()}
                         {step1Done && (
                           <>
                             <CommitmentSign
