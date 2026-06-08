@@ -1263,7 +1263,9 @@ export default function ActivityDetailPage() {
                             )},
                             ...(isGovLiaisonFilingPhase && isGovLiaison ? [
                               { title: "合规", key: "qual", width: 80, render: (_: unknown, m: any) => (
-                                <Tag color={m.is_qualified ? "green" : "red"}>{m.is_qualified ? "合格" : "不合格"}</Tag>
+                                m.audit_round > 0
+                                  ? <Tag color={m.is_qualified ? "green" : "red"}>{m.is_qualified ? "合格" : "不合格"}</Tag>
+                                  : <Tag color="default">待审查</Tag>
                               )},
                               { title: "审查轮次", key: "audit", width: 80, render: (_: unknown, m: any) => (
                                 m.audit_round > 0 ? <Tag>{m.audit_round} 轮</Tag> : <Typography.Text type="secondary">—</Typography.Text>
