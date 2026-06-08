@@ -352,11 +352,11 @@ class TemplateService:
             errors.append("安保人员数量必须大于0")
 
         risk_level = getattr(entity, "risk_level", "") or ""
-        if risk_level == "大型" and not data.get("medical_plan"):
-            errors.append("医疗救护措施不能为空（风险等级：大型）")
-        if risk_level in ("大型", "中型", "高风险") and not data.get("fire_plan"):
+        if risk_level == "高风险" and not data.get("medical_plan"):
+            errors.append("医疗救护措施不能为空（风险等级：高风险）")
+        if risk_level in ("高风险", "中低风险") and not data.get("fire_plan"):
             errors.append("消防措施不能为空")
-        if risk_level in ("大型", "高风险") and not data.get("crowd_control"):
+        if risk_level == "高风险" and not data.get("crowd_control"):
             errors.append("人流管控方案不能为空")
 
         if errors:

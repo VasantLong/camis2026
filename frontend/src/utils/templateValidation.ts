@@ -70,11 +70,11 @@ export function validateSecurityPlan(
     errors.push({ field: "security_staff_count", label: "安保人员数量", reason: "必须大于 0" });
 
   const rl = riskLevel || "";
-  if (rl === "大型" && !snapshot.medical_plan)
+  if (rl === "高风险" && !snapshot.medical_plan)
     errors.push({ field: "medical_plan", label: "医疗救护措施", reason: "不能为空" });
-  if (["大型", "中型", "高风险"].includes(rl) && !snapshot.fire_plan)
+  if (["高风险", "中低风险"].includes(rl) && !snapshot.fire_plan)
     errors.push({ field: "fire_plan", label: "消防措施", reason: "不能为空" });
-  if (["大型", "高风险"].includes(rl) && !snapshot.crowd_control)
+  if (rl === "高风险" && !snapshot.crowd_control)
     errors.push({ field: "crowd_control", label: "人流管控方案", reason: "不能为空" });
 
   return errors;

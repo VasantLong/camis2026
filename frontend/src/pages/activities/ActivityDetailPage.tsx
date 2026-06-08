@@ -710,9 +710,9 @@ export default function ActivityDetailPage() {
                                         value={securityPlanSchema.risk_level || undefined}
                                         disabled={!!(securityPlan?.audit_status && securityPlan.audit_status !== "待编制")}
                                         options={[
-                                          { label: "大型", value: "大型" },
-                                          { label: "中型", value: "中型" },
                                           { label: "高风险", value: "高风险" },
+                                          { label: "中低风险", value: "中低风险" },
+                                          { label: "低风险", value: "低风险" },
                                         ]}
                                         onChange={async (val) => {
                                           await activitiesApi.updateSecurityPlan(id!, { risk_level: val });
@@ -872,9 +872,9 @@ export default function ActivityDetailPage() {
                                   value={securityPlanSchema.risk_level || undefined}
                                   disabled
                                   options={[
-                                    { label: "大型", value: "大型" },
-                                    { label: "中型", value: "中型" },
                                     { label: "高风险", value: "高风险" },
+                                    { label: "中低风险", value: "中低风险" },
+                                    { label: "低风险", value: "低风险" },
                                   ]}
                                 />
                               </div>
