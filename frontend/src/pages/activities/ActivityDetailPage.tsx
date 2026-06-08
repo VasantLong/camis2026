@@ -57,7 +57,7 @@ export default function ActivityDetailPage() {
     ? FILING_STATUSES.includes(activity.status)
     : false;
   const canOperateFiling =
-    showFiling && activity?.status === "待备案申请" && permissions.includes("pack_filing");
+    showFiling && (activity?.status === "待备案申请" || activity?.status === "待补充备案材料") && permissions.includes("pack_filing");
 
   const { data: validation = [], isLoading: validationLoading } = useQuery({
     queryKey: ["activities", id, "filing", "validate"],
@@ -258,6 +258,47 @@ export default function ActivityDetailPage() {
         activityId={id!}
         currentStatus={activity.status}
       />
+
+      {/* UC6: SecurityManager approval confirmation banner */}
+      {isManager && activity?.status === "审批通过" && (
+        <div style={{ marginBottom: 16, padding: 16, border: "1px solid #1677ff", borderRadius: 8, background: "#e6f7ff" }}>
+          <Typography.Title level={5} style={{ marginTop: 0 }}>批文确认</Typography.Title>
+          <Typography.Paragraph>
+            政府对接人已上传批文并审批通过。请确认审批结果，或驳回至安保方案设计。
+          </Typography.Paragraph>
+          <Space>
+            <Button
+              type="primary"
+              onClick={async () => {
+                try {
+                  await workflowsApi.transition(id!, { to_status: "审批通过-待举办", comment: "安保部已确认" });
+                  message.success("已确认，活动即将举办");
+                  queryClient.invalidateQueries({ queryKey: ["activities", id] });
+                } catch (e: any) {
+                  message.error(e?.response?.data?.detail || "确认失败");
+                }
+              }}
+            >
+              确认审批通过
+            </Button>
+            <Button
+              danger
+              onClick={async () => {
+                try {
+                  await workflowsApi.reject(id!, { reason: "安保部驳回审批结果，需整改" });
+                  message.success("已驳回至安保方案设计");
+                  queryClient.invalidateQueries({ queryKey: ["activities", id] });
+                  queryClient.invalidateQueries({ queryKey: ["activities", id, "security-plan"] });
+                } catch (e: any) {
+                  message.error(e?.response?.data?.detail || "驳回失败");
+                }
+              }}
+            >
+              驳回至安保方案设计
+            </Button>
+          </Space>
+        </div>
+      )}
 
       <Tabs
         activeKey={activeTab}
@@ -1243,8 +1284,11 @@ export default function ActivityDetailPage() {
                               open={approvalModalOpen}
                               onOk={async () => {
                                 try {
-                                  const comment = approvalDocPath ? `[批文] ${approvalDocPath}；${approvalComment}` : approvalComment;
-                                  await workflowsApi.transition(id!, { to_status: targetStatus, comment: comment || undefined });
+                                  await filingsApi.createApproval(id!, {
+                                    approval_status: targetStatus,
+                                    attachment_url: approvalDocPath || undefined,
+                                    rectification_opinion: approvalComment || undefined,
+                                  });
                                   message.success("审批结果已提交");
                                   queryClient.invalidateQueries({ queryKey: ["activities", id] });
                                   queryClient.invalidateQueries({ queryKey: ["activities", id, "filing", "status"] });
