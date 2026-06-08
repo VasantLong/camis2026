@@ -1340,7 +1340,7 @@ export default function ActivityDetailPage() {
                           <div style={{ marginTop: 16 }}>
                             <Typography.Text strong style={{ display: "block", marginBottom: 8 }}>审核记录</Typography.Text>
                             <Timeline
-                              items={[...grouped.entries()].map(([ts, items]) => {
+                              items={[...grouped.values()].map((items) => {
                                 const h = items[0];
                                 const hasUnqual = items.some(i => i.conclusion === "unqualified");
                                 const hasQual = items.some(i => i.conclusion === "qualified");
