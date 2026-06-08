@@ -465,13 +465,24 @@ with sync_playwright() as p:
     page.wait_for_load_state("networkidle")
     check(True, "signature uploaded")
 
-    # Confirm sign
-    sign_btn = page.locator('button:has-text("确认签署并提交备案")').first
+    # Step 1: sign 3 files
+    sign_btn = page.locator('button:has-text("确认签署")').first
     check(sign_btn.count() > 0, "sign button visible")
     sign_btn.click()
     page.wait_for_timeout(2000)
     page.wait_for_load_state("networkidle")
-    check(True, "Manager signed → status transitioned to 待备案申请")
+    check(True, "Manager signed 3 files — commitment sign area should appear")
+
+    # Step 2: sign filing commitment
+    commitment_card = page.locator('text=签署备案承诺书').first
+    check(commitment_card.count() > 0, "CommitmentSign card visible")
+
+    commit_btn = page.locator('button:has-text("确认签署承诺书并提交备案")').first
+    check(commit_btn.count() > 0, "commitment sign button visible")
+    commit_btn.click()
+    page.wait_for_timeout(2000)
+    page.wait_for_load_state("networkidle")
+    check(True, "Manager signed commitment → status transitioned to 待备案申请")
 
     # ============================================================
     # 5. SecurityOfficer: pack + handover
