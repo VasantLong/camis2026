@@ -1175,10 +1175,10 @@ export default function ActivityDetailPage() {
                     <div>
                       {/* Phase banner */}
                       {isOfficerFilingPhase && (
-                        <Alert type="info" showIcon message="备案材料打包" description="请确认所有材料已签署，然后打包备案材料并确认纸质交接。" style={{ marginBottom: 16 }} />
+                        <Alert type="info" showIcon title="备案材料打包" description="请确认所有材料已签署，然后打包备案材料并确认纸质交接。" style={{ marginBottom: 16 }} />
                       )}
                       {isGovLiaisonFilingPhase && isGovLiaison && (
-                        <Alert type="info" showIcon message="政府审查" description="请逐项审查备案材料，全部审查完毕后做出审批决定。" style={{ marginBottom: 16 }} />
+                        <Alert type="info" showIcon title="政府审查" description="请逐项审查备案材料，全部审查完毕后做出审批决定。" style={{ marginBottom: 16 }} />
                       )}
                       {/* GovLiaison review panel — right below alert */}
                       {isGovLiaison && activity?.status === "备案材料已交接" && (() => {
