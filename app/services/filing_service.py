@@ -145,7 +145,9 @@ class FilingService:
             zip_bytes = await self._build_zip_pack(
                 activity.name if activity else "未知活动", activity_id,
             )
-            zip_path = f"filings/{activity_id}/pack_{filing_doc.id}.zip"
+            safe_name = "".join(c if c.isalnum() or c in "._- " else "_" for c in (activity.name if activity else "未知活动")).strip()[:30]
+            ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M")
+            zip_path = f"filings/{activity_id}/{safe_name}_备案材料包_{ts}.zip"
             await minio_client.upload_file(zip_path, zip_bytes, "application/zip")
             filing_doc.pack_url = zip_path
             await self.db.commit()
