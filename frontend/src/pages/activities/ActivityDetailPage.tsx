@@ -90,6 +90,12 @@ export default function ActivityDetailPage() {
     enabled: showFiling,
   });
 
+  const { data: approvalRecord } = useQuery({
+    queryKey: ["activities", id, "filing", "approval"],
+    queryFn: () => filingsApi.getApproval(id!).then(r => r.data),
+    enabled: showFiling && activity?.status === "待补充备案材料",
+  });
+
   // ── template queries ──
   const canViewPlan = permissions.includes("submit_plan") || permissions.includes("view_owned_activity");
   const canViewSecurity = permissions.includes("manage_security") || permissions.includes("view_owned_activity");
@@ -1151,7 +1157,10 @@ export default function ActivityDetailPage() {
                   label: (
                     <span>
                       备案
-                      {filingStatus?.handed_over && (
+                      {activity?.status === "待补充备案材料" && (
+                        <Tag color="orange" style={{ marginLeft: 8 }}>需补充</Tag>
+                      )}
+                      {filingStatus?.handed_over && activity?.status !== "待补充备案材料" && (
                         <Tag color="green" style={{ marginLeft: 8 }}>已交接</Tag>
                       )}
                       {filingStatus?.packed && !filingStatus?.handed_over && (
@@ -1296,8 +1305,26 @@ export default function ActivityDetailPage() {
                       {materials.length > 0 && !(isGovLiaison && (activity?.status === "备案材料已交接" || activity?.status === "待补充备案材料")) && (
                         <>
                           {activity?.status === "待补充备案材料" && (
-                            <Alert type="warning" showIcon title="需补充材料"
-                              description="政府审查发现不合格材料，请修改后重新打包提交。" style={{ marginTop: 16, marginBottom: 8 }} />
+                            <div style={{ marginTop: 16, marginBottom: 8 }}>
+                              <Alert type="warning" showIcon title="需补充材料"
+                                description={
+                                  <div>
+                                    {approvalRecord?.rectification_opinion && (
+                                      <Typography.Paragraph style={{ marginBottom: 4 }}>
+                                        <Typography.Text strong>补件说明：</Typography.Text>
+                                        {approvalRecord.rectification_opinion}
+                                      </Typography.Paragraph>
+                                    )}
+                                    <Typography.Text strong>需修改的材料：</Typography.Text>
+                                    {materials.filter(m => m.audit_round > 0 && !m.is_qualified).map(m => (
+                                      <Tag key={m.id} color="red" style={{ cursor: "pointer", marginTop: 4 }}
+                                        onClick={() => setActiveTab("security_plan")}>
+                                        {m.name}
+                                      </Tag>
+                                    ))}
+                                  </div>
+                                } />
+                            </div>
                           )}
                           <Table
                             dataSource={materials}
