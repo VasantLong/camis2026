@@ -13,6 +13,7 @@ import {
   Typography,
   Tooltip,
   Image,
+  Tag,
   App,
 } from "antd";
 import { PlusOutlined, DeleteOutlined, UploadOutlined, QuestionCircleOutlined, CloseOutlined } from "@ant-design/icons";
@@ -328,6 +329,17 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
                 }} />
             </div>
           )}
+          {!previewUrl && (() => {
+            const storedVal = schema.draft_data?.[field.name] || schema.snapshot_data?.[field.name];
+            const hasUrl = (Array.isArray(storedVal) && storedVal.length > 0 && storedVal[0]?.url) || (typeof storedVal === "string" && !!storedVal);
+            return hasUrl ? (
+              <div style={{ marginTop: -4, marginBottom: 24, display: "flex", alignItems: "center", gap: 8 }}>
+                <Tag color="green" style={{ margin: 0 }}>已上传签名</Tag>
+                <Button size="small" icon={<CloseOutlined />} danger
+                  onClick={() => { form.setFieldValue(field.name, []); }} />
+              </div>
+            ) : null;
+          })()}
           </Fragment>
         );
       }
@@ -367,8 +379,7 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
   const handleSaveDraft = async () => {
     setSaving(true);
     try {
-      const values = form.getFieldsValue();
-      const data = serializeFormData(values, schema.fields);
+      const data = serializeFormData(form, schema.fields);
       await onSaveDraft(data);
       message.success("草稿已保存");
     } catch {
@@ -382,8 +393,7 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
     setSubmitting(true);
     const nextVersion = (schema.current_version ?? 0) + 1;
     try {
-      const values = form.getFieldsValue();
-      const data = serializeFormData(values, schema.fields);
+      const data = serializeFormData(form, schema.fields);
       await onSubmit(data);
       message.success(`已生成 v${nextVersion}`);
     } catch {
@@ -397,7 +407,13 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
   const handleSubmit = () => {
     form.validateFields().then(() => {
       if (onValidate) {
-        const data = serializeFormData(form.getFieldsValue(), schema.fields);
+        const data = serializeFormData(form, schema.fields);
+        // debug: log signature fields for troubleshooting
+        for (const f of schema.fields) {
+          if (f.ui_type === "signature") {
+            console.log(`[TemplateForm] ${f.name}: raw=${JSON.stringify(form.getFieldValue(f.name))}, serialized=${JSON.stringify(data[f.name])}`);
+          }
+        }
         const errs = onValidate(data);
         if (errs.length > 0) {
           message.error(errs.map(e => `${e.label}: ${e.reason}`).join("；"));
@@ -442,11 +458,12 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
   );
 }
 
-function serializeFormData(values: Record<string, unknown>, fields: FieldDef[]): Record<string, unknown> {
+function serializeFormData(form: any, fields: FieldDef[]): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const f of fields) {
-    if (f.ui_type === "declarations") continue;  // fixed content, not user data
-    const v = values[f.name];
+    if (f.ui_type === "declarations") continue;
+    // read value directly from form instance to avoid valuePropName issues
+    const v = form.getFieldValue(f.name);
     if (v === undefined || v === null || v === "") {
       out[f.name] = f.ui_type === "repeater" ? [] : f.ui_type === "number" ? 0 : "";
       continue;
@@ -456,13 +473,9 @@ function serializeFormData(values: Record<string, unknown>, fields: FieldDef[]):
     } else if (f.ui_type === "number") {
       out[f.name] = typeof v === "number" ? v : Number(v) || 0;
     } else if (f.ui_type === "signature") {
-      // extract URL from fileList array (or antd v6 {fileList:[...]} wrapper, or raw string)
       let url = "";
-      if (Array.isArray(v)) {
-        url = v.length > 0 ? (v[0]?.url || "") : "";
-      } else if (v && typeof v === "object" && Array.isArray((v as any).fileList)) {
-        const fl = (v as any).fileList;
-        url = fl.length > 0 ? (fl[0]?.url || "") : "";
+      if (Array.isArray(v) && v.length > 0) {
+        url = v[0]?.url || "";
       } else if (typeof v === "string" && v) {
         url = v;
       }
