@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { Fragment, useState, useEffect, useCallback } from "react";
 import {
   Form,
   Input,
@@ -277,6 +277,7 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
         );
       case "signature":
         return (
+          <Fragment key={field.name}>
           <Form.Item
             key={field.name}
             name={field.name}
@@ -287,7 +288,6 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
             normalize={(val) => (Array.isArray(val) ? val : [])}
             getValueFromEvent={(e) => (Array.isArray(e) ? e : e?.fileList || [])}
           >
-            <div>
             <Upload
               accept="image/*"
               maxCount={1}
@@ -308,16 +308,16 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
             >
               <Button icon={<UploadOutlined />}>上传签名图片</Button>
             </Upload>
-            <Form.Item shouldUpdate noStyle>
-              {() => {
-                const fileList = form.getFieldValue(field.name) as any[] | undefined;
-                const thumbUrl = fileList?.[0]?.thumbUrl;
-                if (!thumbUrl) return null;
-                return <img src={thumbUrl} alt="签名预览" style={{ maxWidth: 200, maxHeight: 80, marginTop: 8, borderRadius: 4, border: "1px solid #d9d9d9", display: "block" }} />;
-              }}
-            </Form.Item>
-            </div>
           </Form.Item>
+          <Form.Item shouldUpdate noStyle>
+            {() => {
+              const fileList = form.getFieldValue(field.name) as any[] | undefined;
+              const thumbUrl = fileList?.[0]?.thumbUrl;
+              if (!thumbUrl) return null;
+              return <img src={thumbUrl} alt="签名预览" style={{ maxWidth: 200, maxHeight: 80, marginTop: -8, marginBottom: 24, borderRadius: 4, border: "1px solid #d9d9d9", display: "block" }} />;
+            }}
+          </Form.Item>
+          </Fragment>
         );
       case "autofill":
         return (
