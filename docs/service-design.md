@@ -236,20 +236,35 @@ class DocumentService:
 
 ## 4. FilingService — 备案材料管理
 
-**职责**: 材料打包、合规校验、交接确认。
+**职责**: 材料打包、合规校验、交接确认、材料签署与审查。
 
-**关联表**: `filing_docs`, `filing_doc_materials`, `key_materials`
+**关联表**: `filing_docs`, `filing_doc_materials`, `key_materials`, `material_audits`, `approval_records`
 
-**依赖**: `WorkflowService`（交接确认时变更状态）
+**依赖**: `WorkflowService`（交接确认/审批决策时变更状态）
+
+### 领域模型
+
+`key_materials` 作为备案材料超类型（supertype），覆盖全部 5 项材料：
+
+| material_type | 扩展表 | 说明 |
+|---------------|--------|------|
+| `activity_plan` | `activity_plans`（material_id FK） | 活动方案 |
+| `security_plan` | `security_plans`（material_id FK） | 安保方案 |
+| `risk_assessment` | 无 | 风险评估报备表 |
+| `responsibility_letter` | 无 | 安全消防责任确认书 |
+| `filing_commitment` | 无 | 活动备案承诺书 |
+
+`activity_plans` 和 `security_plans` 通过 `material_id` FK 引用各自 KeyMaterial 行，共享审计字段（is_qualified、sign_status、audit_round、opinion），`UNIQUE(activity_id, material_type)` 保证每个活动每种材料唯一。
 
 ### Pydantic Schemas
 
 ```python
 class FilingPackResult(BaseModel):
     filing_doc_id: UUID
-    pdf_url: str
     materials_count: int
-    missing_signatures: list[str]  # 缺失签名的材料名称
+    qualified_count: int
+    missing_signatures: list[str]
+    ready: bool
 
 class MaterialValidation(BaseModel):
     material_id: UUID
@@ -257,6 +272,11 @@ class MaterialValidation(BaseModel):
     is_qualified: bool
     has_signature: bool
     issues: list[str]
+
+class ApprovalRecordCreate(BaseModel):
+    approval_status: str  # 通过 / 补件 / 驳回
+    attachment_url: str | None = None
+    rectification_opinion: str | None = None
 ```
 
 ### 方法签名
@@ -267,16 +287,36 @@ class FilingService:
         self.db = db
         self.workflow = workflow
 
+    async def list_materials(self, activity_id: UUID) -> list[dict]:
+        """查询全部 5 项备案材料（含扩展表特有字段）。"""
+        ...
+
     async def pack_materials(self, activity_id: UUID) -> FilingPackResult:
-        """聚合所有已签署材料 → 生成打包 PDF。缺失签名时返回清单但不断开。"""
+        """聚合全部 5 项已签署材料 → 生成 ZIP 包（含各 DOCX + 备案清单 PDF）。"""
         ...
 
-    async def validate_signatures(self, activity_id: UUID) -> list[MaterialValidation]:
-        """逐项校验材料合规性和电子签名状态。"""
+    async def confirm_handover(self, activity_id: UUID, operator: User) -> FilingDoc:
+        """确认纸质交接。从「待备案申请」或「待补充备案材料」均可调用，
+        目标状态统一为「备案材料已交接」。"""
         ...
 
-    async def confirm_handover(self, activity_id: UUID, operator: User) -> None:
-        """确认纸质交接，更新 handover_status + 触发 WorkflowService 状态变更。"""
+    async def sign_material(self, activity_id: UUID, material_id: UUID, user_id: UUID) -> dict:
+        """签署单个材料（seed 材料或未签的模板材料），写 MaterialAudit 留痕。"""
+        ...
+
+    async def audit_material(self, activity_id: UUID, material_id: UUID,
+                            user_id: UUID, conclusion: str, opinion: str | None) -> dict:
+        """审查单个材料（合格/不合格），递增 audit_round，写 MaterialAudit。"""
+        ...
+
+    async def get_audit_history(self, activity_id: UUID) -> list[dict]:
+        """全部材料的签署/审查记录，按时间倒序。"""
+        ...
+
+    async def create_approval_record(self, activity_id: UUID, liaison_id: UUID,
+                                     approval_status: str, attachment_url: str | None,
+                                     rectification_opinion: str | None) -> dict:
+        """GovLiaison 审批决策时创建 ApprovalRecord。"""
         ...
 ```
 
@@ -520,7 +560,7 @@ flowchart TD
     DBR --> DBS --> DB
 ```
 
-> **注**：`WorkflowService` 是枢纽——它依赖 `NotificationService`（发通知）和 `ActivityService`（查状态）。`AuthService` 和 `AdminService` 为独立服务，无跨服务依赖。`TemplateService` 依赖 MinIO（文件上传）和 `WorkflowService`（activity_plan generate 后自动状态变迁）。`TemplateService` 新增 `get_or_create_material()`（懒创建 KeyMaterial）和 `get_schema()` 跨实体 autofill（Activity + ActivityPlan snapshot → 双表字段自动填入），Pydantic 校验前自动清理不满足条件的隐藏字段。
+> **注**：`WorkflowService` 是枢纽——它依赖 `NotificationService`（发通知）和 `ActivityService`（查状态）。`AuthService` 和 `AdminService` 为独立服务，无跨服务依赖。`TemplateService` 依赖 MinIO（文件上传）和 `WorkflowService`（activity_plan generate 后自动状态变迁）。`TemplateService` 新增 `get_or_create_material()`（懒创建 KeyMaterial，覆盖 5 种 material_type）和 `get_schema()` 跨实体 autofill（Activity + ActivityPlan snapshot → 双表/承诺书字段自动填入）。Pydantic 校验前自动清理不满足条件的隐藏字段。`FilingService` 新增 `create_approval_record()`（GovLiaison 审批决策时生成 ApprovalRecord）。
 
 ---
 
@@ -531,7 +571,7 @@ flowchart TD
 | ActivityService     |      ✅       |    ✅    |    ✅    |                ✅                |
 | WorkflowService     |      ✅       |    ✅    |    ✅    |                ✅                |
 | DocumentService     |      ✅       |    ✅    |    ✅    | ⚠ 已有基础（待适配 activity_id） |
-| FilingService       |      ✅       |    ✅    |    ✅    |                ✅                |
+| FilingService       |      ✅       |    ✅    |    ✅    |       ⚠ 待更新 KeyMaterial 5 类型 + ApprovalRecord       |
 | NotificationService |      ✅       |    ✅    |    ✅    |               ✅                |
 | DashboardService    |      ✅       |    ✅    |    ✅    |                ✅                |
 | AuthService         |      ✅       |    ✅    |    ✅    |                ✅                |

@@ -63,6 +63,7 @@
 | `POST` | `/activities/{id}/filing/handover` | `pack_filing` |
 | `GET`  | `/activities/{id}/filing/validate` | `pack_filing` |
 | `GET`  | `/activities/{id}/filing/status` | 登录用户 |
+| `POST` | `/activities/{id}/approval` | `audit_material` |
 | `GET`  | `/dashboard` | `view_dashboard` |
 | `GET`  | `/dashboard/activities/{id}` | `view_dashboard` |
 | `POST` | `/dashboard/reports/monthly` | `export_report` |
@@ -233,17 +234,25 @@ content_type: "application/pdf"
 
 #### `POST /activities/{id}/filing/pack` — 打包备案材料
 
-聚合该活动关联的所有已签署文件 → 生成 PDF 集合。返回打包结果（含下载链接）。
+聚合该活动关联的全部 5 项备案材料的 DOCX → 生成 ZIP 包（含各 DOCX + 备案清单 PDF）。返回打包结果。
 
-**前置条件**：所有 KeyMaterial 的电子签名齐全，否则 422 返回缺失清单。
+**前置条件**：全部 KeyMaterial 的 sign_status 为 "signed"，否则 422 返回缺失清单。
 
 #### `POST /activities/{id}/filing/handover` — 确认纸质交接
 
-安保部人员线下递交给政府对接人员后在系统中确认。
+安保部人员线下递交给政府对接人员后在系统中确认。从「待备案申请」或「待补充备案材料」均可调用，目标状态统一为「备案材料已交接」。
 
 #### `GET /activities/{id}/filing/validate` — 校验材料合规性
 
-返回所有 KeyMaterial 的合规状态清单。
+返回全部 KeyMaterial 的合规状态清单。
+
+#### `POST /activities/{id}/materials/{mid}/audit` — 审查单个材料
+
+GovLiaison 逐项审查，标记合格/不合格 + 意见。递增 audit_round，写 MaterialAudit。
+
+#### `POST /activities/{id}/approval` — 创建审批记录
+
+GovLiaison 做出审批决策后生成 ApprovalRecord。Body: `{ approval_status, attachment_url?, rectification_opinion? }`。同时触发 WorkflowService 状态变更。
 
 ### 仪表盘
 
@@ -342,6 +351,8 @@ content_type: "application/pdf"
 | `GET /activities/{id}/filing/validate`  | ✅                                      |
 | `POST /activities/{id}/filing/pack`     | ✅                                      |
 | `POST /activities/{id}/filing/handover` | ✅                                      |
+| `POST /activities/{id}/materials/{mid}/audit` | ✅                                 |
+| `POST /activities/{id}/approval`        | ❌                                      |
 | `GET /dashboard`                        | ✅                                      |
 | `GET /dashboard/activities/{id}`        | ✅                                      |
 | `POST /dashboard/reports/monthly`       | ✅                                      |

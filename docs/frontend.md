@@ -23,8 +23,9 @@ frontend/src/
 │   ├── activities.ts       # CRUD + history + documents
 │   ├── documents.ts        # upload (multipart), download (302)
 │   ├── workflows.ts        # transition, reject, forceCancel, forcePostpone
-│   ├── filings.ts          # validate, pack, handover
+│   ├── filings.ts          # validate, pack, handover, getStatus
 │   ├── materials.ts        # list, sign, audit, auditHistory
+│   ├── approval.ts         # create (GovLiaison 审批决策)
 │   ├── roleRequest.ts      # submit role request
 │   ├── notifications.ts    # list, unreadCount, markRead, markAllRead
 │   ├── dashboard.ts        # panel, activityDetail, monthlyReport
@@ -40,6 +41,7 @@ frontend/src/
 │   ├── document.ts         # DocumentResponse
 │   ├── workflow.ts         # StatusTransition, RejectRequest, ForceChangeRequest
 │   ├── filing.ts           # MaterialValidation, FilingPackResult
+│   ├── approval.ts         # ApprovalRecord, ApprovalRequest
 │   ├── dashboard.ts        # PanelData, AnomalyEntry, ActivityDetail, MonthlyReportRequest
 │   └── template.ts         # SchemaResponse, FieldDef, VersionItem/Detail/Diff, GenerateResponse
 ├── pages/
@@ -83,11 +85,14 @@ frontend/src/
 │   ├── filings/
 │   │   ├── FilingValidatePanel.tsx # 材料合规性表格
 │   │   ├── FilingPackModal.tsx     # 打包确认
-│   │   └── HandoverConfirm.tsx     # 交接确认（不可逆）
+│   │   ├── HandoverConfirm.tsx     # 交接确认（不可逆）
+│   │   ├── MaterialAuditModal.tsx  # 逐项审查弹窗（合格/不合格+意见）
+│   │   └── GovLiaisonReviewPanel.tsx # GovLiaison 审批决策面板
 │   ├── templates/
 │   │   ├── TemplateForm.tsx        # Schema驱动动态表单 (8种字段类型+条件显隐)
 │   │   ├── VersionTimeline.tsx     # 版本历史列表+详情/差异对比
-│   │   └── VersionSnapshot.tsx     # 只读快照展示 (供非编辑角色查看最新版本)
+│   │   ├── VersionSnapshot.tsx     # 只读快照展示 (供非编辑角色查看最新版本)
+│   │   └── CommitmentSign.tsx      # 备案承诺书签署区（Plan B）
 │   └── dashboard/
 │       ├── StatusDistribution.tsx  # 状态分布 Progress 条
 │       ├── AnomalyList.tsx         # 异常活动表格
@@ -129,7 +134,7 @@ frontend/src/
   → 保存草稿: PUT /activities/{id}/plan/draft
   → 提交生成: 确认弹窗 → POST → 活动方案立即生成 DOCX / 安保方案仅存快照
   → 活动方案"最终确定": 方案B校验 → 确认弹窗 → 流转
-  → 安保方案"提交审核": 校验 → SecurityManager 签署 → 批量生成 DOCX → 流转
+  → 安保方案"提交审核": 校验 → SecurityManager 签署（两步）→ 批量生成 DOCX → 流转
   → VersionTimeline 展示版本历史 → 支持详情查看和两版本差异对比
 ```
 
@@ -148,11 +153,29 @@ frontend/src/
 
 ### 条件字段
 
-字段可定义 `condition` 属性（如 `"risk_level == '大型'"`），根据表单其他字段值动态显隐。安保方案的 `CONDITIONAL_FIELDS` 按风险等级（大型/中型/高风险）控制大型活动专属字段。
+字段可定义 `condition` 属性（如 `"risk_level == '高风险'"`），根据表单其他字段值动态显隐。安保方案的 `CONDITIONAL_FIELDS` 按风险等级（高风险/中低风险/低风险）控制专属字段显隐。
 
 ### 安保方案流程
 
-SecurityOfficer 首次进入时，若 `risk_level` 为空则先弹风险等级选择器（大型/中型/高风险），写入 `PUT /activities/{id}/security-plan` 后加载对应条件的表单。
+SecurityOfficer 首次进入时，若 `risk_level` 为空则先弹风险等级选择器（高风险/中低风险/低风险），写入 `PUT /activities/{id}/security-plan` 后加载对应条件的表单。
+
+Manager 签署分两步：
+1. **签署三文件**：Manager 在安保方案 tab 上传签名 → 确认签署 → 系统生成安保方案+双表 DOCX → 备案承诺书签署区出现
+2. **签署备案承诺书**：全部字段 autofill（从 Activity + ActivityPlan + SecurityPlan 预填），Manager 复用已上传签名 → 确认 → 生成承诺书 DOCX → 流转至「待备案申请」
+
+### 备案 Tab 阶段分段
+
+备案 tab 根据活动状态和角色分段渲染：
+
+| 状态 | 角色 | 可见内容 |
+|------|------|---------|
+| 待备案申请 | SecurityOfficer | 5 项材料列表（签署状态+版本）、打包按钮、纸质交接确认 |
+| 待补充备案材料 | SecurityOfficer | 同上 + GovLiaison 补件意见横幅 |
+| 备案材料已交接 | GovLiaison | 材料列表+逐项审查(合格/不合格+意见)、审核记录、批文上传(可选)、审批决策(通过/补件/驳回) |
+| 审批通过 | SecurityManager | 页顶横幅：批文信息 + 确认审批结果/驳回至安保方案设计 |
+| 审批通过-待举办+ | 全部角色 | 材料列表只读 + 审核记录 |
+
+5 项备案材料统一来自 `key_materials` 表：活动方案、安保方案、风险评估报备表、安全消防责任确认书、活动备案承诺书。
 
 ## 路由
 
@@ -416,8 +439,10 @@ flowchart LR
     Home --> |"待编制"| Draft[安保方案tab]
     Draft --> SubTabs[子tab：安保方案丨风险评估表丨责任确认书]
     SubTabs --> |三表均生成版本| Submit[提交审核]
-    Submit --> Sign[SecurityManager<br/>签署确认]
-    Sign --> |签署完成| Pack[打包备案]
+    Submit --> Sign[SecurityManager<br/>签署三文件]
+    Sign --> |三文件已签| Commit[签署备案承诺书]
+    Commit --> |承诺书已签| Transition[流转至待备案申请]
+    Transition --> Pack[Officer 打包备案]
     Pack --> |线下交接| Handover[确认已交接]
 ```
 
@@ -427,12 +452,12 @@ flowchart LR
 flowchart LR
     Login2[/登录/] --> Home2[首页]
     Home2 --> |"待审查"| Review[活动详情-备案tab]
-    Review --> Audit[逐条审查材料]
-    Audit --> |全部审查完毕| Upload[上传批文]
+    Review --> Audit[逐条审查5项材料<br/>合格/不合格+意见]
+    Audit --> |全部审查完毕| Upload[上传批文（可选）]
     Upload --> Decision{审批决定}
-    Decision --> |通过| Approved[审批通过]
-    Decision --> |补件| Revise[待补充备案材料]
-    Decision --> |驳回| Rejected[不通过/已终止]
+    Decision --> |通过| Approved[审批通过<br/>→生成ApprovalRecord]
+    Decision --> |补件| Revise[待补充备案材料<br/>→生成ApprovalRecord]
+    Decision --> |驳回| Rejected[不通过/已终止<br/>→生成ApprovalRecord]
 ```
 
 **TemplateForm 模式**
@@ -481,13 +506,14 @@ flowchart LR
 | -------------- | ------------------------------------- | ------------------------------------- |
 | 待设计方案     | 提交→待安保方案设计                   | `submit_plan`                         |
 | 待安保方案设计 | 驳回（内部循环）、签署完成→待备案申请 | `reject_approval`, `manage_security`  |
-| 待备案申请     | （备案 tab 中操作）                   | `pack_filing`                         |
-| 备案材料已交接 | 通过/补件/驳回                        | `audit_material`                      |
-| 待补充备案材料 | 重新递交                              | `manage_security`                     |
-| 审批通过       | 确认通过、驳回（逆向流转）            | `confirm_approval`, `reject_approval` |
+| 待备案申请     | 打包 + 纸质交接（备案 tab 中操作）    | `pack_filing`                         |
+| 待补充备案材料 | 重新打包 + 重新交接 → 备案材料已交接  | `pack_filing`                         |
+| 备案材料已交接 | 逐条审查材料 + 通过/补件/驳回         | `audit_material`                      |
+| 审批通过       | 确认审批结果、驳回至安保方案设计（页顶横幅） | `confirm_approval`, `reject_approval` |
+| 审批通过-待举办 | —（系统自动流转至举办中）             | —                                     |
 | 任意非终态     | 强制取消、强制延期                    | `force_cancel`, `force_postpone`      |
 
-终态（审批通过-待举办/不通过/已终止/已取消/已延期）不显示操作按钮。
+终态（举办中/已结束/不通过已终止/已取消/已延期）不显示操作按钮。
 
 ## 错误处理
 
