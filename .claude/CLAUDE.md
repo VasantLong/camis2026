@@ -59,7 +59,9 @@ net stop winnat && net start winnat
 - `init-scripts/` 已归档至 `docs/init-scripts-archive/`，仅保留 `00-extensions.sql`（uuid-ossp + update_updated_at 函数）
 - Docker 启动不再依赖 init-scripts；基线迁移 `642e62051696_initial_baseline` 包含全部 20+ 表 DDL + RBAC 种子数据 + `login_attempts` 表
 - Docker 启动自动执行 `alembic upgrade head`
-- 服务层现有 11 个 Service：ActivityService, WorkflowService, DocumentService, FilingService, NotificationService, DashboardService, **AuthService**, **AdminService**, **ReportDataService**（月报数据查询）, **ReportRenderer**（Playwright PDF 渲染，HTTP 客户端）, **TemplateService**（DOCX 模板渲染 + 版本管理，借助 docxtpl + LibreOffice）
+- 服务层现有 11 个 Service：ActivityService, WorkflowService, DocumentService, FilingService, NotificationService, DashboardService, **AuthService**, **AdminService**, **ReportDataService**（月报数据查询）, **ReportRenderer**（Playwright PDF 渲染，HTTP 客户端）, **TemplateService**（DOCX 渲染 + 版本管理 + 跨模板同步 + PDF 后台生成，借助 docxtpl + LibreOffice）
+- Filing 补件回路：待补充备案材料 ≈ 带标记的待安保方案设计，复用编辑→提交→签署→打包→交接。Manager 重签复用已上传签名
+- UC6 已移除：Liaison 审批通过后系统自动流转到审批通过-待举办，通知所有经手人。AdminStaff 可标记结束（举办中→已结束）
 - 新加 Service 命名 `XxxService`，构造函数 `def __init__(self, db: AsyncSession)`
 - 文档模板：`app/templates/{type}/` 含 `schema.py`（Pydantic 表单）和 `template.docx`（docxtpl Jinja2 占位符），详见 `docs/adr/0006.md`
 

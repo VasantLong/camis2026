@@ -8,7 +8,7 @@
 
 企业承接的主办方活动请求的完整生命周期记录。从立项到审批结束，由多个部门在不同阶段协作处理。
 
-**状态流转**: `待设计方案` → `待安保方案设计` → `待备案申请` → `备案材料已交接` → `审批通过` → `审批通过-待举办` → `举办中` → `已结束`；另有 `待补充备案材料` `不通过/已终止` `已取消` `已延期`（12 状态，详见 `docs/state-machine.md`）
+**状态流转**: `待设计方案` → `待安保方案设计` → `待备案申请` → `备案材料已交接` → `审批通过`（GovLiaison批准，系统自动→审批通过-待举办，UC6已移除）→ `审批通过-待举办` → `举办中`（自动）→ `已结束`（AdminStaff标记）；另有 `待补充备案材料` `不通过/已终止` `已取消` `已延期`（12 状态，详见 `docs/state-machine.md`）
 
 **关联单据**: ActivityPlan, SecurityPlan, FilingDoc, ApprovalRecord, ImplementationRecord
 
@@ -80,7 +80,7 @@ GovLiaison 审批决策的正式记录，独立数据库表。字段：`approval
 | Promoter | 宣策部 | 创建立项、编制活动方案、提交安保审核 (submit_plan) |
 | SecurityOfficer | 安保部 | 编制安保方案、上传安保材料、审核备案材料 |
 | SecurityManager | 安保部 | 继承 SecurityOfficer 全部 + 驳回（内部循环/逆向流转）、确认政府审批结果 |
-| AdminStaff | 行政部 | 监控活动面板、强制变更状态、归档 |
+| AdminStaff | 行政部 | 监控活动面板、强制变更状态、标记活动结束、归档 |
 | AdminManager | 行政部 | 继承 AdminStaff 全部 + 审批角色申请 |
 | GovLiaison | 政府对接 | 上传批文、审查关键材料合规性、标注审批结果 |
 
