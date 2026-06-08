@@ -84,6 +84,12 @@ export default function ActivityDetailPage() {
     queryFn: () => materialsApi.list(id!).then((r) => r.data),
     enabled: showFiling,
   });
+  useEffect(() => {
+    if (materials.length > 0) console.table(materials.map((m: any) => ({
+      name: m.name, material_type: m.material_type, sign_status: m.sign_status,
+      minio_path: m.minio_path?.substring(0, 50) || "", version: m.current_version,
+    })));
+  }, [materials]);
 
   const { data: auditHistory = [] } = useQuery({
     queryKey: ["activities", id, "materials", "audit-history"],
@@ -1204,12 +1210,14 @@ export default function ActivityDetailPage() {
                                   onClick={async () => {
                                     try {
                                       const mAny = m as any;
+                                      console.log("[preview]", m.name, "material_type:", mAny.material_type, "minio_path:", mAny.minio_path, "version:", mAny.current_version, "full:", JSON.stringify(m));
                                       if (mAny.minio_path) {
                                         const r = await documentsApi.getPresignedByPath(mAny.minio_path);
+                                        console.log("[preview] presigned response:", r.data);
                                         if (r.data.url) { window.open(r.data.url, "_blank"); return; }
                                       }
                                       message.warning("暂无预览文件");
-                                    } catch { message.error("预览失败"); }
+                                    } catch (e) { console.error("[preview] error:", e); message.error("预览失败"); }
                                   }}>预览</Button>
                                 {isOfficerFilingPhase && canSign && m.sign_status !== "signed" && (
                                   <Button size="small" onClick={() => signMutation.mutate(m.id)} loading={signMutation.isPending}>签署</Button>
