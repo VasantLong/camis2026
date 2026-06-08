@@ -1251,7 +1251,12 @@ export default function ActivityDetailPage() {
                                 <Button type="primary" disabled={!allQualified}
                                   onClick={() => { setApprovalAction("approve"); setApprovalComment(""); setApprovalModalOpen(true); }}>审批通过</Button>
                                 <Button disabled={!allAudited || allQualified}
-                                  onClick={() => { setApprovalAction("revise"); setApprovalComment(""); setApprovalModalOpen(true); }}>要求补件</Button>
+                                  onClick={() => {
+                                    setApprovalAction("revise");
+                                    const unqual = materials.filter(m => m.audit_round > 0 && !m.is_qualified).map(m => m.name);
+                                    setApprovalComment(unqual.length > 0 ? `以下材料不合格需整改：${unqual.join("、")}` : "");
+                                    setApprovalModalOpen(true);
+                                  }}>要求补件</Button>
                                 <Button danger
                                   onClick={() => { setApprovalAction("reject"); setApprovalComment(""); setApprovalModalOpen(true); }}>驳回—不通过</Button>
                               </Space>
