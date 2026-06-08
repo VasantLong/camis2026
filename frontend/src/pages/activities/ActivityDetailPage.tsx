@@ -1187,8 +1187,8 @@ export default function ActivityDetailPage() {
                               )}
                             </div>
                             <div style={{ marginBottom: 16 }}>
-                              <Typography.Text strong>上传政府批文（可选）：</Typography.Text>
-                              <Upload accept=".pdf,.jpg,.png,.doc,.docx" maxCount={1} showUploadList={false}
+                              <Typography.Text strong>上传政府批文（必传）：</Typography.Text>
+                              <Upload accept=".pdf,.jpg,.jpeg,.png" maxCount={1} showUploadList={false}
                                 customRequest={async ({ file, onSuccess, onError }) => {
                                   try {
                                     const res = await documentsApi.upload(id!, file as File, ["approval"]);
@@ -1248,7 +1248,7 @@ export default function ActivityDetailPage() {
                                 )}
                               </Space>
                               <Space>
-                                <Button type="primary" disabled={!allQualified}
+                                <Button type="primary" disabled={!allQualified || !approvalDocPath}
                                   onClick={() => { setApprovalAction("approve"); setApprovalComment(""); setApprovalModalOpen(true); }}>审批通过</Button>
                                 <Button disabled={!allAudited || allQualified}
                                   onClick={() => {

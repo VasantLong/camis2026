@@ -310,6 +310,8 @@ class FilingService:
         if activity.status != "备案材料已交接":
             raise ValueError("当前状态不允许创建审批记录")
 
+        if approval_status == "审批通过" and not attachment_url:
+            raise ValueError("审批通过必须上传政府批文")
         valid_statuses = {"审批通过", "待补充备案材料", "不通过/已终止"}
         if approval_status not in valid_statuses:
             raise ValueError(f"无效的审批结果: {approval_status}")
