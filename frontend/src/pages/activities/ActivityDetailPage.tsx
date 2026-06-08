@@ -530,7 +530,15 @@ export default function ActivityDetailPage() {
                           }}
                         />
                       ) : (
-                        <VersionSnapshot schema={planSchema} />
+                        <>
+                          <VersionSnapshot schema={planSchema} />
+                          <VersionTimeline
+                            versions={planVersions}
+                            onViewDetail={(v) => templatesApi.getPlanVersionDetail(id!, v).then((r) => r.data)}
+                            onDiff={(v1, v2) => templatesApi.getPlanVersionDiff(id!, v1, v2).then((r) => r.data)}
+                            onPreview={async (v) => { const r = await templatesApi.getPlanVersionPreview(id!, v); return r.data.url; }}
+                          />
+                        </>
                       )}
                     </div>
                   ) : (
