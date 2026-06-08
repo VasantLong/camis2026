@@ -163,6 +163,10 @@ Manager 签署分两步：
 1. **签署三文件**：Manager 在安保方案 tab 上传签名 → 确认签署 → 系统生成安保方案+双表 DOCX → 备案承诺书签署区出现
 2. **签署备案承诺书**：全部字段 autofill（从 Activity + ActivityPlan + SecurityPlan 预填），Manager 复用已上传签名 → 确认 → 生成承诺书 DOCX → 流转至「待备案申请」
 
+**跨模板同步**：安保方案的 `security_staff_count` 变更后重新生成版本时，若风险评估表或备案承诺书已有版本，系统弹窗确认后自动为它们创建新版本（同步更新对应字段）。变更检测在前端 onSubmit 中判断，后端在 `generate()` 同一事务中完成同步。
+
+**草稿自动保存**：表单 2s 防抖自动保存草稿，确保切换到双表子 tab 时 autofill 能读取安保方案最新的未提交数据。
+
 ### 备案 Tab 阶段分段
 
 备案 tab 根据活动状态和角色分段渲染：
@@ -469,6 +473,8 @@ flowchart LR
 - `ui_type: "signature"`：上传+预览+删除，刷新后通过 `/documents/presign/by-path` 恢复预览
 - `hint` 字段：repeater 旁 `QuestionCircleOutlined` + Tooltip
 - 条件字段：`==`/`!=` 格式解析，`risk_level` 通过外部传入值判断（非表单字段）
+- **草稿自动保存**：表单值变更后 2s 防抖自动保存草稿，确保跨子 tab autofill 能读取最新数据
+- **跨模板同步**：安保方案 `security_staff_count` 变更后生成新版本时，弹窗确认后自动同步更新风险评估表和备案承诺书（后端同一事务创建新版本）
 
 ### 无多角色用户
 
