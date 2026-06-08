@@ -82,11 +82,6 @@ class FilingService:
         validations: list[MaterialValidation] = []
         for row in rows:
             issues: list[str] = []
-            audited = getattr(row, "audit_round", 0) > 0
-            if audited and not row.is_qualified:
-                issues.append("材料未通过合规校验")
-            if row.opinion and "缺失" in row.opinion:
-                issues.append(f"意见: {row.opinion}")
             has_sig = getattr(row, "sign_status", "unsigned") == "signed"
             logger.info("validate_materials: name=%s sign_status=%s has_sig=%s id=%s", row.name, getattr(row, "sign_status", "?"), has_sig, row.id)
             if not has_sig:
