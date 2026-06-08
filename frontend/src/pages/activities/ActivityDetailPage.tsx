@@ -9,7 +9,6 @@ import StatusTimeline from "@/components/activities/StatusTimeline";
 import DocumentUpload from "@/components/documents/DocumentUpload";
 import DocumentList from "@/components/documents/DocumentList";
 import WorkflowActions from "@/components/workflows/WorkflowActions";
-import FilingValidatePanel from "@/components/filings/FilingValidatePanel";
 import FilingPackModal from "@/components/filings/FilingPackModal";
 import HandoverConfirm from "@/components/filings/HandoverConfirm";
 import TemplateForm from "@/components/templates/TemplateForm";
