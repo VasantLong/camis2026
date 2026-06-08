@@ -284,6 +284,52 @@ class FilingService:
             "generated_at": fd.generated_at.isoformat() if fd.generated_at else None,
         }
 
+    async def create_approval_record(
+        self, activity_id: UUID, liaison_id: UUID,
+        approval_status: str, attachment_url: str | None = None,
+        rectification_opinion: str | None = None,
+    ) -> dict:
+        """Create ApprovalRecord and transition workflow (GovLiaison decision)."""
+        from app.models.activity import ApprovalRecord, Activity
+        from app.services.workflow_service import WorkflowService
+
+        activity = await self.db.get(Activity, activity_id)
+        if activity is None:
+            raise LookupError("活动不存在")
+        if activity.status != "备案材料已交接":
+            raise ValueError("当前状态不允许创建审批记录")
+
+        valid_statuses = {"审批通过", "待补充备案材料", "不通过/已终止"}
+        if approval_status not in valid_statuses:
+            raise ValueError(f"无效的审批结果: {approval_status}")
+
+        record = ApprovalRecord(
+            activity_id=activity_id,
+            liaison_id=liaison_id,
+            approval_status=approval_status,
+            attachment_url=attachment_url,
+            approval_date=datetime.now(timezone.utc),
+            rectification_opinion=rectification_opinion,
+        )
+        self.db.add(record)
+        await self.db.flush()
+
+        ws = WorkflowService(self.db)
+        User = __import__("app.models.user", fromlist=["User"]).User
+        operator = await self.db.get(User, liaison_id)
+        await ws.transition(activity_id, approval_status, operator, rectification_opinion)
+
+        await self.db.commit()
+        await self.db.refresh(record)
+
+        return {
+            "id": str(record.id),
+            "activity_id": str(record.activity_id),
+            "approval_status": record.approval_status,
+            "approval_date": record.approval_date.isoformat() if record.approval_date else None,
+            "rectification_opinion": record.rectification_opinion,
+        }
+
     async def list_materials(self, activity_id: UUID) -> list[dict]:
         result = await self.db.execute(
             text("""
