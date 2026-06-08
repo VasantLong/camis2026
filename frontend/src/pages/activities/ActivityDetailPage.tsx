@@ -1317,10 +1317,15 @@ export default function ActivityDetailPage() {
                                     )}
                                     <Typography.Text strong>需修改的材料：</Typography.Text>
                                     {materials.filter(m => m.audit_round > 0 && !m.is_qualified).map(m => (
-                                      <Tag key={m.id} color="red" style={{ cursor: "pointer", marginTop: 4 }}
-                                        onClick={() => setActiveTab("security_plan")}>
-                                        {m.name}
-                                      </Tag>
+                                      <div key={m.id} style={{ marginTop: 4 }}>
+                                        <Tag color="red" style={{ cursor: "pointer" }}
+                                          onClick={() => setActiveTab("security_plan")}>{m.name}</Tag>
+                                        {m.opinion && (
+                                          <Typography.Text type="secondary" style={{ fontSize: 12, marginLeft: 4 }}>
+                                            — {m.opinion}
+                                          </Typography.Text>
+                                        )}
+                                      </div>
                                     ))}
                                   </div>
                                 } />
