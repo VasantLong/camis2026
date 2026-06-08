@@ -144,6 +144,19 @@ class WorkflowService:
         elif to_status == "待补充备案材料":
             sp.audit_status = "待编制"
             logger.info("reset audit_status to 待编制 for supplement activity=%s", activity_id)
+            # Reset signing status for deferred materials so Manager can re-sign
+            from app.models.material import KeyMaterial
+            for mt in ["security_plan", "risk_assessment", "responsibility_letter", "filing_commitment"]:
+                km_result = await self.db.execute(
+                    select(KeyMaterial).where(
+                        KeyMaterial.activity_id == activity_id,
+                        KeyMaterial.material_type == mt,
+                    )
+                )
+                km = km_result.scalar_one_or_none()
+                if km:
+                    km.sign_status = "unsigned"
+                    logger.info("reset sign_status to unsigned for material=%s activity=%s", mt, activity_id)
 
         elif to_status == "审批通过":
             sp.audit_status = "已审核"
