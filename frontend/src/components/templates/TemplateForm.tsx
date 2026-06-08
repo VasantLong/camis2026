@@ -175,16 +175,12 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
     }
     // autofill from Activity/Plan/SecurityPlan data
     if (schema.autofill_data) {
-      console.log("[TemplateForm] autofill_data received:", JSON.stringify(schema.autofill_data));
       for (const f of schema.fields) {
         const autoVal = schema.autofill_data[f.name];
         if (autoVal === undefined || autoVal === null || autoVal === "") continue;
-        // autofill fields always use the server-provided value
         if (f.ui_type === "autofill") {
-          console.log(`[TemplateForm] autofill override ${f.name}=${autoVal} (was ${vals[f.name]})`);
           vals[f.name] = autoVal;
         } else if (vals[f.name] === undefined) {
-          console.log(`[TemplateForm] fill empty ${f.name}=${autoVal}`);
           if (f.ui_type === "date" && typeof autoVal === "string") {
             vals[f.name] = dayjs(autoVal);
           } else {
@@ -449,12 +445,6 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
     form.validateFields().then(() => {
       if (onValidate) {
         const data = serializeFormData(form, schema.fields, (schema as any).risk_level);
-        // debug: log signature fields for troubleshooting
-        for (const f of schema.fields) {
-          if (f.ui_type === "signature") {
-            console.log(`[TemplateForm] ${f.name}: raw=${JSON.stringify(form.getFieldValue(f.name))}, serialized=${JSON.stringify(data[f.name])}`);
-          }
-        }
         const errs = onValidate(data);
         if (errs.length > 0) {
           message.error(errs.map(e => `${e.label}: ${e.reason}`).join("；"));
@@ -462,14 +452,23 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
         }
       }
       setConfirmOpen(true);
-    }).catch(() => {});
+    }).catch((err) => {
+      // scroll to first field with error
+      const firstErrorField = document.querySelector(".ant-form-item-has-error");
+      if (firstErrorField) {
+        firstErrorField.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      if (err?.errorFields?.length) {
+        message.warning(`请完善 ${err.errorFields.length} 个必填字段`);
+      }
+    });
   };
 
   const nextVersion = (schema.current_version ?? 0) + 1;
 
   return (
     <>
-      <Form form={form} layout="vertical" disabled={loading || submitting || disabled} onValuesChange={handleValuesChange}>
+      <Form form={form} layout="vertical" scrollToFirstError disabled={loading || submitting || disabled} onValuesChange={handleValuesChange}>
         {visibleFields(schema.fields).map((f) => renderField(f, changedFields.has(f.name)))}
         {!disabled && (
           <Form.Item>
