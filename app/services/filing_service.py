@@ -98,7 +98,7 @@ class FilingService:
 
     async def pack_materials(self, activity_id: UUID) -> FilingPackResult:
         validations = await self.validate_materials(activity_id)
-        qualified = [v for v in validations if v.is_qualified and not v.issues]
+        qualified = [v for v in validations if not v.issues]
         all_ok = len(qualified) == len(validations) and len(validations) > 0
 
         doc = await self.db.execute(
@@ -126,7 +126,7 @@ class FilingService:
                 filing_doc_id=filing_doc.id,
                 materials_count=len(validations),
                 qualified_count=len(qualified),
-                missing_signatures=[v.name for v in validations if not v.is_qualified],
+                missing_signatures=[v.name for v in validations if v.issues],
                 ready=False,
             )
 
