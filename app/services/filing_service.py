@@ -334,15 +334,19 @@ class FilingService:
         result = await self.db.execute(
             text("""
                 SELECT km.id, km.name, km.is_qualified, km.sign_status,
-                       km.audit_round, km.opinion, km.upload_time, km.created_at
+                       km.audit_round, km.opinion, km.upload_time, km.created_at,
+                       km.material_type, fd.minio_path, fd.version_number
                 FROM key_materials km
                 JOIN security_plan_materials spm ON spm.material_id = km.id
                 JOIN security_plans sp ON sp.id = spm.security_plan_id
+                LEFT JOIN filled_documents fd ON fd.id = km.current_filled_document_id
                 WHERE sp.activity_id = :aid
                 UNION
                 SELECT km.id, km.name, km.is_qualified, km.sign_status,
-                       km.audit_round, km.opinion, km.upload_time, km.created_at
+                       km.audit_round, km.opinion, km.upload_time, km.created_at,
+                       km.material_type, fd.minio_path, fd.version_number
                 FROM key_materials km
+                LEFT JOIN filled_documents fd ON fd.id = km.current_filled_document_id
                 WHERE km.activity_id = :aid
                 ORDER BY created_at
             """), {"aid": activity_id})
@@ -352,6 +356,9 @@ class FilingService:
                 "id": str(r[0]), "name": r[1], "is_qualified": r[2],
                 "sign_status": r[3], "audit_round": r[4], "opinion": r[5],
                 "upload_time": r[6].isoformat() if r[6] else "",
+                "material_type": r[8] or "",
+                "minio_path": r[9] or "",
+                "current_version": r[10] or 0,
             }
             for r in rows
         ]

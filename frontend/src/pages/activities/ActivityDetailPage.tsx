@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Descriptions, Tabs, Button, Tag, Spin, Typography, Space, Modal, Input, message, List, Select, Upload, Checkbox } from "antd";
-import { ArrowLeftOutlined, CheckOutlined, CloseOutlined, EditOutlined, UploadOutlined } from "@ant-design/icons";
+import { Descriptions, Tabs, Button, Tag, Spin, Typography, Space, Modal, Input, message, Table, List, Select, Upload, Checkbox } from "antd";
+import { ArrowLeftOutlined, UploadOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useActivity, useActivityHistory, useActivityDocuments } from "@/hooks/useActivityQueries";
@@ -677,6 +677,7 @@ export default function ActivityDetailPage() {
                                 queryClient.invalidateQueries({ queryKey: ["activities", id] });
                                 queryClient.invalidateQueries({ queryKey: ["activities", id, "security-plan"] });
                                 queryClient.invalidateQueries({ queryKey: ["activities", id, "filing", "status"] });
+                                queryClient.invalidateQueries({ queryKey: ["activities", id, "materials"] });
                                 refetchSecuritySchema();
                               }}
                             />
@@ -1174,50 +1175,53 @@ export default function ActivityDetailPage() {
                       {isGovLiaisonFilingPhase && (
                         validationLoading ? <Spin /> : <FilingValidatePanel data={validation} />
                       )}
-                      {/* materials list */}
+                      {/* materials table */}
                       {materials.length > 0 && (
-                        <div style={{ marginTop: 16 }}>
-                          <Typography.Text strong>备案材料</Typography.Text>
-                          <List
-                            size="small"
-                            dataSource={materials}
-                            renderItem={(m) => (
-                              <List.Item
-                                actions={[
-                                  isOfficerFilingPhase && canSign && m.sign_status !== "signed" && (
-                                    <Button size="small" icon={<EditOutlined />}
-                                      onClick={() => signMutation.mutate(m.id)}
-                                      loading={signMutation.isPending}>签署</Button>
-                                  ),
-                                  isGovLiaisonFilingPhase && canAudit && (
-                                    <Button size="small"
-                                      icon={m.is_qualified ? <CheckOutlined /> : <CloseOutlined />}
-                                      onClick={() => { setAuditTarget({ id: m.id, name: m.name }); setAuditConclusion(m.is_qualified ? "qualified" : "unqualified"); setAuditOpinion(""); }}>审查</Button>
-                                  ),
-                                ].filter(Boolean)}
-                              >
-                                <List.Item.Meta
-                                  title={m.name}
-                                  description={
-                                    <Space size={4} wrap>
-                                      <Tag color={m.sign_status === "signed" ? "green" : "default"}>
-                                        {m.sign_status === "signed" ? "已签署" : "未签署"}
-                                      </Tag>
-                                      {isGovLiaisonFilingPhase && (
-                                        <>
-                                          <Tag color={m.is_qualified ? "green" : "red"}>
-                                            {m.is_qualified ? "合格" : "不合格"}
-                                          </Tag>
-                                          {m.audit_round > 0 && <Tag>审核 {m.audit_round} 轮</Tag>}
-                                        </>
-                                      )}
-                                    </Space>
-                                  }
-                                />
-                              </List.Item>
-                            )}
-                          />
-                        </div>
+                        <Table
+                          dataSource={materials}
+                          rowKey="id"
+                          size="small"
+                          style={{ marginTop: 16 }}
+                          pagination={false}
+                          columns={[
+                            { title: "材料名称", dataIndex: "name", key: "name" },
+                            { title: "签署状态", key: "sign", width: 100, render: (_: unknown, m: any) => (
+                              <Tag color={m.sign_status === "signed" ? "green" : "default"}>
+                                {m.sign_status === "signed" ? "已签署" : "未签署"}
+                              </Tag>
+                            )},
+                            ...(isGovLiaisonFilingPhase ? [
+                              { title: "合规", key: "qual", width: 80, render: (_: unknown, m: any) => (
+                                <Tag color={m.is_qualified ? "green" : "red"}>{m.is_qualified ? "合格" : "不合格"}</Tag>
+                              )},
+                              { title: "审查轮次", key: "audit", width: 80, render: (_: unknown, m: any) => (
+                                m.audit_round > 0 ? <Tag>{m.audit_round} 轮</Tag> : <Typography.Text type="secondary">—</Typography.Text>
+                              )},
+                            ] : []),
+                            { title: "操作", key: "actions", width: 200, render: (_: unknown, m: any) => (
+                              <Space size={4}>
+                                <Button size="small" type="link"
+                                  onClick={async () => {
+                                    try {
+                                      const mAny = m as any;
+                                      if (mAny.minio_path) {
+                                        const r = await documentsApi.getPresignedByPath(mAny.minio_path);
+                                        if (r.data.url) { window.open(r.data.url, "_blank"); return; }
+                                      }
+                                      message.warning("暂无预览文件");
+                                    } catch { message.error("预览失败"); }
+                                  }}>预览</Button>
+                                {isOfficerFilingPhase && canSign && m.sign_status !== "signed" && (
+                                  <Button size="small" onClick={() => signMutation.mutate(m.id)} loading={signMutation.isPending}>签署</Button>
+                                )}
+                                {isGovLiaisonFilingPhase && canAudit && (
+                                  <Button size="small"
+                                    onClick={() => { setAuditTarget({ id: m.id, name: m.name }); setAuditConclusion(m.is_qualified ? "qualified" : "unqualified"); setAuditOpinion(""); }}>审查</Button>
+                                )}
+                              </Space>
+                            )},
+                          ]}
+                        />
                       )}
 
                       {/* audit history: only in GovLiaison+ phases */}

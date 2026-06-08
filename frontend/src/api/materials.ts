@@ -17,6 +17,9 @@ export interface MaterialWithStatus {
   audit_round: number;
   opinion: string | null;
   upload_time: string;
+  material_type: string;
+  minio_path: string;
+  current_version: number;
 }
 
 export const materialsApi = {
