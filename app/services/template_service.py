@@ -441,7 +441,7 @@ class TemplateService:
             raise ValueError("驳回后请先生成新版本再提交审核")
 
         activity = await self.db.get(Activity, activity_id)
-        if not activity or activity.status != "待安保方案设计":
+        if not activity or activity.status not in ("待安保方案设计", "待补充备案材料"):
             raise ValueError("当前状态不允许提交审核")
 
         entity.audit_status = "待签署"
