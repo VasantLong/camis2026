@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Descriptions, Tabs, Button, Tag, Spin, Typography, Space, Modal, Input, message, Table, List, Select, Upload, Checkbox, Empty } from "antd";
+import { Descriptions, Tabs, Button, Tag, Spin, Typography, Space, Modal, Input, message, Table, List, Select, Upload, Checkbox, Empty, Alert } from "antd";
 import { ArrowLeftOutlined, UploadOutlined, EyeOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -1178,6 +1178,13 @@ export default function ActivityDetailPage() {
                   ),
                   children: (
                     <div>
+                      {/* Phase banner */}
+                      {isOfficerFilingPhase && (
+                        <Alert type="info" showIcon message="备案材料打包" description="请确认所有材料已签署，然后打包备案材料并确认纸质交接。" style={{ marginBottom: 16 }} />
+                      )}
+                      {isGovLiaisonFilingPhase && isGovLiaison && (
+                        <Alert type="info" showIcon message="政府审查" description="请逐项审查备案材料，全部审查完毕后做出审批决定。" style={{ marginBottom: 16 }} />
+                      )}
                       {/* FilingValidatePanel: only in GovLiaison phase */}
                       {isGovLiaisonFilingPhase && isGovLiaison && (
                         validationLoading ? <Spin /> : <FilingValidatePanel data={validation} />
