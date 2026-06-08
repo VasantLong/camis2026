@@ -773,6 +773,7 @@ export default function ActivityDetailPage() {
                                       activityId={id!}
                                       schema={riskMaterial.schema}
                                       disabled={!!(securityPlan?.audit_status && securityPlan.audit_status !== "待编制")}
+                                      highlightFields={highlightFields}
                                       onSaveDraft={async (data) => {
                                         await templatesApi.saveMaterialDraft(id!, riskMaterial.materialId!, data);
                                       }}
@@ -822,6 +823,7 @@ export default function ActivityDetailPage() {
                                       activityId={id!}
                                       schema={respMaterial.schema}
                                       disabled={!!(securityPlan?.audit_status && securityPlan.audit_status !== "待编制")}
+                                      highlightFields={highlightFields}
                                       onSaveDraft={async (data) => {
                                         await templatesApi.saveMaterialDraft(id!, respMaterial.materialId!, data);
                                       }}
