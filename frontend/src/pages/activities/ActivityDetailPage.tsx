@@ -1135,6 +1135,7 @@ export default function ActivityDetailPage() {
                                 queryClient.invalidateQueries({ queryKey: ["activities", id] });
                                 refetchSecuritySchema();
                               } catch (e: any) {
+                                console.error("submitSecurityPlanReview:", e?.response?.data?.detail || e);
                                 message.error(e?.response?.data?.detail || "提交失败");
                               } finally {
                                 setFinalizing(false);
