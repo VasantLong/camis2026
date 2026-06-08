@@ -787,14 +787,36 @@ export default function ActivityDetailPage() {
                                       <Button size="small" disabled style={{ marginLeft: "auto" }}>被驳回，请先生成新版本</Button>
                                     ) : allThreeReady ? (
                                       <Button type="primary" size="small" style={{ marginLeft: "auto" }}
-                                        onClick={() => {
+                                        onClick={async () => {
                                           const allErrs: ValidationError[] = [];
-                                          // business-logic validation
                                           const spRL = securityPlanSchema?.risk_level;
-                                          allErrs.push(...validateSecurityPlan(securityPlanSchema?.snapshot_data, spRL));
-                                          if (securityPlanSchema?.fields) allErrs.push(...validateAllFieldsFilled(securityPlanSchema?.snapshot_data, securityPlanSchema.fields, "安保方案", spRL));
+                                          const currentSnap = securityPlanSchema?.snapshot_data || {};
+                                          allErrs.push(...validateSecurityPlan(currentSnap, spRL));
+                                          if (securityPlanSchema?.fields) allErrs.push(...validateAllFieldsFilled(currentSnap, securityPlanSchema.fields, "安保方案", spRL));
                                           if (riskSchema?.fields) allErrs.push(...validateAllFieldsFilled(riskSchema?.snapshot_data, riskSchema.fields, "风险评估表", null));
                                           if (respMaterial.schema?.fields) allErrs.push(...validateAllFieldsFilled(respMaterial.schema?.snapshot_data, respMaterial.schema.fields, "责任确认书", null));
+
+                                          // If rejected, ensure highlighted fields actually changed vs the rejected version
+                                          if (highlightFields && highlightFields.length > 0 && securityPlan?.rejected_at) {
+                                            const rejectedAt = new Date(securityPlan.rejected_at).getTime();
+                                            const rejectedVer = [...securityPlanVersions]
+                                              .sort((a, b) => new Date(b.created_at || "").getTime() - new Date(a.created_at || "").getTime())
+                                              .find(v => v.created_at && new Date(v.created_at).getTime() <= rejectedAt);
+                                            if (rejectedVer) {
+                                              try {
+                                                const detail = await templatesApi.getSecurityPlanVersionDetail(id!, rejectedVer.version_number);
+                                                const rejectedSnap = detail.data.data_snapshot || {};
+                                                for (const f of highlightFields) {
+                                                  if (currentSnap[f] != null && rejectedSnap[f] != null
+                                                      && String(currentSnap[f]) === String(rejectedSnap[f])) {
+                                                    const label = securityPlanSchema?.fields?.find((sf: any) => sf.name === f)?.ui_label || f;
+                                                    allErrs.push({ field: f, label, reason: "与被驳回版本一致，请修改后重新生成" });
+                                                  }
+                                                }
+                                              } catch { /* version detail fetch may fail; skip check */ }
+                                            }
+                                          }
+
                                           if (allErrs.length > 0) { setValidationContext("submit"); setValidationErrors(allErrs); setValidationModalOpen(true); }
                                           else { setSecuritySubmitOpen(true); }
                                         }}>
