@@ -25,6 +25,7 @@ from app.templates import (
 from app.templates.security_plan.schema import CONDITIONAL_FIELDS
 
 logger = logging.getLogger("camis.template")
+_pdf_semaphore = asyncio.Semaphore(1)
 
 MINIO_BUCKET = "camis2026"
 
@@ -918,20 +919,21 @@ async def render_pdf_background(
     """Generate PDF in background with its own DB session."""
     from app.database import async_session
 
-    async with async_session() as db:
-        pdf_path = f"filled_documents/{activity_id}/{template_type}/v{version_number}.pdf"
-        try:
-            pdf_bytes = await _docx_to_pdf_sync(docx_bytes)
-            await minio_client.upload_file(pdf_path, pdf_bytes, "application/pdf")
-            fd = await db.get(FilledDocument, fd_id)
-            if fd:
-                fd.pdf_path = pdf_path
-                await db.commit()
-            logger.info("pdf render ok fd=%s path=%s", fd_id, pdf_path)
-        except Exception as e:
-            logger.warning("pdf render failed fd=%s type=%s: %s", fd_id, template_type, e)
-            import traceback
-            traceback.print_exc()
+    async with _pdf_semaphore:
+        async with async_session() as db:
+            pdf_path = f"filled_documents/{activity_id}/{template_type}/v{version_number}.pdf"
+            try:
+                pdf_bytes = await _docx_to_pdf_sync(docx_bytes)
+                await minio_client.upload_file(pdf_path, pdf_bytes, "application/pdf")
+                fd = await db.get(FilledDocument, fd_id)
+                if fd:
+                    fd.pdf_path = pdf_path
+                    await db.commit()
+                logger.info("pdf render ok fd=%s path=%s", fd_id, pdf_path)
+            except Exception as e:
+                logger.warning("pdf render failed fd=%s type=%s: %s", fd_id, template_type, e)
+                import traceback
+                traceback.print_exc()
 
 
 async def _docx_to_pdf_sync(docx_bytes: bytes) -> bytes:
