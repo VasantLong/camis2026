@@ -15,6 +15,7 @@ import HandoverConfirm from "@/components/filings/HandoverConfirm";
 import TemplateForm from "@/components/templates/TemplateForm";
 import VersionTimeline from "@/components/templates/VersionTimeline";
 import VersionSnapshot from "@/components/templates/VersionSnapshot";
+import CommitmentSign from "@/components/templates/CommitmentSign";
 import { useMaterialSchema } from "@/hooks/useMaterialSchema";
 import { validateAllFieldsFilled, validateActivityPlan, validateSecurityPlan, validateRiskAssessment, validateResponsibilityLetter, type ValidationError } from "@/utils/templateValidation";
 import { filingsApi } from "@/api/filings";
@@ -151,6 +152,7 @@ export default function ActivityDetailPage() {
   const [managerSignaturePath, setManagerSignaturePath] = useState<string | null>(null);
   const [signaturePreview, setSignaturePreview] = useState<string | null>(null);
   const [signatureUploadTime, setSignatureUploadTime] = useState<string | null>(null);
+  const [step1Done, setStep1Done] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReasons, setRejectReasons] = useState<string[]>([]);
   const [rejectComment, setRejectComment] = useState("");
@@ -525,8 +527,8 @@ export default function ActivityDetailPage() {
                                   setFinalizing(true);
                                   try {
                                     await templatesApi.signSecurityPlan(id!, managerSignaturePath!);
-                                    message.success("已签署确认，方案已提交至备案申请");
-                                    setManagerSignaturePath(null);
+                                    message.success("已签署三份安保文件，请继续签署备案承诺书");
+                                    setStep1Done(true);
                                     queryClient.invalidateQueries({ queryKey: ["activities", id] });
                                     queryClient.invalidateQueries({ queryKey: ["activities", id, "security-plan"] });
                                     refetchSecuritySchema();
@@ -538,7 +540,7 @@ export default function ActivityDetailPage() {
                                 }}
                                 loading={finalizing}
                               >
-                                确认签署并提交备案
+                                确认签署
                               </Button>
                               <Button
                                 danger
@@ -553,6 +555,28 @@ export default function ActivityDetailPage() {
                             </Space>
                           </div>
                         </div>
+                        {step1Done && (
+                          <CommitmentSign
+                            activityId={id!}
+                            activityName={activity?.name || ""}
+                            sponsor={activity?.sponsor || ""}
+                            estimatedTime={activity?.estimated_time ? dayjs(activity.estimated_time).format("YYYY年MM月DD日") : ""}
+                            location={activity?.location || ""}
+                            crowdScale={String(planSchema?.snapshot_data?.opening_crowd || planSchema?.snapshot_data?.regular_crowd || "")}
+                            securityStaffCount={String(securityPlanSchema?.snapshot_data?.security_staff_count || "")}
+                            signatureUrl={signaturePreview}
+                            onSigned={() => {
+                              setStep1Done(false);
+                              setSignaturePreview(null);
+                              setManagerSignaturePath(null);
+                              setSignatureUploadTime(null);
+                              queryClient.invalidateQueries({ queryKey: ["activities", id] });
+                              queryClient.invalidateQueries({ queryKey: ["activities", id, "security-plan"] });
+                              queryClient.invalidateQueries({ queryKey: ["activities", id, "filing", "status"] });
+                              refetchSecuritySchema();
+                            }}
+                          />
+                        )}
                         <Modal
                           title="驳回安保方案"
                           open={rejectOpen}
@@ -596,7 +620,7 @@ export default function ActivityDetailPage() {
                           </div>
                         </Modal>
                         </>
-                      ) : isManager && securityPlan?.audit_status === "已签署" ? (
+                      ) : isManager && securityPlan?.audit_status === "已签署" && activity?.status !== "待安保方案设计" ? (
                         <div>
                           <div style={{ marginBottom: 16, padding: "8px 16px", background: "#f6ffed", borderRadius: 4, border: "1px solid #b7eb8f" }}>
                             <Typography.Text strong style={{ color: "#52c41a" }}>已签署确认</Typography.Text>
@@ -615,6 +639,26 @@ export default function ActivityDetailPage() {
                             }
                           />
                         </div>
+                      ) : isManager && securityPlan?.audit_status === "已签署" && activity?.status === "待安保方案设计" ? (
+                        <CommitmentSign
+                          activityId={id!}
+                          activityName={activity?.name || ""}
+                          sponsor={activity?.sponsor || ""}
+                          estimatedTime={activity?.estimated_time ? dayjs(activity.estimated_time).format("YYYY年MM月DD日") : ""}
+                          location={activity?.location || ""}
+                          crowdScale={String(planSchema?.snapshot_data?.opening_crowd || planSchema?.snapshot_data?.regular_crowd || "")}
+                          securityStaffCount={String(securityPlanSchema?.snapshot_data?.security_staff_count || "")}
+                          signatureUrl={signaturePreview}
+                          onSigned={() => {
+                            setSignaturePreview(null);
+                            setManagerSignaturePath(null);
+                            setSignatureUploadTime(null);
+                            queryClient.invalidateQueries({ queryKey: ["activities", id] });
+                            queryClient.invalidateQueries({ queryKey: ["activities", id, "security-plan"] });
+                            queryClient.invalidateQueries({ queryKey: ["activities", id, "filing", "status"] });
+                            refetchSecuritySchema();
+                          }}
+                        />
                       ) : isManager ? (
                         <VersionTimeline
                           versions={securityPlanVersions}
