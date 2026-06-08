@@ -134,3 +134,20 @@ export function validateResponsibilityLetter(
 
   return errors;
 }
+
+/** Validate every visible field has a non-empty value (submit gate). */
+export function validateAllFieldsFilled(
+  snapshot: Record<string, unknown> | null | undefined,
+  fields: { name: string; ui_label: string; ui_type: string }[],
+): ValidationError[] {
+  const errors: ValidationError[] = [];
+  if (!snapshot) return errors;
+  for (const f of fields) {
+    if (f.ui_type === "autofill" || f.ui_type === "declarations") continue;
+    const v = snapshot[f.name];
+    if (v === undefined || v === null || v === "") {
+      errors.push({ field: f.name, label: f.ui_label, reason: "请填写" });
+    }
+  }
+  return errors;
+}

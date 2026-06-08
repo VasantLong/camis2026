@@ -16,7 +16,7 @@ import TemplateForm from "@/components/templates/TemplateForm";
 import VersionTimeline from "@/components/templates/VersionTimeline";
 import VersionSnapshot from "@/components/templates/VersionSnapshot";
 import { useMaterialSchema } from "@/hooks/useMaterialSchema";
-import { validateActivityPlan, validateSecurityPlan, validateRiskAssessment, validateResponsibilityLetter, type ValidationError } from "@/utils/templateValidation";
+import { validateAllFieldsFilled, validateActivityPlan, validateSecurityPlan, validateRiskAssessment, validateResponsibilityLetter, type ValidationError } from "@/utils/templateValidation";
 import { filingsApi } from "@/api/filings";
 import { documentsApi } from "@/api/documents";
 import { activitiesApi } from "@/api/activities";
@@ -676,8 +676,14 @@ export default function ActivityDetailPage() {
                                     ) : allThreeReady ? (
                                       <Button type="primary" size="small" style={{ marginLeft: "auto" }}
                                         onClick={() => {
-                                          const errs = validateSecurityPlan(securityPlanSchema?.snapshot_data, securityPlanSchema?.risk_level);
-                                          if (errs.length > 0) { setValidationErrors(errs); setValidationModalOpen(true); }
+                                          const allErrs: ValidationError[] = [];
+                                          // business-logic validation
+                                          allErrs.push(...validateSecurityPlan(securityPlanSchema?.snapshot_data, securityPlanSchema?.risk_level));
+                                          // all-fields-filled validation (security plan + 双表)
+                                          if (securityPlanSchema?.fields) allErrs.push(...validateAllFieldsFilled(securityPlanSchema?.snapshot_data, securityPlanSchema.fields));
+                                          if (riskMaterial.schema?.fields) allErrs.push(...validateAllFieldsFilled(riskMaterial.schema?.snapshot_data, riskMaterial.schema.fields));
+                                          if (respMaterial.schema?.fields) allErrs.push(...validateAllFieldsFilled(respMaterial.schema?.snapshot_data, respMaterial.schema.fields));
+                                          if (allErrs.length > 0) { setValidationErrors(allErrs); setValidationModalOpen(true); }
                                           else { setSecuritySubmitOpen(true); }
                                         }}>
                                         提交审核
