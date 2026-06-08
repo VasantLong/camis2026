@@ -1,4 +1,4 @@
-import { Fragment, useState, useEffect, useCallback } from "react";
+import { Fragment, useState, useEffect, useCallback, useRef } from "react";
 import {
   Form,
   Input,
@@ -39,6 +39,7 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [changedFields, setChangedFields] = useState<Set<string>>(new Set());
   const [isDirty, setIsDirty] = useState(false);
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [highlightSet, setHighlightSet] = useState<Set<string>>(new Set());
   const [sigPreviews, setSigPreviews] = useState<Record<string, string>>({});
 
@@ -77,6 +78,17 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
   const clearHighlights = () => {
     if (highlightSet.size > 0) setHighlightSet(new Set());
   };
+
+  // Debounced auto-save: persist draft 2s after last change so cross-tab autofill works
+  useEffect(() => {
+    if (!isDirty || !onSaveDraft) return;
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(async () => {
+      const data = serializeFormData(form, visibleFields(schema.fields));
+      try { await onSaveDraft(data); } catch { /* best-effort */ }
+    }, 2000);
+    return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
+  }, [isDirty]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Track changed fields vs snapshot
   const handleValuesChange = (_changed: Record<string, unknown>, allValues: Record<string, unknown>) => {
