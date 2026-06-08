@@ -137,6 +137,7 @@ class AuditHistoryItem(BaseModel):
     id: str
     action: str
     user_name: str
+    material_name: str = ""
     conclusion: str | None = None
     opinion: str | None = None
     created_at: str
