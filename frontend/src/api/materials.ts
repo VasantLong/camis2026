@@ -4,6 +4,7 @@ export interface AuditHistoryItem {
   id: string;
   action: string;
   user_name: string;
+  material_name: string;
   conclusion: string | null;
   opinion: string | null;
   created_at: string;

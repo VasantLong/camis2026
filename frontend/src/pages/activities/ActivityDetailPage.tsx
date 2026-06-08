@@ -1331,9 +1331,9 @@ export default function ActivityDetailPage() {
                         <div style={{ marginTop: 16 }}>
                           <Typography.Text strong style={{ display: "block", marginBottom: 8 }}>审核记录</Typography.Text>
                           <Timeline
-                            items={auditHistory.map((h: any) => ({
+                            items={auditHistory.map((h) => ({
                               color: h.action === "sign" ? "blue" : h.conclusion === "qualified" ? "green" : "red",
-                              children: (
+                              content: (
                                 <div>
                                   <Typography.Text style={{ fontSize: 12, color: "#888" }}>
                                     {new Date(h.created_at).toLocaleString("zh-CN")}
