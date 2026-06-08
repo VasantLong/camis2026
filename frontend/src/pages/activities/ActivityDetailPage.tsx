@@ -680,11 +680,11 @@ export default function ActivityDetailPage() {
                                         onClick={() => {
                                           const allErrs: ValidationError[] = [];
                                           // business-logic validation
-                                          allErrs.push(...validateSecurityPlan(securityPlanSchema?.snapshot_data, securityPlanSchema?.risk_level));
-                                          // all-fields-filled validation (security plan + 双表)
-                                          if (securityPlanSchema?.fields) allErrs.push(...validateAllFieldsFilled(securityPlanSchema?.snapshot_data, securityPlanSchema.fields));
-                                          if (riskMaterial.schema?.fields) allErrs.push(...validateAllFieldsFilled(riskMaterial.schema?.snapshot_data, riskMaterial.schema.fields));
-                                          if (respMaterial.schema?.fields) allErrs.push(...validateAllFieldsFilled(respMaterial.schema?.snapshot_data, respMaterial.schema.fields));
+                                          const spRL = securityPlanSchema?.risk_level;
+                                          allErrs.push(...validateSecurityPlan(securityPlanSchema?.snapshot_data, spRL));
+                                          if (securityPlanSchema?.fields) allErrs.push(...validateAllFieldsFilled(securityPlanSchema?.snapshot_data, securityPlanSchema.fields, "安保方案", spRL));
+                                          if (riskMaterial.schema?.fields) allErrs.push(...validateAllFieldsFilled(riskMaterial.schema?.snapshot_data, riskMaterial.schema.fields, "风险评估表", null));
+                                          if (respMaterial.schema?.fields) allErrs.push(...validateAllFieldsFilled(respMaterial.schema?.snapshot_data, respMaterial.schema.fields, "责任确认书", null));
                                           if (allErrs.length > 0) { setValidationContext("submit"); setValidationErrors(allErrs); setValidationModalOpen(true); }
                                           else { setSecuritySubmitOpen(true); }
                                         }}>
