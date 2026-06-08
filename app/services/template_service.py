@@ -95,18 +95,27 @@ class TemplateService:
             schema["risk_level"] = risk_level
 
         # autofill: provide Activity + ActivityPlan snapshot data
-        autofill_fields = [f for f in schema.get("fields", []) if f.get("ui_type") == "autofill"]
-        if autofill_fields:
+        # source A: Activity model
+        ACTIVITY_FIELD_MAP = {
+            "project_name": "name",
+            "sponsor": "sponsor",
+            "location_type": "location",
+            "activity_type": "type",
+        }
+        # source B: ActivityPlan snapshot (if plan has been generated)
+        PLAN_FIELD_MAP = {
+            "activity_content": "activity_content",
+            "activity_start": "start_time",
+            "activity_end": "end_time",
+            "staff_count": "staff_count",
+            "crowd_scale": "opening_crowd",   # 主要活动日人数（峰值），fallback below
+        }
+        # include any field that has a mapping, regardless of ui_type
+        all_field_names = {f["name"] for f in schema.get("fields", [])}
+        mappable = all_field_names & (set(ACTIVITY_FIELD_MAP) | set(PLAN_FIELD_MAP))
+        if mappable:
             autofill_data: dict[str, object] = {}
-            # source A: Activity model
-            ACTIVITY_FIELD_MAP = {
-                "project_name": "name",
-                "sponsor": "sponsor",
-                "location_type": "location",
-                "activity_type": "type",
-            }
             activity = await self.db.get(Activity, activity_id)
-            # source B: ActivityPlan snapshot (if plan has been generated)
             plan_snapshot: dict[str, object] = {}
             plan_result = await self.db.execute(
                 select(ActivityPlan).where(ActivityPlan.activity_id == activity_id)
@@ -116,23 +125,13 @@ class TemplateService:
                 plan_fd = await self.db.get(FilledDocument, plan.current_filled_document_id)
                 if plan_fd and plan_fd.data_snapshot:
                     plan_snapshot = plan_fd.data_snapshot
-            PLAN_FIELD_MAP = {
-                "activity_content": "activity_content",
-                "activity_start": "start_time",
-                "activity_end": "end_time",
-                "staff_count": "staff_count",
-                "crowd_scale": "opening_crowd",   # 主要活动日人数（峰值），fallback below
-            }
-            for f in autofill_fields:
-                name = f["name"]
-                # try Activity first, then plan snapshot
+            for name in mappable:
                 if name in ACTIVITY_FIELD_MAP and activity:
                     attr = ACTIVITY_FIELD_MAP[name]
                     autofill_data[name] = getattr(activity, attr, None) or ""
                 elif name in PLAN_FIELD_MAP:
                     plan_key = PLAN_FIELD_MAP[name]
                     val = plan_snapshot.get(plan_key, "") or ""
-                    # crowd_scale: fallback to regular_crowd if opening_crowd unavailable
                     if plan_key == "opening_crowd" and not val:
                         val = plan_snapshot.get("regular_crowd", "") or ""
                     autofill_data[name] = val
