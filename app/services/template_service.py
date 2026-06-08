@@ -196,7 +196,7 @@ class TemplateService:
         risk_level = getattr(entity, "risk_level", None)
 
         # DOCX deferred for types that require Manager signing
-        DEFERRED_TYPES = {"security_plan", "risk_assessment", "responsibility_letter"}
+        DEFERRED_TYPES = {"security_plan", "risk_assessment", "responsibility_letter", "filing_commitment"}
         is_deferred = template_type in DEFERRED_TYPES
 
         docx_bytes = None
@@ -427,7 +427,7 @@ class TemplateService:
             raise ValueError("当前活动状态不允许签署")
 
         # Generate DOCX for all deferred types linked to this activity
-        DEFERRED_TYPES = ["security_plan", "risk_assessment", "responsibility_letter"]
+        DEFERRED_TYPES = ["security_plan", "risk_assessment", "responsibility_letter", "filing_commitment"]
         for ttype in DEFERRED_TYPES:
             fds = await self.db.execute(
                 select(FilledDocument).where(
@@ -677,6 +677,9 @@ class TemplateService:
                 entity = ActivityPlan(activity_id=activity_id, designer_id=user_id)
                 self.db.add(entity)
                 await self.db.flush()
+                km = await self.get_or_create_material(activity_id, "activity_plan")
+                entity.material_id = km.id
+                await self.db.flush()
             return entity
         elif entity_type == "security_plan":
             result = await self.db.execute(
@@ -686,6 +689,9 @@ class TemplateService:
             if not entity:
                 entity = SecurityPlan(activity_id=activity_id)
                 self.db.add(entity)
+                await self.db.flush()
+                km = await self.get_or_create_material(activity_id, "security_plan")
+                entity.material_id = km.id
                 await self.db.flush()
             return entity
         elif entity_type == "key_material":
