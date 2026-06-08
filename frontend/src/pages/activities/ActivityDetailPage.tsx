@@ -787,7 +787,7 @@ export default function ActivityDetailPage() {
                             respMaterial.schema ? { key: "resp", label: "责任确认书", children: <VersionSnapshot schema={respMaterial.schema} /> } : null,
                           ].filter(Boolean) as any} />
                         </>
-                      ) : isManager ? (
+                      ) : isManager && securityPlan?.audit_status !== "待签署" ? (
                         <VersionTimeline
                           versions={securityPlanVersions}
                           onViewDetail={(v) =>
@@ -1168,9 +1168,9 @@ export default function ActivityDetailPage() {
                             templatesApi.getSecurityPlanVersionDiff(id!, v1, v2).then((r) => r.data)
                           }
                         />
-                      ) : (
+                      ) : !isManager ? (
                         <VersionSnapshot schema={securityPlanSchema} />
-                      )}
+                      ) : null}
                     </div>
                   ) : (
                     <Spin />
