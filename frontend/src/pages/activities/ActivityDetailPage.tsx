@@ -1244,8 +1244,6 @@ export default function ActivityDetailPage() {
                                             message.warning("暂无预览文件");
                                           } catch { message.error("预览失败"); }
                                         }}>预览</Button>
-                                      <Button size="small"
-                                        onClick={() => { setAuditTarget({ id: m.id, name: m.name }); setAuditConclusion(m.is_qualified ? "qualified" : "unqualified"); setAuditOpinion(""); }}>审查</Button>
                                     </Space>
                                   )},
                                 ]}
