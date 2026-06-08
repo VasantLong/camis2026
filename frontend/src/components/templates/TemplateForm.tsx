@@ -70,12 +70,25 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
     }
     let hasAnyChange = false;
     const diff = new Set<string>();
-    for (const f of schema.fields) {
-      const cur = serializeFieldValue(allValues[f.name], f);
-      const snap = snapshot ? snapshot[f.name] : undefined;
-      if (snap !== undefined && cur !== snap && cur !== "") {
-        diff.add(f.name);
-        hasAnyChange = true;
+    if (snapshot) {
+      for (const f of schema.fields) {
+        const cur = serializeFieldValue(allValues[f.name], f);
+        const snap = snapshot[f.name];
+        if (snap !== undefined && cur !== snap && cur !== "") {
+          diff.add(f.name);
+          hasAnyChange = true;
+        }
+      }
+    } else {
+      // no snapshot — form is dirty if any field has a non-default value
+      for (const f of schema.fields) {
+        const cur = allValues[f.name];
+        if (cur !== undefined && cur !== null && cur !== "" && cur !== 0) {
+          if (f.ui_type !== "repeater" || (Array.isArray(cur) && (cur as any[]).length > 0)) {
+            hasAnyChange = true;
+            break;
+          }
+        }
       }
     }
     setChangedFields(diff);
@@ -135,7 +148,7 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
     setIsDirty(hasDraft);
   }, [schema, form]);  // eslint-disable-line react-hooks/exhaustive-deps
 
-  const buttonsEnabled = !loading && !submitting && (isDirty || !snapshot);
+  const buttonsEnabled = !loading && !submitting && isDirty;
 
   const visibleFields = useCallback(
     (fields: FieldDef[]) => {
