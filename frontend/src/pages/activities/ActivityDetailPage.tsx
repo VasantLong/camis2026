@@ -21,6 +21,7 @@ import { filingsApi } from "@/api/filings";
 import { documentsApi } from "@/api/documents";
 import { activitiesApi } from "@/api/activities";
 import { materialsApi } from "@/api/materials";
+import { workflowsApi } from "@/api/workflows";
 import { templatesApi } from "@/api/templates";
 import { useAuthStore } from "@/stores/authStore";
 import { STATUS_COLOR_MAP } from "@/utils/constants";
@@ -39,6 +40,11 @@ export default function ActivityDetailPage() {
   );
   const [activeTab, setActiveTab] = useState("detail");
   const [templateTab, setTemplateTab] = useState<"security_plan" | "risk_assessment" | "responsibility_letter">("security_plan");
+  // GovLiaison approval
+  const [approvalDocPath, setApprovalDocPath] = useState<string | null>(null);
+  const [approvalAction, setApprovalAction] = useState<"approve" | "revise" | "reject" | null>(null);
+  const [approvalModalOpen, setApprovalModalOpen] = useState(false);
+  const [approvalComment, setApprovalComment] = useState("");
   const userPermissions = useAuthStore((s) => s.user?.permissions);
   const permissions = userPermissions ?? [];
 
@@ -89,6 +95,7 @@ export default function ActivityDetailPage() {
   const canEditSecurity = permissions.includes("manage_security");
   const isManager = permissions.includes("review_security_plan");
   const isAdmin = permissions.includes("view_dashboard") && !canEditPlan && !canEditSecurity;
+  const isGovLiaison = permissions.includes("audit_material") && !canEditPlan && !canEditSecurity && !isManager;
 
   const { data: planSchema } = useQuery({
     queryKey: ["activities", id, "templates", "plan-schema"],
@@ -1109,6 +1116,100 @@ export default function ActivityDetailPage() {
                           refetchFilingStatus();
                         }}
                       />
+
+                      {/* GovLiaison review panel */}
+                      {isGovLiaison && activity?.status === "备案材料已交接" && (() => {
+                        const auditedCount = materials.filter(m => m.audit_round > 0).length;
+                        const allAudited = materials.length > 0 && auditedCount === materials.length;
+                        const targetStatus = approvalAction === "approve" ? "审批通过" : approvalAction === "revise" ? "待补充备案材料" : "不通过/已终止";
+                        return (
+                          <div style={{ marginTop: 24, padding: 16, border: "1px solid #1677ff", borderRadius: 8 }}>
+                            <Typography.Title level={5}>政府对接 — 审批决策</Typography.Title>
+                            <div style={{ marginBottom: 16 }}>
+                              <Typography.Text strong>材料审查状态：</Typography.Text>
+                              {allAudited ? (
+                                <Tag color="green">全部材料已审查（{materials.length}项）</Tag>
+                              ) : (
+                                <Tag color="orange">尚有 {materials.length - auditedCount} 项材料待审查</Tag>
+                              )}
+                            </div>
+                            <div style={{ marginBottom: 16 }}>
+                              <Typography.Text strong>上传政府批文（可选）：</Typography.Text>
+                              <Upload
+                                accept=".pdf,.jpg,.png,.doc,.docx"
+                                maxCount={1}
+                                showUploadList={false}
+                                customRequest={async ({ file, onSuccess, onError }) => {
+                                  try {
+                                    const res = await documentsApi.upload(id!, file as File, ["approval"]);
+                                    setApprovalDocPath(res.data.minio_path);
+                                    onSuccess?.(res.data);
+                                    message.success("批文已上传");
+                                  } catch {
+                                    onError?.(new Error("上传失败"));
+                                    message.error("批文上传失败");
+                                  }
+                                }}
+                              >
+                                <Button icon={<UploadOutlined />}>选择批文文件</Button>
+                              </Upload>
+                              {approvalDocPath && <Tag color="blue" style={{ marginTop: 8 }}>已上传</Tag>}
+                            </div>
+                            <Space>
+                              <Button type="primary" disabled={!allAudited}
+                                onClick={() => { setApprovalAction("approve"); setApprovalComment(""); setApprovalModalOpen(true); }}>
+                                审批通过
+                              </Button>
+                              <Button disabled={!allAudited}
+                                onClick={() => { setApprovalAction("revise"); setApprovalComment(""); setApprovalModalOpen(true); }}>
+                                要求补件
+                              </Button>
+                              <Button danger
+                                onClick={() => { setApprovalAction("reject"); setApprovalComment(""); setApprovalModalOpen(true); }}>
+                                驳回—不通过
+                              </Button>
+                            </Space>
+                            <Modal
+                              title={approvalAction === "approve" ? "确认审批通过" : approvalAction === "revise" ? "要求补充材料" : "确认驳回"}
+                              open={approvalModalOpen}
+                              onOk={async () => {
+                                try {
+                                  const comment = approvalDocPath ? `[批文] ${approvalDocPath}；${approvalComment}` : approvalComment;
+                                  await workflowsApi.transition(id!, { to_status: targetStatus, comment: comment || undefined });
+                                  message.success("审批结果已提交");
+                                  queryClient.invalidateQueries({ queryKey: ["activities", id] });
+                                  queryClient.invalidateQueries({ queryKey: ["activities", id, "filing", "status"] });
+                                  setApprovalModalOpen(false);
+                                  setApprovalDocPath(null);
+                                } catch (e: any) {
+                                  message.error(e?.response?.data?.detail || "操作失败");
+                                }
+                              }}
+                              onCancel={() => setApprovalModalOpen(false)}
+                              okText="确认"
+                              cancelText="取消"
+                            >
+                              {approvalAction === "approve" && "确认该活动审批通过？活动将进入「审批通过」状态。"}
+                              {approvalAction === "revise" && (
+                                <>
+                                  <Typography.Paragraph type="secondary">请输入补件说明，告知需要补充哪些材料：</Typography.Paragraph>
+                                  <Input.TextArea rows={3} value={approvalComment}
+                                    onChange={(e) => setApprovalComment(e.target.value)}
+                                    placeholder="说明需要补充的材料..." />
+                                </>
+                              )}
+                              {approvalAction === "reject" && (
+                                <>
+                                  <Typography.Paragraph type="secondary">确认驳回该活动？活动将进入「不通过/已终止」状态。请填写驳回原因：</Typography.Paragraph>
+                                  <Input.TextArea rows={3} value={approvalComment}
+                                    onChange={(e) => setApprovalComment(e.target.value)}
+                                    placeholder="驳回原因..." />
+                                </>
+                              )}
+                            </Modal>
+                          </div>
+                        );
+                      })()}
                     </div>
                   ),
                 },
