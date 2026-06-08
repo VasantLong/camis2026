@@ -129,7 +129,7 @@ export default function ActivityDetailPage() {
     enabled: canViewSecurity,
   });
 
-  const canViewTemplates = (canEditSecurity || isManager) && !!activity?.status && ["待安保方案设计", "待备案申请"].includes(activity.status);
+  const canViewTemplates = (canEditSecurity || isManager) && !!activity?.status && ["待安保方案设计", "待备案申请", "待补充备案材料"].includes(activity.status);
   const riskMaterial = useMaterialSchema(id!, "risk_assessment", !!canViewTemplates);
   const respMaterial = useMaterialSchema(id!, "responsibility_letter", !!canViewTemplates);
 
@@ -816,7 +816,7 @@ export default function ActivityDetailPage() {
                         </div>
                       ) : canEditSecurity ? (
                         <>
-                          {activity?.status === "待安保方案设计" ? (
+                          {(activity?.status === "待安保方案设计" || activity?.status === "待补充备案材料") ? (
                             <>
                               {(() => {
                                 const auditStatus = securityPlan?.audit_status;
@@ -1293,6 +1293,7 @@ export default function ActivityDetailPage() {
                                   message.success("审批结果已提交");
                                   queryClient.invalidateQueries({ queryKey: ["activities", id] });
                                   queryClient.invalidateQueries({ queryKey: ["activities", id, "filing", "status"] });
+                                  queryClient.invalidateQueries({ queryKey: ["activities", id, "security-plan"] });
                                   setApprovalModalOpen(false); setApprovalDocPath(null);
                                 } catch (e: any) { message.error(e?.response?.data?.detail || "操作失败"); }
                               }}
