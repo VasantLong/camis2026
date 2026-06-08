@@ -652,6 +652,7 @@ class TemplateService:
         km = await self.get_or_create_material(activity_id, "filing_commitment")
         km.current_filled_document_id = commit_fd.id
         km.sign_status = "signed"
+        logger.info("sign_manager_commitment: km=%s commit_fd=%s pdf_path=%s", km.id, commit_fd.id, commit_fd.minio_path)
 
         await self.db.commit()
 
