@@ -169,6 +169,7 @@ export default function ActivityDetailPage() {
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [batchUnqualOpen, setBatchUnqualOpen] = useState(false);
   const [batchUnqualReason, setBatchUnqualReason] = useState("");
+  const [showAllAudit, setShowAllAudit] = useState(false);
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [validationModalOpen, setValidationModalOpen] = useState(false);
   const [validationContext, setValidationContext] = useState<"finalize" | "submit">("finalize");
@@ -1331,15 +1332,24 @@ export default function ActivityDetailPage() {
                       {auditHistory.length > 0 && (() => {
                         const grouped = new Map<string, typeof auditHistory>();
                         for (const h of auditHistory) {
-                          const key = h.created_at.slice(0, 16); // group by minute
+                          const key = h.created_at.slice(0, 16);
                           if (!grouped.has(key)) grouped.set(key, []);
                           grouped.get(key)!.push(h);
                         }
+                        const all = [...grouped.values()];
+                        const visible = showAllAudit ? all : all.slice(0, 3);
                         return (
                           <div style={{ marginTop: 16 }}>
-                            <Typography.Text strong style={{ display: "block", marginBottom: 8 }}>审核记录</Typography.Text>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                              <Typography.Text strong>审核记录</Typography.Text>
+                              {all.length > 3 && (
+                                <Button size="small" type="link" onClick={() => setShowAllAudit(!showAllAudit)}>
+                                  {showAllAudit ? "收起" : `展开全部（${all.length}）`}
+                                </Button>
+                              )}
+                            </div>
                             <Timeline
-                              items={[...grouped.values()].map((items) => {
+                              items={visible.map((items) => {
                                 const h = items[0];
                                 const hasUnqual = items.some(i => i.conclusion === "unqualified");
                                 const color = h.action === "sign" ? "blue" : hasUnqual ? "red" : "green";
