@@ -129,25 +129,18 @@ export default function ActivityDetailPage() {
   // Inject security_staff_count from security plan into risk assessment autofill
   const riskSchema = useMemo(() => {
     const raw = riskMaterial.schema;
-    console.log("[riskSchema] raw:", raw ? "exists" : "null",
-      "sec_draft:", securityPlanSchema?.draft_data?.security_staff_count,
-      "sec_snap:", securityPlanSchema?.snapshot_data?.security_staff_count,
-      "raw autofill:", (raw as any)?.autofill_data);
     if (!raw) return raw;
     const secStaffCount =
       securityPlanSchema?.draft_data?.security_staff_count
       ?? securityPlanSchema?.snapshot_data?.security_staff_count;
-    console.log("[riskSchema] secStaffCount:", secStaffCount);
     if (secStaffCount == null) return raw;
-    const merged = {
+    return {
       ...raw,
       autofill_data: {
         ...(raw.autofill_data || {}),
         security_count: secStaffCount,
       },
     };
-    console.log("[riskSchema] merged autofill_data:", merged.autofill_data);
-    return merged;
   }, [riskMaterial.schema, securityPlanSchema?.draft_data?.security_staff_count, securityPlanSchema?.snapshot_data?.security_staff_count]);
 
   const { data: riskVersions = [] } = useQuery({
@@ -177,6 +170,14 @@ export default function ActivityDetailPage() {
   const [signaturePreview, setSignaturePreview] = useState<string | null>(null);
   const [signatureUploadTime, setSignatureUploadTime] = useState<string | null>(null);
   const [step1Done, setStep1Done] = useState(false);
+  const [crossSyncOpen, setCrossSyncOpen] = useState(false);
+  const [crossSyncData, setCrossSyncData] = useState<{
+    data: Record<string, unknown>;
+    resolve: (value: GenerateResponse) => void;
+    reject: (err: Error) => void;
+    oldCount: unknown;
+    newCount: unknown;
+  } | null>(null);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReasons, setRejectReasons] = useState<string[]>([]);
   const [rejectComment, setRejectComment] = useState("");
@@ -805,7 +806,11 @@ export default function ActivityDetailPage() {
                                   </div>
                                 );
                               })()}
-                              <Tabs size="small" type="card" activeKey={templateTab} onChange={(key) => setTemplateTab(key as typeof templateTab)} items={[
+                              <Tabs size="small" type="card" activeKey={templateTab} onChange={(key) => {
+                                setTemplateTab(key as typeof templateTab);
+                                if (key === "risk_assessment") riskMaterial.refetch();
+                                if (key === "responsibility_letter") respMaterial.refetch();
+                              }} items={[
                               {
                                 key: "security_plan",
                                 label: "安保方案",
@@ -838,6 +843,16 @@ export default function ActivityDetailPage() {
                                         await templatesApi.saveSecurityPlanDraft(id!, data);
                                       }}
                                       onSubmit={async (data) => {
+                                        const oldCount = securityPlanSchema?.snapshot_data?.security_staff_count;
+                                        const newCount = data.security_staff_count;
+                                        // Check if security_staff_count changed and risk assessment has a version
+                                        if (oldCount != null && String(newCount) !== String(oldCount)
+                                            && riskMaterial.schema?.current_version != null) {
+                                          return new Promise<GenerateResponse>((resolve, reject) => {
+                                            setCrossSyncData({ data, resolve, reject, oldCount, newCount });
+                                            setCrossSyncOpen(true);
+                                          });
+                                        }
                                         const res = await templatesApi.generateSecurityPlan(id!, data);
                                         const result = res.data;
                                         queryClient.setQueryData<VersionItem[]>(
@@ -1354,6 +1369,41 @@ export default function ActivityDetailPage() {
             : []),
         ]}
       />
+      <Modal
+        title="同步更新风险评估表"
+        open={crossSyncOpen}
+        onOk={async () => {
+          if (!crossSyncData) return;
+          setCrossSyncOpen(false);
+          const res = await templatesApi.generateSecurityPlan(id!, crossSyncData.data as Record<string, unknown>);
+          const result = res.data;
+          queryClient.setQueryData<VersionItem[]>(
+            ["activities", id, "templates", "security-versions"],
+            (old = []) => [{ id: result.id, version_number: result.version_number, generated_by: "", created_at: result.created_at, is_current: true, pdf_ready: result.pdf_ready }, ...old.map((v) => ({ ...v, is_current: false }))],
+          );
+          refetchSecuritySchema();
+          queryClient.invalidateQueries({ queryKey: ["activities", id, "templates", "security-versions"] });
+          riskMaterial.refetch();
+          respMaterial.refetch();
+          message.success("安保方案已生成，风险评估表已同步更新");
+          crossSyncData.resolve(result);
+          setCrossSyncData(null);
+        }}
+        onCancel={() => {
+          crossSyncData?.reject(new Error("用户取消"));
+          setCrossSyncData(null);
+          setCrossSyncOpen(false);
+        }}
+        okText="确认同步"
+        cancelText="取消"
+      >
+        <Typography.Paragraph>
+          安保人员数量从 <Typography.Text strong>{String(crossSyncData?.oldCount ?? "")}</Typography.Text> 变更为 <Typography.Text strong>{String(crossSyncData?.newCount ?? "")}</Typography.Text>。
+        </Typography.Paragraph>
+        <Typography.Paragraph type="secondary">
+          此变更将同步更新风险评估表和备案承诺书的对应字段，以上文件将自动生成新版本。是否确认？
+        </Typography.Paragraph>
+      </Modal>
       <Modal
         title={validationContext === "finalize" ? "以下字段需要完善后才能最终确定" : "以下字段需要完善后才能提交审核"}
         open={validationModalOpen}

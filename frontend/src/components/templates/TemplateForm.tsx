@@ -152,7 +152,6 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
 
   useEffect(() => {
     const vals: Record<string, unknown> = {};
-    console.log("[TemplateForm prefill] hasDraft:", hasDraft, "prefillData keys:", prefillData ? Object.keys(prefillData).filter(k => k.includes("security") || k.includes("staff")) : "none");
     // prefill from draft or snapshot
     if (prefillData) {
       for (const f of schema.fields) {

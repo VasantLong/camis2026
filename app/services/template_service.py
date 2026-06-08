@@ -235,6 +235,36 @@ class TemplateService:
         entity.draft_data = None
         entity.submit_time = datetime.now(timezone.utc)
         await self.db.flush()
+
+        # cross-template sync: security_staff_count → risk_assessment.security_count
+        if template_type == "security_plan" and "security_staff_count" in data:
+            for mt in ["risk_assessment", "filing_commitment"]:
+                mt_km_result = await self.db.execute(
+                    select(KeyMaterial).where(
+                        KeyMaterial.activity_id == activity_id,
+                        KeyMaterial.material_type == mt,
+                    )
+                )
+                mt_km = mt_km_result.scalar_one_or_none()
+                if mt_km and mt_km.current_filled_document_id:
+                    mt_fd = await self.db.get(FilledDocument, mt_km.current_filled_document_id)
+                    if mt_fd and mt_fd.data_snapshot:
+                        mt_data = dict(mt_fd.data_snapshot)
+                        field_name = "security_count" if mt == "risk_assessment" else "security_staff_count"
+                        mt_data[field_name] = data["security_staff_count"]
+                        mt_vn = await self._next_version(activity_id, mt)
+                        mt_new_fd = FilledDocument(
+                            activity_id=activity_id, template_type=mt,
+                            version_number=mt_vn, data_snapshot=mt_data,
+                            minio_path=None,  # deferred
+                            generated_by=user_id,
+                        )
+                        self.db.add(mt_new_fd)
+                        await self.db.flush()
+                        mt_km.current_filled_document_id = mt_new_fd.id
+                        mt_km.draft_data = None
+                        logger.info("cross-sync: %s v%d updated from security_plan", mt, mt_vn)
+
         await self.db.commit()
 
         logger.info(
