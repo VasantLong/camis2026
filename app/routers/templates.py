@@ -8,6 +8,7 @@ from app.deps import get_current_user
 from app.models.user import User
 from app.rbac import require_permission
 from app.schemas.template import (
+    CreateMaterialRequest, CreateMaterialResponse,
     DraftRequest, GenerateRequest, GenerateResponse,
     SchemaResponse, VersionDetail, VersionDiff, VersionItem,
 )
@@ -256,6 +257,18 @@ async def security_plan_version_diff(
 # ----------------------------------------------------------------
 # key materials (risk_assessment / responsibility_letter / filing_commitment)
 # ----------------------------------------------------------------
+
+@router.post("/{activity_id}/materials", response_model=CreateMaterialResponse)
+async def create_material(
+    activity_id: UUID,
+    body: CreateMaterialRequest,
+    current_user: User = Depends(get_current_user),
+    _=require_permission("pack_filing"),
+    svc: TemplateService = Depends(_svc),
+):
+    mat = await svc.get_or_create_material(activity_id, body.material_type)
+    return CreateMaterialResponse(material_id=mat.id, name=mat.name, template_type=mat.material_type or "")
+
 
 @router.get("/{activity_id}/materials/{material_id}/schema")
 async def material_schema(

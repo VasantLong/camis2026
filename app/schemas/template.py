@@ -56,3 +56,13 @@ class VersionDiff(BaseModel):
     field: str
     old: object
     new: object
+
+
+class CreateMaterialRequest(BaseModel):
+    material_type: str  # "risk_assessment" | "responsibility_letter"
+
+
+class CreateMaterialResponse(BaseModel):
+    material_id: UUID
+    name: str
+    template_type: str

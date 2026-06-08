@@ -14,7 +14,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.activity import Activity, ActivityPlan, SecurityPlan
-from app.models.material import KeyMaterial
+from app.models.material import KeyMaterial, SecurityPlanMaterial
 from app.models.template import FilledDocument
 from app.models.document import Document
 from app.services import minio_client
@@ -31,6 +31,35 @@ MINIO_BUCKET = "camis2026"
 class TemplateService:
     def __init__(self, db: AsyncSession):
         self.db = db
+
+    # ------------------------------------------------------------------
+    # material lifecycle
+    # ------------------------------------------------------------------
+
+    async def get_or_create_material(self, activity_id: UUID, material_type: str) -> KeyMaterial:
+        """Get existing KeyMaterial by (activity_id, material_type) or create one."""
+        result = await self.db.execute(
+            select(KeyMaterial).where(
+                KeyMaterial.activity_id == activity_id,
+                KeyMaterial.material_type == material_type,
+            )
+        )
+        entity = result.scalar_one_or_none()
+        if entity:
+            return entity
+        display_name = TEMPLATE_DISPLAY_NAMES.get(material_type, material_type)
+        entity = KeyMaterial(name=display_name, activity_id=activity_id, material_type=material_type)
+        self.db.add(entity)
+        await self.db.flush()
+        sp = await self.db.execute(
+            select(SecurityPlan).where(SecurityPlan.activity_id == activity_id)
+        )
+        sp = sp.scalar_one_or_none()
+        if sp:
+            self.db.add(SecurityPlanMaterial(security_plan_id=sp.id, material_id=entity.id))
+            await self.db.flush()
+        await self.db.commit()
+        return entity
 
     # ------------------------------------------------------------------
     # schema + draft
@@ -578,6 +607,13 @@ class TemplateService:
                 )
                 self.db.add(entity)
                 await self.db.flush()
+                sp = await self.db.execute(
+                    select(SecurityPlan).where(SecurityPlan.activity_id == activity_id)
+                )
+                sp = sp.scalar_one_or_none()
+                if sp:
+                    self.db.add(SecurityPlanMaterial(security_plan_id=sp.id, material_id=entity.id))
+                    await self.db.flush()
             return entity
         raise ValueError(f"unknown entity type: {entity_type}")
 
