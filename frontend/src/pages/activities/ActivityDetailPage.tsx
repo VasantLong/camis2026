@@ -637,102 +637,110 @@ export default function ActivityDetailPage() {
                       ) : canEditSecurity ? (
                         <>
                           {activity?.status === "待安保方案设计" ? (
-                            <Tabs size="small" activeKey={templateTab} onChange={(key) => setTemplateTab(key as typeof templateTab)} style={{ marginTop: 8 }}>
-                              <Tabs.TabPane key="security_plan" tab="安保方案">
-                                <div style={{ marginBottom: 16 }}>
-                                  <Typography.Text strong>风险等级</Typography.Text>
-                                  <Select
-                                    style={{ width: 200, marginLeft: 12 }}
-                                    placeholder="选择风险等级"
-                                    value={securityPlanSchema.risk_level || undefined}
-                                    disabled={!!(securityPlan?.audit_status && securityPlan.audit_status !== "待编制")}
-                                    options={[
-                                      { label: "大型", value: "大型" },
-                                      { label: "中型", value: "中型" },
-                                      { label: "高风险", value: "高风险" },
-                                    ]}
-                                    onChange={async (val) => {
-                                      await activitiesApi.updateSecurityPlan(id!, { risk_level: val });
-                                      refetchSecuritySchema();
-                                    }}
-                                  />
-                                </div>
-                                <TemplateForm
-                                  activityId={id!}
-                                  schema={securityPlanSchema}
-                                  disabled={!!(securityPlan?.audit_status && securityPlan.audit_status !== "待编制")}
-                                  highlightFields={highlightFields}
-                                  onSaveDraft={async (data) => {
-                                    await templatesApi.saveSecurityPlanDraft(id!, data);
-                                  }}
-                                  onSubmit={async (data) => {
-                                    const res = await templatesApi.generateSecurityPlan(id!, data);
-                                    const result = res.data;
-                                    queryClient.setQueryData<VersionItem[]>(
-                                      ["activities", id, "templates", "security-versions"],
-                                      (old = []) => [
-                                        {
-                                          id: result.id,
-                                          version_number: result.version_number,
-                                          generated_by: "",
-                                          created_at: result.created_at,
-                                          is_current: true,
-                                          pdf_ready: result.pdf_ready,
-                                        },
-                                        ...old.map((v) => ({ ...v, is_current: false })),
-                                      ],
-                                    );
-                                    refetchSecuritySchema();
-                                    return result;
-                                  }}
-                                />
-                                <VersionTimeline
-                                  versions={securityPlanVersions}
-                                  onViewDetail={(v) =>
-                                    templatesApi.getSecurityPlanVersionDetail(id!, v).then((r) => r.data)
-                                  }
-                                  onDiff={(v1, v2) =>
-                                    templatesApi.getSecurityPlanVersionDiff(id!, v1, v2).then((r) => r.data)
-                                  }
-                                />
-                                {(() => {
-                                  const auditStatus = securityPlan?.audit_status;
-                                  const submitted = !!(auditStatus && auditStatus !== "待编制");
-                                  const rejectedAt = securityPlan?.rejected_at ? new Date(securityPlan.rejected_at).getTime() : 0;
-                                  const latestVersionAfterReject = rejectedAt
-                                    ? securityPlanVersions.some((v) => v.created_at && new Date(v.created_at).getTime() > rejectedAt)
-                                    : true;
-                                  const blockedByReject = !!rejectedAt && !latestVersionAfterReject;
-                                  const btnLabel = submitted
-                                    ? auditStatus === "待签署"
-                                      ? "已提交审核，等待负责人签署"
-                                      : "负责人已签署"
-                                    : blockedByReject
-                                      ? "被驳回，请先生成新版本后再提交审核"
-                                      : "提交审核";
-
-                                  return securityPlanVersions.length > 0 && (
-                                    <Button
-                                      type="primary"
-                                      style={{ marginTop: 16 }}
-                                      disabled={submitted || blockedByReject}
-                                      onClick={() => {
-                                        const errs = validateSecurityPlan(securityPlanSchema?.snapshot_data, securityPlanSchema?.risk_level);
-                                        if (errs.length > 0) {
-                                          setValidationErrors(errs);
-                                          setValidationModalOpen(true);
-                                        } else {
-                                          setSecuritySubmitOpen(true);
-                                        }
+                            <Tabs size="small" activeKey={templateTab} onChange={(key) => setTemplateTab(key as typeof templateTab)} style={{ marginTop: 8 }} items={[
+                              {
+                                key: "security_plan",
+                                label: "安保方案",
+                                children: (
+                                  <>
+                                    <div style={{ marginBottom: 16 }}>
+                                      <Typography.Text strong>风险等级</Typography.Text>
+                                      <Select
+                                        style={{ width: 200, marginLeft: 12 }}
+                                        placeholder="选择风险等级"
+                                        value={securityPlanSchema.risk_level || undefined}
+                                        disabled={!!(securityPlan?.audit_status && securityPlan.audit_status !== "待编制")}
+                                        options={[
+                                          { label: "大型", value: "大型" },
+                                          { label: "中型", value: "中型" },
+                                          { label: "高风险", value: "高风险" },
+                                        ]}
+                                        onChange={async (val) => {
+                                          await activitiesApi.updateSecurityPlan(id!, { risk_level: val });
+                                          refetchSecuritySchema();
+                                        }}
+                                      />
+                                    </div>
+                                    <TemplateForm
+                                      activityId={id!}
+                                      schema={securityPlanSchema}
+                                      disabled={!!(securityPlan?.audit_status && securityPlan.audit_status !== "待编制")}
+                                      highlightFields={highlightFields}
+                                      onSaveDraft={async (data) => {
+                                        await templatesApi.saveSecurityPlanDraft(id!, data);
                                       }}
-                                    >
-                                      {btnLabel}
-                                    </Button>
-                                  );
-                                })()}
-                              </Tabs.TabPane>
-                              <Tabs.TabPane key="risk_assessment" tab="风险评估表">
-                                {riskMaterial.isLoading ? (
+                                      onSubmit={async (data) => {
+                                        const res = await templatesApi.generateSecurityPlan(id!, data);
+                                        const result = res.data;
+                                        queryClient.setQueryData<VersionItem[]>(
+                                          ["activities", id, "templates", "security-versions"],
+                                          (old = []) => [
+                                            {
+                                              id: result.id,
+                                              version_number: result.version_number,
+                                              generated_by: "",
+                                              created_at: result.created_at,
+                                              is_current: true,
+                                              pdf_ready: result.pdf_ready,
+                                            },
+                                            ...old.map((v) => ({ ...v, is_current: false })),
+                                          ],
+                                        );
+                                        refetchSecuritySchema();
+                                        return result;
+                                      }}
+                                    />
+                                    <VersionTimeline
+                                      versions={securityPlanVersions}
+                                      onViewDetail={(v) =>
+                                        templatesApi.getSecurityPlanVersionDetail(id!, v).then((r) => r.data)
+                                      }
+                                      onDiff={(v1, v2) =>
+                                        templatesApi.getSecurityPlanVersionDiff(id!, v1, v2).then((r) => r.data)
+                                      }
+                                    />
+                                    {(() => {
+                                      const auditStatus = securityPlan?.audit_status;
+                                      const submitted = !!(auditStatus && auditStatus !== "待编制");
+                                      const rejectedAt = securityPlan?.rejected_at ? new Date(securityPlan.rejected_at).getTime() : 0;
+                                      const latestVersionAfterReject = rejectedAt
+                                        ? securityPlanVersions.some((v) => v.created_at && new Date(v.created_at).getTime() > rejectedAt)
+                                        : true;
+                                      const blockedByReject = !!rejectedAt && !latestVersionAfterReject;
+                                      const btnLabel = submitted
+                                        ? auditStatus === "待签署"
+                                          ? "已提交审核，等待负责人签署"
+                                          : "负责人已签署"
+                                        : blockedByReject
+                                          ? "被驳回，请先生成新版本后再提交审核"
+                                          : "提交审核";
+
+                                      return securityPlanVersions.length > 0 && (
+                                        <Button
+                                          type="primary"
+                                          style={{ marginTop: 16 }}
+                                          disabled={submitted || blockedByReject}
+                                          onClick={() => {
+                                            const errs = validateSecurityPlan(securityPlanSchema?.snapshot_data, securityPlanSchema?.risk_level);
+                                            if (errs.length > 0) {
+                                              setValidationErrors(errs);
+                                              setValidationModalOpen(true);
+                                            } else {
+                                              setSecuritySubmitOpen(true);
+                                            }
+                                          }}
+                                        >
+                                          {btnLabel}
+                                        </Button>
+                                      );
+                                    })()}
+                                  </>
+                                ),
+                              },
+                              {
+                                key: "risk_assessment",
+                                label: "风险评估表",
+                                children: riskMaterial.isLoading ? (
                                   <Spin />
                                 ) : riskMaterial.schema ? (
                                   <>
@@ -774,10 +782,12 @@ export default function ActivityDetailPage() {
                                       }
                                     />
                                   </>
-                                ) : null}
-                              </Tabs.TabPane>
-                              <Tabs.TabPane key="responsibility_letter" tab="责任确认书">
-                                {respMaterial.isLoading ? (
+                                ) : null,
+                              },
+                              {
+                                key: "responsibility_letter",
+                                label: "责任确认书",
+                                children: respMaterial.isLoading ? (
                                   <Spin />
                                 ) : respMaterial.schema ? (
                                   <>
@@ -819,9 +829,9 @@ export default function ActivityDetailPage() {
                                       }
                                     />
                                   </>
-                                ) : null}
-                              </Tabs.TabPane>
-                            </Tabs>
+                                ) : null,
+                              },
+                            ]} />
                           ) : (
                             <>
                               <div style={{ marginBottom: 16 }}>

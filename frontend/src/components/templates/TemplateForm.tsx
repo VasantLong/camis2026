@@ -10,6 +10,7 @@ import {
   Space,
   Upload,
   Modal,
+  Typography,
   App,
 } from "antd";
 import { PlusOutlined, DeleteOutlined, UploadOutlined } from "@ant-design/icons";
@@ -96,20 +97,30 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
   const hasDraft = schema.has_draft === true;
 
   useEffect(() => {
+    const vals: Record<string, unknown> = {};
+    // prefill from draft or snapshot
     if (prefillData) {
-      const vals: Record<string, unknown> = {};
       for (const f of schema.fields) {
         const val = prefillData[f.name];
         if (val !== undefined) {
           if (f.ui_type === "date" && typeof val === "string") {
-        if (val) vals[f.name] = dayjs(val);  // skip empty strings (dayjs("") → Invalid Date)
-      } else {
-        vals[f.name] = val;
-      }
+            if (val) vals[f.name] = dayjs(val);
+          } else {
+            vals[f.name] = val;
+          }
         }
       }
-      form.setFieldsValue(vals);
     }
+    // autofill from Activity data (only for empty fields)
+    if (schema.autofill_data) {
+      for (const f of schema.fields) {
+        if (f.ui_type === "autofill" && vals[f.name] === undefined) {
+          const autoVal = schema.autofill_data[f.name];
+          if (autoVal !== undefined && autoVal !== null) vals[f.name] = autoVal;
+        }
+      }
+    }
+    if (Object.keys(vals).length > 0) form.setFieldsValue(vals);
     setIsDirty(hasDraft);
   }, [schema, form]);  // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -268,6 +279,31 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
             </Upload>
           </Form.Item>
         );
+      case "autofill":
+        return (
+          <Form.Item key={field.name} name={field.name} label={field.ui_label} rules={rules} style={itemStyle}>
+            <Input disabled style={{ backgroundColor: "#f5f5f5" }} />
+          </Form.Item>
+        );
+      case "declarations": {
+        const items = (field as any).declaration_items as string[] | undefined;
+        return (
+          <div key={field.name} style={{ ...itemStyle, marginBottom: 16, padding: 12, border: "1px solid #d9d9d9", borderRadius: 6, background: "#fafafa" }}>
+            <Typography.Text strong>{field.ui_label}</Typography.Text>
+            <Typography.Paragraph type="secondary" style={{ marginTop: 4, marginBottom: 0, fontSize: 12 }}>
+              依据国务院《大型群众性活动安全管理条例》等法律法规，确认如下：
+            </Typography.Paragraph>
+            <ol style={{ marginTop: 8, paddingLeft: 20, fontSize: 13, lineHeight: 1.8 }}>
+              {(items || []).map((item, i) => (
+                <li key={i}>{item}</li>
+              ))}
+            </ol>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              以上声明内容属实，由主办单位公章及安全负责人签字确认，依法承担相应法律责任。
+            </Typography.Text>
+          </div>
+        );
+      }
       default:
         return null;
     }
@@ -344,6 +380,7 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
 function serializeFormData(values: Record<string, unknown>, fields: FieldDef[]): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const f of fields) {
+    if (f.ui_type === "declarations") continue;  // fixed content, not user data
     const v = values[f.name];
     if (v === undefined || v === null || v === "") {
       out[f.name] = f.ui_type === "repeater" ? [] : f.ui_type === "number" ? 0 : "";

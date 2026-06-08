@@ -1,7 +1,7 @@
 export interface FieldDef {
   name: string;
   ui_label: string;
-  ui_type: "text" | "textarea" | "number" | "date" | "select" | "repeater" | "signature" | "checkbox";
+  ui_type: "text" | "textarea" | "number" | "date" | "select" | "repeater" | "signature" | "checkbox" | "autofill" | "declarations";
   required?: boolean;
   min?: number;
   max?: number;
@@ -20,6 +20,7 @@ export interface SchemaResponse {
   snapshot_data: Record<string, unknown> | null;
   current_version: number | null;
   risk_level: string | null;
+  autofill_data: Record<string, unknown> | null;
   fields: FieldDef[];
 }
 

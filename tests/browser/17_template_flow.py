@@ -254,6 +254,34 @@ with sync_playwright() as p:
 
     check(ra_filled > 0, f"filled {ra_filled} risk assessment fields")
 
+    # Debug: inspect the generate button's bounding box and visibility
+    btn_info = page.evaluate("""() => {
+      const btn = document.querySelector('button');
+      if (!btn) return 'no button found';
+      const rect = btn.getBoundingClientRect();
+      const style = window.getComputedStyle(btn);
+      return {
+        tag: btn.textContent?.substring(0, 20),
+        rect: { x: rect.x, y: rect.y, w: rect.width, h: rect.height },
+        display: style.display,
+        visibility: style.visibility,
+        opacity: style.opacity,
+        overflow: style.overflow,
+      };
+    }""")
+    print(f"  DEBUG first button: {btn_info}")
+
+    # Check all buttons
+    all_btns = page.evaluate("""() => {
+      return Array.from(document.querySelectorAll('button')).map(b => ({
+        text: b.textContent?.substring(0, 30),
+        visible: b.offsetParent !== null,
+        rect: (() => { const r = b.getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height), y: Math.round(r.y) }; })()
+      }));
+    }""")
+    for b in all_btns[:15]:
+        print(f"  BTN: {b['text'][:30]} visible={b['visible']} size={b['rect']['w']}x{b['rect']['h']} y={b['rect']['y']}")
+
     # Generate
     ra_gen = page.locator('button:has-text("提交生成")').first
     check(ra_gen.count() > 0, "risk assessment generate button")
@@ -276,7 +304,15 @@ with sync_playwright() as p:
     page.wait_for_load_state("networkidle")
     page.wait_for_timeout(1000)
 
-    # Responsibility letter: checkboxes + text inputs + date
+    # Verify declarations section is visible (8 legal statements, not checkboxes)
+    decl_section = page.locator('text=安全消防责任确认').first
+    check(decl_section.count() > 0, "declarations section visible")
+
+    # Verify declaration items (legal statements in ordered list)
+    decl_items = page.locator('ol li').all()
+    check(len(decl_items) >= 8, f"all 8 declaration items visible (found {len(decl_items)})")
+
+    # Fill text fields
     rl_textareas = page.locator('textarea').all()
     rl_filled = 0
     for ta_el in rl_textareas:
@@ -285,29 +321,22 @@ with sync_playwright() as p:
             rl_filled += 1
     page.wait_for_timeout(300)
 
-    # Click all checkboxes (8 security measures)
-    cbs = page.locator('.ant-checkbox-input').all()
-    cb_checked = 0
-    for cb in cbs:
-        if cb.is_visible() and not cb.is_checked():
-            cb.click()
-            cb_checked += 1
-            page.wait_for_timeout(100)
-
-    # Fill text inputs
-    for inp in page.locator('input:not([role="combobox"]):not([role="spinbutton"]):not([type="hidden"]):not([type="checkbox"])').all():
-        if inp.is_visible() and inp.get_attribute("readonly") is None:
+    # Fill text inputs (sponsor_unit, venue_name, security_leader_name, sponsor_seal, confirm_location)
+    for inp in page.locator('input:not([role="combobox"]):not([role="spinbutton"]):not([type="hidden"]):not([disabled])').all():
+        if inp.is_visible():
             try:
                 inp.fill("测试责任方")
             except Exception:
                 pass
             page.wait_for_timeout(50)
 
-    check(rl_filled > 0 or cb_checked > 0, f"filled {rl_filled} fields + {cb_checked} checkboxes")
+    check(rl_filled > 0, f"filled {rl_filled} responsibility letter fields")
 
     # Generate
     rl_gen = page.locator('button:has-text("提交生成")').first
     check(rl_gen.count() > 0, "responsibility letter generate button")
+    rl_gen.scroll_into_view_if_needed()
+    page.wait_for_timeout(300)
     rl_gen.click()
     page.wait_for_timeout(1000)
     cfm2 = page.locator('.ant-modal button:has-text("确认生成")').first

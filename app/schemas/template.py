@@ -11,6 +11,7 @@ class SchemaResponse(BaseModel):
     snapshot_data: dict | None = None
     current_version: int | None = None
     risk_level: str | None = None  # security plan only
+    autofill_data: dict | None = None  # activity data for autofill fields
     fields: list[dict]
 
 

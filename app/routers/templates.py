@@ -40,6 +40,7 @@ async def plan_schema(
         draft_data=s.get("draft_data"),
         snapshot_data=s.get("snapshot_data"),
         current_version=s.get("current_version"),
+        autofill_data=s.get("autofill_data"),
         fields=s.get("fields", []),
     )
 
@@ -154,6 +155,7 @@ async def security_plan_schema(
         snapshot_data=s.get("snapshot_data"),
         current_version=s.get("current_version"),
         risk_level=s.get("risk_level"),
+        autofill_data=s.get("autofill_data"),
         fields=s.get("fields", []),
     )
 
@@ -292,6 +294,7 @@ async def material_schema(
         draft_data=s.get("draft_data"),
         snapshot_data=s.get("snapshot_data"),
         current_version=s.get("current_version"),
+        autofill_data=s.get("autofill_data"),
         fields=s.get("fields", []),
     )
 
