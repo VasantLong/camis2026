@@ -1226,9 +1226,10 @@ export default function ActivityDetailPage() {
                       {/* GovLiaison review panel — right below alert */}
                       {isGovLiaison && (activity?.status === "备案材料已交接" || activity?.status === "待补充备案材料") && (() => {
                         const isActive = activity?.status === "备案材料已交接";
-                        const auditedCount = materials.filter(m => m.audit_round > 0).length;
-                        const allAudited = materials.length > 0 && auditedCount === materials.length;
-                        const allQualified = allAudited && materials.every(m => m.is_qualified);
+                        const auditMaterials = materials.filter((m: any) => m.material_type !== "activity_plan" && m.material_type !== "filing_commitment");
+                        const auditedCount = auditMaterials.filter(m => m.audit_round > 0).length;
+                        const allAudited = auditMaterials.length > 0 && auditedCount === auditMaterials.length;
+                        const allQualified = allAudited && auditMaterials.every(m => m.is_qualified);
                         const targetStatus = approvalAction === "approve" ? "审批通过" : approvalAction === "revise" ? "待补充备案材料" : "不通过/已终止";
                         return (
                           <div style={{ marginBottom: 16, padding: 16, border: "1px solid #1677ff", borderRadius: 8 }}>
@@ -1240,7 +1241,7 @@ export default function ActivityDetailPage() {
                               ) : allAudited ? (
                                 <Tag color="orange">有不合格材料 — 可要求补件或驳回</Tag>
                               ) : (
-                                <Tag color="default">尚有 {materials.length - auditedCount} 项材料待审查</Tag>
+                                <Tag color="default">尚有 {auditMaterials.length - auditedCount} 项材料待审查</Tag>
                               )}
                             </div>
                             <div style={{ marginBottom: 16 }}>
@@ -1311,7 +1312,7 @@ export default function ActivityDetailPage() {
                                   <Button disabled={!allAudited || allQualified}
                                     onClick={() => {
                                       setApprovalAction("revise");
-                                      const unqual = materials.filter(m => m.audit_round > 0 && !m.is_qualified).map(m => m.name);
+                                      const unqual = auditMaterials.filter(m => m.audit_round > 0 && !m.is_qualified).map(m => m.name);
                                       setApprovalComment(unqual.length > 0 ? `以下材料不合格需整改：${unqual.join("、")}` : "");
                                       setApprovalModalOpen(true);
                                     }}>要求补件</Button>
@@ -1363,7 +1364,7 @@ export default function ActivityDetailPage() {
                                       </Typography.Paragraph>
                                     )}
                                     <Typography.Text strong>需修改的材料：</Typography.Text>
-                                    {materials.filter(m => m.audit_round > 0 && !m.is_qualified).map(m => (
+                                    {materials.filter((m: any) => m.material_type !== "activity_plan" && m.material_type !== "filing_commitment" && m.audit_round > 0 && !m.is_qualified).map(m => (
                                       <div key={m.id} style={{ marginTop: 4 }}>
                                         <Tag color="red" style={{ cursor: "pointer" }}
                                           onClick={() => { setActiveTab("security-plan"); (document.activeElement as HTMLElement)?.blur(); }}>{m.name}</Tag>
