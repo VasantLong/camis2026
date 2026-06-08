@@ -34,6 +34,7 @@ NOTIFICATION_RULES: dict[str, tuple[list[str], str]] = {
     "审批通过-待举办": (["AdminStaff"], "活动批文已下发，可合法举办"),
     "待补充备案材料":  (["SecurityOfficer"], "需补充备案材料"),
     "不通过/已终止":   (["AdminStaff", "SecurityOfficer"], "活动审批未通过"),
+    "已结束":         (["AdminStaff"], "活动已正常结束"),
 }
 
 REJECT_NOTIFY_ROLES = ["AdminStaff", "SecurityOfficer"]
