@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { Fragment, useState, useEffect, useCallback } from "react";
 import {
   Form,
   Input,
@@ -10,9 +10,12 @@ import {
   Space,
   Upload,
   Modal,
+  Typography,
+  Tooltip,
+  Image,
   App,
 } from "antd";
-import { PlusOutlined, DeleteOutlined, UploadOutlined } from "@ant-design/icons";
+import { PlusOutlined, DeleteOutlined, UploadOutlined, QuestionCircleOutlined, CloseOutlined } from "@ant-design/icons";
 import type { SchemaResponse, FieldDef, GenerateResponse } from "@/types/template";
 import { documentsApi } from "@/api/documents";
 import dayjs from "dayjs";
@@ -25,9 +28,10 @@ interface Props {
   highlightFields?: string[];
   onSaveDraft: (data: Record<string, unknown>) => Promise<void>;
   onSubmit: (data: Record<string, unknown>) => Promise<GenerateResponse>;
+  onValidate?: (data: Record<string, unknown>) => { field: string; label: string; reason: string }[];
 }
 
-export default function TemplateForm({ activityId, schema, loading, disabled, highlightFields, onSaveDraft, onSubmit }: Props) {
+export default function TemplateForm({ activityId, schema, loading, disabled, highlightFields, onSaveDraft, onSubmit, onValidate }: Props) {
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -36,6 +40,31 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
   const [changedFields, setChangedFields] = useState<Set<string>>(new Set());
   const [isDirty, setIsDirty] = useState(false);
   const [highlightSet, setHighlightSet] = useState<Set<string>>(new Set());
+  const [sigPreviews, setSigPreviews] = useState<Record<string, string>>({});
+
+  // load presigned URLs for stored signatures on mount (draft/snapshot restore)
+  useEffect(() => {
+    const loadStoredSigs = async () => {
+      const previews: Record<string, string> = {};
+      for (const f of schema.fields) {
+        if (f.ui_type !== "signature") continue;
+        const v = (schema.draft_data || schema.snapshot_data)?.[f.name];
+        if (!v) continue;
+        // check for URL string or fileList with url/minio_path
+        const path = typeof v === "string" ? v : (Array.isArray(v) && v.length > 0 ? (v[0]?.url || v[0]?.response?.minio_path) : "");
+        if (path) {
+          try {
+            const res = await documentsApi.getPresignedByPath(path);
+            previews[f.name] = res.data.url;
+          } catch { /* presign may fail; skip */ }
+        }
+      }
+      if (Object.keys(previews).length > 0) {
+        setSigPreviews(prev => ({ ...prev, ...previews }));
+      }
+    };
+    loadStoredSigs();
+  }, [schema]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync highlightFields prop
   useEffect(() => {
@@ -68,12 +97,26 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
     }
     let hasAnyChange = false;
     const diff = new Set<string>();
-    for (const f of schema.fields) {
-      const cur = serializeFieldValue(allValues[f.name], f);
-      const snap = snapshot ? snapshot[f.name] : undefined;
-      if (snap !== undefined && cur !== snap && cur !== "") {
-        diff.add(f.name);
-        hasAnyChange = true;
+    if (snapshot) {
+      for (const f of schema.fields) {
+        const cur = serializeFieldValue(allValues[f.name], f);
+        const snap = snapshot[f.name];
+        if (snap !== undefined && cur !== snap && cur !== "") {
+          diff.add(f.name);
+          hasAnyChange = true;
+        }
+      }
+    } else {
+      // no snapshot — form is dirty if any field has a non-default value
+      for (const f of schema.fields) {
+        if (f.ui_type === "autofill" || f.ui_type === "declarations") continue;
+        const cur = allValues[f.name];
+        if (cur !== undefined && cur !== null && cur !== "" && cur !== false && cur !== 0) {
+          if (f.ui_type !== "repeater" || (Array.isArray(cur) && (cur as any[]).length > 0)) {
+            hasAnyChange = true;
+            break;
+          }
+        }
       }
     }
     setChangedFields(diff);
@@ -96,24 +139,44 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
   const hasDraft = schema.has_draft === true;
 
   useEffect(() => {
+    const vals: Record<string, unknown> = {};
+    // prefill from draft or snapshot
     if (prefillData) {
-      const vals: Record<string, unknown> = {};
       for (const f of schema.fields) {
         const val = prefillData[f.name];
         if (val !== undefined) {
           if (f.ui_type === "date" && typeof val === "string") {
-        if (val) vals[f.name] = dayjs(val);  // skip empty strings (dayjs("") → Invalid Date)
-      } else {
-        vals[f.name] = val;
-      }
+            if (val) vals[f.name] = dayjs(val);
+          } else if (f.ui_type === "signature" && typeof val === "string" && val) {
+            vals[f.name] = [{ uid: "-1", name: "signature", status: "done" as const, url: val }];
+          } else if (f.ui_type === "signature" && Array.isArray(val)) {
+            vals[f.name] = val;
+          } else {
+            vals[f.name] = val;
+          }
         }
       }
-      form.setFieldsValue(vals);
     }
+    // autofill from Activity/Plan data (for empty fields of any type)
+    if (schema.autofill_data) {
+      for (const f of schema.fields) {
+        if (vals[f.name] === undefined) {
+          const autoVal = schema.autofill_data[f.name];
+          if (autoVal !== undefined && autoVal !== null && autoVal !== "") {
+            if (f.ui_type === "date" && typeof autoVal === "string") {
+              vals[f.name] = dayjs(autoVal);
+            } else {
+              vals[f.name] = autoVal;
+            }
+          }
+        }
+      }
+    }
+    if (Object.keys(vals).length > 0) form.setFieldsValue(vals);
     setIsDirty(hasDraft);
   }, [schema, form]);  // eslint-disable-line react-hooks/exhaustive-deps
 
-  const buttonsEnabled = !loading && !submitting && (isDirty || !snapshot);
+  const buttonsEnabled = !loading && !submitting && isDirty;
 
   const visibleFields = useCallback(
     (fields: FieldDef[]) => {
@@ -209,7 +272,16 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
           <Form.List key={field.name} name={field.name}>
             {(items, { add, remove }) => (
               <>
-                <Form.Item label={field.ui_label}>
+                <Form.Item label={
+                  <span>
+                    {field.ui_label}
+                    {(field as any).hint && (
+                      <Tooltip title={(field as any).hint}>
+                        <QuestionCircleOutlined style={{ marginLeft: 6, color: "#999", cursor: "help" }} />
+                      </Tooltip>
+                    )}
+                  </span>
+                }>
                   <Button type="dashed" onClick={() => add("")} icon={<PlusOutlined />} block>
                     添加
                   </Button>
@@ -230,18 +302,44 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
             )}
           </Form.List>
         );
-      case "signature":
+      case "signature": {
+        const previewUrl = sigPreviews[field.name];
         return (
-          <Form.Item key={field.name} name={field.name} label={field.ui_label} rules={rules} style={itemStyle}>
+          <Fragment key={field.name}>
+          <Form.Item
+            key={field.name}
+            name={field.name}
+            label={field.ui_label}
+            rules={rules}
+            style={itemStyle}
+            valuePropName="fileList"
+            normalize={(val) => {
+              if (Array.isArray(val)) return val;
+              if (typeof val === "string" && val) return [{ uid: "-1", name: "signature", status: "done" as const, url: val }];
+              return [];
+            }}
+            getValueFromEvent={(e) => {
+              const files = Array.isArray(e) ? e : e?.fileList || [];
+              return files.map((f: any) => ({
+                uid: f.uid || "-1",
+                name: f.name || "signature",
+                status: f.status || "done",
+                url: f.response?.minio_path || f.url || "",
+                docId: f.response?.id || f.docId || "",
+              }));
+            }}
+          >
             <Upload
               accept="image/*"
               maxCount={1}
+              showUploadList={false}
               customRequest={async ({ file, onSuccess, onError }) => {
                 try {
                   const res = await documentsApi.upload(activityId, file as File, ["signature"]);
                   const doc = res.data;
-                  form.setFieldValue(field.name, doc.minio_path);
-                  onSuccess?.(doc);
+                  const previewUrl = URL.createObjectURL(file as File);
+                  setSigPreviews(prev => ({ ...prev, [field.name]: previewUrl }));
+                  onSuccess?.(doc);  // antd Upload stores response, getValueFromEvent extracts minio_path
                   message.success(`已上传签名图片`);
                 } catch {
                   onError?.(new Error("上传失败"));
@@ -252,7 +350,47 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
               <Button icon={<UploadOutlined />}>上传签名图片</Button>
             </Upload>
           </Form.Item>
+          {previewUrl && (
+            <div style={{ marginTop: -4, marginBottom: 24, display: "flex", alignItems: "flex-start", gap: 8 }}>
+              <Image src={previewUrl} alt="签名预览" width={120} style={{ borderRadius: 4, border: "1px solid #d9d9d9" }} />
+              <Button size="small" icon={<CloseOutlined />} danger
+                onClick={() => {
+                  form.setFieldValue(field.name, []);
+                  setSigPreviews(prev => { const next = { ...prev }; delete next[field.name]; return next; });
+                }} />
+            </div>
+          )}
+          </Fragment>
         );
+      }
+      case "autofill":
+        return (
+          <Form.Item key={field.name} name={field.name} label={field.ui_label} rules={rules} style={itemStyle}>
+            <Input disabled style={{ backgroundColor: "#f5f5f5" }} />
+          </Form.Item>
+        );
+      case "declarations": {
+        const items = (field as any).declaration_items as string[] | undefined;
+        const hint = (field as any).hint as string | undefined;
+        return (
+          <div key={field.name} style={{ ...itemStyle, marginBottom: 16, padding: 12, border: "1px solid #d9d9d9", borderRadius: 6, background: "#fafafa" }}>
+            <Typography.Text strong>{field.ui_label}</Typography.Text>
+            {hint && (
+              <Typography.Paragraph type="secondary" style={{ marginTop: 4, marginBottom: 8, fontSize: 12 }}>
+                {hint}
+              </Typography.Paragraph>
+            )}
+            <ol style={{ marginTop: 8, paddingLeft: 20, fontSize: 13, lineHeight: 1.8 }}>
+              {(items || []).map((item, i) => (
+                <li key={i}>{item}</li>
+              ))}
+            </ol>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              以上声明内容属实，由主办单位公章及安全负责人签字确认，依法承担相应法律责任。
+            </Typography.Text>
+          </div>
+        );
+      }
       default:
         return null;
     }
@@ -261,8 +399,7 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
   const handleSaveDraft = async () => {
     setSaving(true);
     try {
-      const values = form.getFieldsValue();
-      const data = serializeFormData(values, schema.fields);
+      const data = serializeFormData(form, schema.fields);
       await onSaveDraft(data);
       message.success("草稿已保存");
     } catch {
@@ -276,8 +413,7 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
     setSubmitting(true);
     const nextVersion = (schema.current_version ?? 0) + 1;
     try {
-      const values = form.getFieldsValue();
-      const data = serializeFormData(values, schema.fields);
+      const data = serializeFormData(form, schema.fields);
       await onSubmit(data);
       message.success(`已生成 v${nextVersion}`);
     } catch {
@@ -289,7 +425,23 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
   };
 
   const handleSubmit = () => {
-    form.validateFields().then(() => setConfirmOpen(true)).catch(() => {});
+    form.validateFields().then(() => {
+      if (onValidate) {
+        const data = serializeFormData(form, schema.fields);
+        // debug: log signature fields for troubleshooting
+        for (const f of schema.fields) {
+          if (f.ui_type === "signature") {
+            console.log(`[TemplateForm] ${f.name}: raw=${JSON.stringify(form.getFieldValue(f.name))}, serialized=${JSON.stringify(data[f.name])}`);
+          }
+        }
+        const errs = onValidate(data);
+        if (errs.length > 0) {
+          message.error(errs.map(e => `${e.label}: ${e.reason}`).join("；"));
+          return;
+        }
+      }
+      setConfirmOpen(true);
+    }).catch(() => {});
   };
 
   const nextVersion = (schema.current_version ?? 0) + 1;
@@ -326,10 +478,28 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
   );
 }
 
-function serializeFormData(values: Record<string, unknown>, fields: FieldDef[]): Record<string, unknown> {
+function evalFieldCondition(cond: string | undefined, allValues: Record<string, unknown>): boolean {
+  if (!cond) return true;
+  const parts = cond.split(/\s*(==|!=)\s*/);
+  if (parts.length === 3) {
+    const key = parts[0].trim();
+    const op = parts[1].trim();
+    const val = parts[2].trim().replace(/['"]/g, "");
+    const cur = allValues[key];
+    if (op === "==") return cur === val;
+    if (op === "!=") return cur !== val;
+  }
+  return true;
+}
+
+function serializeFormData(form: any, fields: FieldDef[]): Record<string, unknown> {
   const out: Record<string, unknown> = {};
+  const allValues = form.getFieldsValue();
+  const skipped: string[] = [];
   for (const f of fields) {
-    const v = values[f.name];
+    if (f.ui_type === "declarations") continue;
+    if (!evalFieldCondition(f.condition, allValues)) { skipped.push(f.name); continue; }
+    const v = form.getFieldValue(f.name);
     if (v === undefined || v === null || v === "") {
       out[f.name] = f.ui_type === "repeater" ? [] : f.ui_type === "number" ? 0 : "";
       continue;
@@ -338,9 +508,18 @@ function serializeFormData(values: Record<string, unknown>, fields: FieldDef[]):
       out[f.name] = dayjs.isDayjs(v) ? (v as dayjs.Dayjs).format("YYYY-MM-DD") : String(v);
     } else if (f.ui_type === "number") {
       out[f.name] = typeof v === "number" ? v : Number(v) || 0;
+    } else if (f.ui_type === "signature") {
+      let url = "";
+      if (Array.isArray(v) && v.length > 0) {
+        url = v[0]?.url || v[0]?.response?.minio_path || "";
+      } else if (typeof v === "string" && v) {
+        url = v;
+      }
+      out[f.name] = url;
     } else {
       out[f.name] = v;
     }
   }
+  if (skipped.length > 0) console.log("[serializeFormData] skipped conditional fields:", skipped);
   return out;
 }

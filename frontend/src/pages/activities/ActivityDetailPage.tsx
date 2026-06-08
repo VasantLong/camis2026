@@ -15,15 +15,17 @@ import HandoverConfirm from "@/components/filings/HandoverConfirm";
 import TemplateForm from "@/components/templates/TemplateForm";
 import VersionTimeline from "@/components/templates/VersionTimeline";
 import VersionSnapshot from "@/components/templates/VersionSnapshot";
-import { validateActivityPlan, validateSecurityPlan, type ValidationError } from "@/utils/templateValidation";
+import { useMaterialSchema } from "@/hooks/useMaterialSchema";
+import { validateAllFieldsFilled, validateActivityPlan, validateSecurityPlan, validateRiskAssessment, validateResponsibilityLetter, type ValidationError } from "@/utils/templateValidation";
 import { filingsApi } from "@/api/filings";
 import { documentsApi } from "@/api/documents";
 import { activitiesApi } from "@/api/activities";
 import { materialsApi } from "@/api/materials";
+import { workflowsApi } from "@/api/workflows";
 import { templatesApi } from "@/api/templates";
 import { useAuthStore } from "@/stores/authStore";
 import { STATUS_COLOR_MAP } from "@/utils/constants";
-import type { VersionItem, SchemaResponse } from "@/types/template";
+import type { GenerateResponse, VersionItem, SchemaResponse } from "@/types/template";
 
 export default function ActivityDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -36,6 +38,13 @@ export default function ActivityDetailPage() {
   const [filingModal, setFilingModal] = useState<"pack" | "handover" | null>(
     null
   );
+  const [activeTab, setActiveTab] = useState("detail");
+  const [templateTab, setTemplateTab] = useState<"security_plan" | "risk_assessment" | "responsibility_letter">("security_plan");
+  // GovLiaison approval
+  const [approvalDocPath, setApprovalDocPath] = useState<string | null>(null);
+  const [approvalAction, setApprovalAction] = useState<"approve" | "revise" | "reject" | null>(null);
+  const [approvalModalOpen, setApprovalModalOpen] = useState(false);
+  const [approvalComment, setApprovalComment] = useState("");
   const userPermissions = useAuthStore((s) => s.user?.permissions);
   const permissions = userPermissions ?? [];
 
@@ -82,10 +91,11 @@ export default function ActivityDetailPage() {
   // ── template queries ──
   const canViewPlan = permissions.includes("submit_plan") || permissions.includes("view_owned_activity");
   const canViewSecurity = permissions.includes("manage_security") || permissions.includes("view_owned_activity");
-  const canEditPlan = permissions.includes("submit_plan");
+  const canEditPlan = permissions.includes("submit_plan") && activity?.status === "待设计方案";
   const canEditSecurity = permissions.includes("manage_security");
   const isManager = permissions.includes("review_security_plan");
   const isAdmin = permissions.includes("view_dashboard") && !canEditPlan && !canEditSecurity;
+  const isGovLiaison = permissions.includes("audit_material") && !canEditPlan && !canEditSecurity && !isManager;
 
   const { data: planSchema } = useQuery({
     queryKey: ["activities", id, "templates", "plan-schema"],
@@ -111,12 +121,29 @@ export default function ActivityDetailPage() {
     enabled: canViewSecurity,
   });
 
+  const canViewTemplates = (canEditSecurity || isManager) && !!activity?.status && ["待安保方案设计", "待备案申请"].includes(activity.status);
+  const riskMaterial = useMaterialSchema(id!, "risk_assessment", !!canViewTemplates);
+  const respMaterial = useMaterialSchema(id!, "responsibility_letter", !!canViewTemplates);
+
+  const { data: riskVersions = [] } = useQuery({
+    queryKey: ["activities", id, "templates", "risk-versions"],
+    queryFn: () => templatesApi.getMaterialVersions(id!, riskMaterial.materialId!).then((r) => r.data),
+    enabled: !!riskMaterial.materialId,
+  });
+
+  const { data: respVersions = [] } = useQuery({
+    queryKey: ["activities", id, "templates", "resp-versions"],
+    queryFn: () => templatesApi.getMaterialVersions(id!, respMaterial.materialId!).then((r) => r.data),
+    enabled: !!respMaterial.materialId,
+  });
+
   const queryClient = useQueryClient();
   const [auditTarget, setAuditTarget] = useState<{ id: string; name: string } | null>(null);
   const [auditConclusion, setAuditConclusion] = useState<string>("qualified");
   const [auditOpinion, setAuditOpinion] = useState("");
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [validationModalOpen, setValidationModalOpen] = useState(false);
+  const [validationContext, setValidationContext] = useState<"finalize" | "submit">("finalize");
   const [highlightFields, setHighlightFields] = useState<string[] | undefined>(undefined);
   const [planFinalizeOpen, setPlanFinalizeOpen] = useState(false);
   const [securitySubmitOpen, setSecuritySubmitOpen] = useState(false);
@@ -231,7 +258,8 @@ export default function ActivityDetailPage() {
       />
 
       <Tabs
-        defaultActiveKey="detail"
+        activeKey={activeTab}
+        onChange={setActiveTab}
         items={[
           {
             key: "detail",
@@ -365,6 +393,7 @@ export default function ActivityDetailPage() {
                               onClick={() => {
                                 const errs = validateActivityPlan(planSchema?.snapshot_data);
                                 if (errs.length > 0) {
+                                  setValidationContext("finalize");
                                   setValidationErrors(errs);
                                   setValidationModalOpen(true);
                                 } else {
@@ -447,7 +476,15 @@ export default function ActivityDetailPage() {
                         <>
                           <div style={{ padding: 16, border: "1px solid #1677ff", borderRadius: 8 }}>
                             <Typography.Title level={5}>安保负责人签署确认</Typography.Title>
-                            <VersionSnapshot schema={securityPlanSchema} />
+                            {/* Read-only preview: 安保方案 + 双表 */}
+                            {(() => {
+                              const items: any[] = [
+                                { key: "security_plan", label: "安保方案", children: <VersionSnapshot schema={securityPlanSchema} /> },
+                              ];
+                              if (riskMaterial.schema) items.push({ key: "risk_assessment", label: "风险评估表", children: <VersionSnapshot schema={riskMaterial.schema} /> });
+                              if (respMaterial.schema) items.push({ key: "responsibility_letter", label: "责任确认书", children: <VersionSnapshot schema={respMaterial.schema} /> });
+                              return <Tabs size="small" type="card" items={items} style={{ marginBottom: 16 }} />;
+                            })()}
                           <div style={{ marginTop: 16 }}>
                             <Space>
                               <Upload
@@ -588,55 +625,15 @@ export default function ActivityDetailPage() {
                             templatesApi.getSecurityPlanVersionDiff(id!, v1, v2).then((r) => r.data)
                           }
                         />
-                      ) : canEditSecurity ? (
-                        <>
-                          <div style={{ marginBottom: 16 }}>
-                            <Typography.Text strong>风险等级</Typography.Text>
-                            <Select
-                              style={{ width: 200, marginLeft: 12 }}
-                              placeholder="选择风险等级"
-                              value={securityPlanSchema.risk_level || undefined}
-                              disabled={!!(securityPlan?.audit_status && securityPlan.audit_status !== "待编制")}
-                              options={[
-                                { label: "大型", value: "大型" },
-                                { label: "中型", value: "中型" },
-                                { label: "高风险", value: "高风险" },
-                              ]}
-                              onChange={async (val) => {
-                                await activitiesApi.updateSecurityPlan(id!, { risk_level: val });
-                                refetchSecuritySchema();
-                              }}
-                            />
+                      ) : canEditSecurity && securityPlan?.audit_status === "已签署" ? (
+                        <div>
+                          <div style={{ marginBottom: 16, padding: "8px 16px", background: "#f6ffed", borderRadius: 4, border: "1px solid #b7eb8f" }}>
+                            <Typography.Text strong style={{ color: "#52c41a" }}>已签署确认</Typography.Text>
+                            <Typography.Text type="secondary" style={{ marginLeft: 8 }}>
+                              {securityPlan?.sign_time ? new Date(securityPlan.sign_time).toLocaleString("zh-CN") : ""}
+                            </Typography.Text>
                           </div>
-                          <TemplateForm
-                            activityId={id!}
-                            schema={securityPlanSchema}
-                            disabled={!!(securityPlan?.audit_status && securityPlan.audit_status !== "待编制")}
-                            highlightFields={highlightFields}
-                            onSaveDraft={async (data) => {
-                              await templatesApi.saveSecurityPlanDraft(id!, data);
-                            }}
-                            onSubmit={async (data) => {
-                              const res = await templatesApi.generateSecurityPlan(id!, data);
-                              const result = res.data;
-                              queryClient.setQueryData<VersionItem[]>(
-                                ["activities", id, "templates", "security-versions"],
-                                (old = []) => [
-                                  {
-                                    id: result.id,
-                                    version_number: result.version_number,
-                                    generated_by: "",
-                                    created_at: result.created_at,
-                                    is_current: true,
-                                    pdf_ready: result.pdf_ready,
-                                  },
-                                  ...old.map((v) => ({ ...v, is_current: false })),
-                                ],
-                              );
-                              refetchSecuritySchema();
-                              return result;
-                            }}
-                          />
+                          <VersionSnapshot schema={securityPlanSchema} />
                           <VersionTimeline
                             versions={securityPlanVersions}
                             onViewDetail={(v) =>
@@ -646,32 +643,261 @@ export default function ActivityDetailPage() {
                               templatesApi.getSecurityPlanVersionDiff(id!, v1, v2).then((r) => r.data)
                             }
                           />
-                          {(() => {
-                            const auditStatus = securityPlan?.audit_status;
-                            const submitted = !!(auditStatus && auditStatus !== "待编制");
-                            const btnLabel = submitted ? (
-                              auditStatus === "待签署" ? "已提交审核，等待负责人签署" : "负责人已签署"
-                            ) : "提交审核";
-
-                            return securityPlanVersions.length > 0 && activity?.status === "待安保方案设计" && (
-                              <Button
-                                type="primary"
-                                style={{ marginTop: 16 }}
-                                disabled={submitted}
-                                onClick={() => {
-                                  const errs = validateSecurityPlan(securityPlanSchema?.snapshot_data, securityPlanSchema?.risk_level);
-                                  if (errs.length > 0) {
-                                    setValidationErrors(errs);
-                                    setValidationModalOpen(true);
-                                  } else {
-                                    setSecuritySubmitOpen(true);
-                                  }
-                                }}
-                              >
-                                {btnLabel}
-                              </Button>
-                            );
-                          })()}
+                          <Button
+                            type="primary"
+                            style={{ marginTop: 16 }}
+                            onClick={() => setActiveTab("filing")}
+                          >
+                            前往备案材料打包
+                          </Button>
+                        </div>
+                      ) : canEditSecurity ? (
+                        <>
+                          {activity?.status === "待安保方案设计" ? (
+                            <>
+                              {(() => {
+                                const auditStatus = securityPlan?.audit_status;
+                                const submitted = !!(auditStatus && auditStatus !== "待编制");
+                                const rejectedAt = securityPlan?.rejected_at ? new Date(securityPlan.rejected_at).getTime() : 0;
+                                const latestVersionAfterReject = rejectedAt
+                                  ? securityPlanVersions.some((v) => v.created_at && new Date(v.created_at).getTime() > rejectedAt)
+                                  : true;
+                                const blockedByReject = !!rejectedAt && !latestVersionAfterReject;
+                                const allThreeReady = securityPlanVersions.length > 0 && riskVersions.length > 0 && respVersions.length > 0;
+                                return (
+                                  <div style={{ marginTop: 8, marginBottom: 8, padding: "4px 12px", background: "#fafafa", borderRadius: 4, display: "flex", alignItems: "center", gap: 8 }}>
+                                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>完成进度：</Typography.Text>
+                                    <Tag color={securityPlanVersions.length > 0 ? "green" : "default"} style={{ margin: 0 }}>安保方案</Tag>
+                                    <Tag color={riskVersions.length > 0 ? "green" : "default"} style={{ margin: 0 }}>风险评估表</Tag>
+                                    <Tag color={respVersions.length > 0 ? "green" : "default"} style={{ margin: 0 }}>责任确认书</Tag>
+                                    <span style={{ flex: 1 }} />
+                                    {submitted ? (
+                                      <Tag color="blue" style={{ margin: 0 }}>已提交审核</Tag>
+                                    ) : blockedByReject ? (
+                                      <Button size="small" disabled style={{ marginLeft: "auto" }}>被驳回，请先生成新版本</Button>
+                                    ) : allThreeReady ? (
+                                      <Button type="primary" size="small" style={{ marginLeft: "auto" }}
+                                        onClick={() => {
+                                          const allErrs: ValidationError[] = [];
+                                          // business-logic validation
+                                          const spRL = securityPlanSchema?.risk_level;
+                                          allErrs.push(...validateSecurityPlan(securityPlanSchema?.snapshot_data, spRL));
+                                          if (securityPlanSchema?.fields) allErrs.push(...validateAllFieldsFilled(securityPlanSchema?.snapshot_data, securityPlanSchema.fields, "安保方案", spRL));
+                                          if (riskMaterial.schema?.fields) allErrs.push(...validateAllFieldsFilled(riskMaterial.schema?.snapshot_data, riskMaterial.schema.fields, "风险评估表", null));
+                                          if (respMaterial.schema?.fields) allErrs.push(...validateAllFieldsFilled(respMaterial.schema?.snapshot_data, respMaterial.schema.fields, "责任确认书", null));
+                                          if (allErrs.length > 0) { setValidationContext("submit"); setValidationErrors(allErrs); setValidationModalOpen(true); }
+                                          else { setSecuritySubmitOpen(true); }
+                                        }}>
+                                        提交审核
+                                      </Button>
+                                    ) : (
+                                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>请完成安保方案及双表</Typography.Text>
+                                    )}
+                                  </div>
+                                );
+                              })()}
+                              <Tabs size="small" type="card" activeKey={templateTab} onChange={(key) => setTemplateTab(key as typeof templateTab)} items={[
+                              {
+                                key: "security_plan",
+                                label: "安保方案",
+                                children: (
+                                  <>
+                                    <div style={{ marginBottom: 16 }}>
+                                      <Typography.Text strong>风险等级</Typography.Text>
+                                      <Select
+                                        style={{ width: 200, marginLeft: 12 }}
+                                        placeholder="选择风险等级"
+                                        value={securityPlanSchema.risk_level || undefined}
+                                        disabled={!!(securityPlan?.audit_status && securityPlan.audit_status !== "待编制")}
+                                        options={[
+                                          { label: "高风险", value: "高风险" },
+                                          { label: "中低风险", value: "中低风险" },
+                                          { label: "低风险", value: "低风险" },
+                                        ]}
+                                        onChange={async (val) => {
+                                          await activitiesApi.updateSecurityPlan(id!, { risk_level: val });
+                                          refetchSecuritySchema();
+                                        }}
+                                      />
+                                    </div>
+                                    <TemplateForm
+                                      activityId={id!}
+                                      schema={securityPlanSchema}
+                                      disabled={!!(securityPlan?.audit_status && securityPlan.audit_status !== "待编制")}
+                                      highlightFields={highlightFields}
+                                      onSaveDraft={async (data) => {
+                                        await templatesApi.saveSecurityPlanDraft(id!, data);
+                                      }}
+                                      onSubmit={async (data) => {
+                                        const res = await templatesApi.generateSecurityPlan(id!, data);
+                                        const result = res.data;
+                                        queryClient.setQueryData<VersionItem[]>(
+                                          ["activities", id, "templates", "security-versions"],
+                                          (old = []) => [
+                                            {
+                                              id: result.id,
+                                              version_number: result.version_number,
+                                              generated_by: "",
+                                              created_at: result.created_at,
+                                              is_current: true,
+                                              pdf_ready: result.pdf_ready,
+                                            },
+                                            ...old.map((v) => ({ ...v, is_current: false })),
+                                          ],
+                                        );
+                                        refetchSecuritySchema();
+                                        queryClient.invalidateQueries({ queryKey: ["activities", id, "templates", "security-versions"] });
+                                        return result;
+                                      }}
+                                    />
+                                    <VersionTimeline
+                                      versions={securityPlanVersions}
+                                      onViewDetail={(v) =>
+                                        templatesApi.getSecurityPlanVersionDetail(id!, v).then((r) => r.data)
+                                      }
+                                      onDiff={(v1, v2) =>
+                                        templatesApi.getSecurityPlanVersionDiff(id!, v1, v2).then((r) => r.data)
+                                      }
+                                    />
+                                  </>
+                                ),
+                              },
+                              {
+                                key: "risk_assessment",
+                                label: "风险评估表",
+                                children: riskMaterial.isLoading ? (
+                                  <Spin />
+                                ) : riskMaterial.schema ? (
+                                  <>
+                                    <TemplateForm
+                                      activityId={id!}
+                                      schema={riskMaterial.schema}
+                                      disabled={!!(securityPlan?.audit_status && securityPlan.audit_status !== "待编制")}
+                                      highlightFields={highlightFields}
+                                      onSaveDraft={async (data) => {
+                                        await templatesApi.saveMaterialDraft(id!, riskMaterial.materialId!, data);
+                                      }}
+                                      onSubmit={async (data) => {
+                                        const res = await templatesApi.generateMaterial(id!, riskMaterial.materialId!, data);
+                                        const result = res.data;
+                                        queryClient.setQueryData<VersionItem[]>(
+                                          ["activities", id, "templates", "risk-versions"],
+                                          (old = []) => [
+                                            {
+                                              id: result.id,
+                                              version_number: result.version_number,
+                                              generated_by: "",
+                                              created_at: result.created_at,
+                                              is_current: true,
+                                              pdf_ready: result.pdf_ready,
+                                            },
+                                            ...old.map((v) => ({ ...v, is_current: false })),
+                                          ],
+                                        );
+                                        riskMaterial.refetch();
+                                        queryClient.invalidateQueries({ queryKey: ["activities", id, "templates", "risk-versions"] });
+                                        return result;
+                                      }}
+                                      onValidate={(data) => validateRiskAssessment(data)}
+                                    />
+                                    <VersionTimeline
+                                      versions={riskVersions}
+                                      onViewDetail={(v) =>
+                                        templatesApi.getMaterialVersionDetail(id!, riskMaterial.materialId!, v).then((r) => r.data)
+                                      }
+                                      onDiff={(v1, v2) =>
+                                        templatesApi.getMaterialVersionDiff(id!, riskMaterial.materialId!, v1, v2).then((r) => r.data)
+                                      }
+                                    />
+                                  </>
+                                ) : null,
+                              },
+                              {
+                                key: "responsibility_letter",
+                                label: "责任确认书",
+                                children: respMaterial.isLoading ? (
+                                  <Spin />
+                                ) : respMaterial.schema ? (
+                                  <>
+                                    <TemplateForm
+                                      activityId={id!}
+                                      schema={respMaterial.schema}
+                                      disabled={!!(securityPlan?.audit_status && securityPlan.audit_status !== "待编制")}
+                                      highlightFields={highlightFields}
+                                      onSaveDraft={async (data) => {
+                                        await templatesApi.saveMaterialDraft(id!, respMaterial.materialId!, data);
+                                      }}
+                                      onSubmit={async (data) => {
+                                        const res = await templatesApi.generateMaterial(id!, respMaterial.materialId!, data);
+                                        const result = res.data;
+                                        queryClient.setQueryData<VersionItem[]>(
+                                          ["activities", id, "templates", "resp-versions"],
+                                          (old = []) => [
+                                            {
+                                              id: result.id,
+                                              version_number: result.version_number,
+                                              generated_by: "",
+                                              created_at: result.created_at,
+                                              is_current: true,
+                                              pdf_ready: result.pdf_ready,
+                                            },
+                                            ...old.map((v) => ({ ...v, is_current: false })),
+                                          ],
+                                        );
+                                        respMaterial.refetch();
+                                        queryClient.invalidateQueries({ queryKey: ["activities", id, "templates", "resp-versions"] });
+                                        return result;
+                                      }}
+                                      onValidate={(data) => validateResponsibilityLetter(data)}
+                                    />
+                                    <VersionTimeline
+                                      versions={respVersions}
+                                      onViewDetail={(v) =>
+                                        templatesApi.getMaterialVersionDetail(id!, respMaterial.materialId!, v).then((r) => r.data)
+                                      }
+                                      onDiff={(v1, v2) =>
+                                        templatesApi.getMaterialVersionDiff(id!, respMaterial.materialId!, v1, v2).then((r) => r.data)
+                                      }
+                                    />
+                                  </>
+                                ) : null,
+                              },
+                            ]} />
+                            </>
+                          ) : (
+                            <>
+                              <div style={{ marginBottom: 16 }}>
+                                <Typography.Text strong>风险等级</Typography.Text>
+                                <Select
+                                  style={{ width: 200, marginLeft: 12 }}
+                                  placeholder="选择风险等级"
+                                  value={securityPlanSchema.risk_level || undefined}
+                                  disabled
+                                  options={[
+                                    { label: "高风险", value: "高风险" },
+                                    { label: "中低风险", value: "中低风险" },
+                                    { label: "低风险", value: "低风险" },
+                                  ]}
+                                />
+                              </div>
+                              <TemplateForm
+                                activityId={id!}
+                                schema={securityPlanSchema}
+                                disabled
+                                onSaveDraft={async () => {}}
+                                onSubmit={async () => ({ id: "", template_type: "", version_number: 0, minio_path: null, pdf_ready: false, created_at: "" } as GenerateResponse)}
+                              />
+                              <VersionTimeline
+                                versions={securityPlanVersions}
+                                onViewDetail={(v) =>
+                                  templatesApi.getSecurityPlanVersionDetail(id!, v).then((r) => r.data)
+                                }
+                                onDiff={(v1, v2) =>
+                                  templatesApi.getSecurityPlanVersionDiff(id!, v1, v2).then((r) => r.data)
+                                }
+                              />
+                            </>
+                          )}
                           <Modal
                             title="确认提交审核"
                             open={securitySubmitOpen}
@@ -915,6 +1141,100 @@ export default function ActivityDetailPage() {
                           refetchFilingStatus();
                         }}
                       />
+
+                      {/* GovLiaison review panel */}
+                      {isGovLiaison && activity?.status === "备案材料已交接" && (() => {
+                        const auditedCount = materials.filter(m => m.audit_round > 0).length;
+                        const allAudited = materials.length > 0 && auditedCount === materials.length;
+                        const targetStatus = approvalAction === "approve" ? "审批通过" : approvalAction === "revise" ? "待补充备案材料" : "不通过/已终止";
+                        return (
+                          <div style={{ marginTop: 24, padding: 16, border: "1px solid #1677ff", borderRadius: 8 }}>
+                            <Typography.Title level={5}>政府对接 — 审批决策</Typography.Title>
+                            <div style={{ marginBottom: 16 }}>
+                              <Typography.Text strong>材料审查状态：</Typography.Text>
+                              {allAudited ? (
+                                <Tag color="green">全部材料已审查（{materials.length}项）</Tag>
+                              ) : (
+                                <Tag color="orange">尚有 {materials.length - auditedCount} 项材料待审查</Tag>
+                              )}
+                            </div>
+                            <div style={{ marginBottom: 16 }}>
+                              <Typography.Text strong>上传政府批文（可选）：</Typography.Text>
+                              <Upload
+                                accept=".pdf,.jpg,.png,.doc,.docx"
+                                maxCount={1}
+                                showUploadList={false}
+                                customRequest={async ({ file, onSuccess, onError }) => {
+                                  try {
+                                    const res = await documentsApi.upload(id!, file as File, ["approval"]);
+                                    setApprovalDocPath(res.data.minio_path);
+                                    onSuccess?.(res.data);
+                                    message.success("批文已上传");
+                                  } catch {
+                                    onError?.(new Error("上传失败"));
+                                    message.error("批文上传失败");
+                                  }
+                                }}
+                              >
+                                <Button icon={<UploadOutlined />}>选择批文文件</Button>
+                              </Upload>
+                              {approvalDocPath && <Tag color="blue" style={{ marginTop: 8 }}>已上传</Tag>}
+                            </div>
+                            <Space>
+                              <Button type="primary" disabled={!allAudited}
+                                onClick={() => { setApprovalAction("approve"); setApprovalComment(""); setApprovalModalOpen(true); }}>
+                                审批通过
+                              </Button>
+                              <Button disabled={!allAudited}
+                                onClick={() => { setApprovalAction("revise"); setApprovalComment(""); setApprovalModalOpen(true); }}>
+                                要求补件
+                              </Button>
+                              <Button danger
+                                onClick={() => { setApprovalAction("reject"); setApprovalComment(""); setApprovalModalOpen(true); }}>
+                                驳回—不通过
+                              </Button>
+                            </Space>
+                            <Modal
+                              title={approvalAction === "approve" ? "确认审批通过" : approvalAction === "revise" ? "要求补充材料" : "确认驳回"}
+                              open={approvalModalOpen}
+                              onOk={async () => {
+                                try {
+                                  const comment = approvalDocPath ? `[批文] ${approvalDocPath}；${approvalComment}` : approvalComment;
+                                  await workflowsApi.transition(id!, { to_status: targetStatus, comment: comment || undefined });
+                                  message.success("审批结果已提交");
+                                  queryClient.invalidateQueries({ queryKey: ["activities", id] });
+                                  queryClient.invalidateQueries({ queryKey: ["activities", id, "filing", "status"] });
+                                  setApprovalModalOpen(false);
+                                  setApprovalDocPath(null);
+                                } catch (e: any) {
+                                  message.error(e?.response?.data?.detail || "操作失败");
+                                }
+                              }}
+                              onCancel={() => setApprovalModalOpen(false)}
+                              okText="确认"
+                              cancelText="取消"
+                            >
+                              {approvalAction === "approve" && "确认该活动审批通过？活动将进入「审批通过」状态。"}
+                              {approvalAction === "revise" && (
+                                <>
+                                  <Typography.Paragraph type="secondary">请输入补件说明，告知需要补充哪些材料：</Typography.Paragraph>
+                                  <Input.TextArea rows={3} value={approvalComment}
+                                    onChange={(e) => setApprovalComment(e.target.value)}
+                                    placeholder="说明需要补充的材料..." />
+                                </>
+                              )}
+                              {approvalAction === "reject" && (
+                                <>
+                                  <Typography.Paragraph type="secondary">确认驳回该活动？活动将进入「不通过/已终止」状态。请填写驳回原因：</Typography.Paragraph>
+                                  <Input.TextArea rows={3} value={approvalComment}
+                                    onChange={(e) => setApprovalComment(e.target.value)}
+                                    placeholder="驳回原因..." />
+                                </>
+                              )}
+                            </Modal>
+                          </div>
+                        );
+                      })()}
                     </div>
                   ),
                 },
@@ -923,7 +1243,7 @@ export default function ActivityDetailPage() {
         ]}
       />
       <Modal
-        title="以下字段需要完善后才能最终确定"
+        title={validationContext === "finalize" ? "以下字段需要完善后才能最终确定" : "以下字段需要完善后才能提交审核"}
         open={validationModalOpen}
         onCancel={() => setValidationModalOpen(false)}
         footer={
@@ -937,7 +1257,19 @@ export default function ActivityDetailPage() {
       >
         <ul style={{ paddingLeft: 20, margin: 0 }}>
           {validationErrors.map((e, i) => (
-            <li key={i} style={{ marginBottom: 6 }}>
+            <li key={i} style={{ marginBottom: 6, cursor: e.field ? "pointer" : "default", color: e.field ? "#1677ff" : "inherit" }}
+              onClick={() => {
+                if (!e.field) return;
+                setHighlightFields([e.field]);
+                setValidationModalOpen(false);
+                // switch to correct sub-tab before scrolling
+                if (securityPlanSchema?.fields?.some((f: any) => f.name === e.field)) setTemplateTab("security_plan");
+                else if (riskMaterial.schema?.fields?.some((f: any) => f.name === e.field)) setTemplateTab("risk_assessment");
+                else if (respMaterial.schema?.fields?.some((f: any) => f.name === e.field)) setTemplateTab("responsibility_letter");
+                setTimeout(() => {
+                  document.getElementById(e.field)?.scrollIntoView({ behavior: "smooth", block: "center" });
+                }, 200);
+              }}>
               <strong>{e.label}</strong>：{e.reason}
             </li>
           ))}

@@ -11,6 +11,7 @@ class SchemaResponse(BaseModel):
     snapshot_data: dict | None = None
     current_version: int | None = None
     risk_level: str | None = None  # security plan only
+    autofill_data: dict | None = None  # activity data for autofill fields
     fields: list[dict]
 
 
@@ -56,3 +57,13 @@ class VersionDiff(BaseModel):
     field: str
     old: object
     new: object
+
+
+class CreateMaterialRequest(BaseModel):
+    material_type: str  # "risk_assessment" | "responsibility_letter"
+
+
+class CreateMaterialResponse(BaseModel):
+    material_id: UUID
+    name: str
+    template_type: str

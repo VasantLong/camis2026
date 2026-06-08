@@ -40,6 +40,7 @@
 | `GET`  | `/activities/{id}/security-plan/versions` | 登录用户 |
 | `GET`  | `/activities/{id}/security-plan/versions/{vn}` | 登录用户 |
 | `GET`  | `/activities/{id}/security-plan/versions/{v1}/diff/{v2}` | 登录用户 |
+| `POST` | `/activities/{id}/materials` | `pack_filing` （创建 KeyMaterial，返回 material_id） |
 | `GET`  | `/activities/{id}/materials/{mid}/schema` | 登录用户 |
 | `PUT`  | `/activities/{id}/materials/{mid}/draft` | `pack_filing` |
 | `POST` | `/activities/{id}/materials/{mid}/generate` | `pack_filing` |
@@ -53,6 +54,7 @@
 | `POST` | `/documents/upload` | 登录用户 |
 | `GET`  | `/documents/{id}` | 登录用户（302 重定向） |
 | `GET`  | `/documents/{id}/url` | 登录用户（返回 presigned URL） |
+| `GET`  | `/documents/presign/by-path?path=...` | 登录用户（通过 minio_path 获取 presigned URL） |
 | `GET`  | `/activities/{id}/materials` | 登录用户 |
 | `POST` | `/activities/{id}/materials/{mid}/sign` | `sign_document` |
 | `POST` | `/activities/{id}/materials/{mid}/audit` | `audit_material` |

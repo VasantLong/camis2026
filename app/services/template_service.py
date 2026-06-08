@@ -14,7 +14,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.activity import Activity, ActivityPlan, SecurityPlan
-from app.models.material import KeyMaterial
+from app.models.material import KeyMaterial, SecurityPlanMaterial
 from app.models.template import FilledDocument
 from app.models.document import Document
 from app.services import minio_client
@@ -31,6 +31,35 @@ MINIO_BUCKET = "camis2026"
 class TemplateService:
     def __init__(self, db: AsyncSession):
         self.db = db
+
+    # ------------------------------------------------------------------
+    # material lifecycle
+    # ------------------------------------------------------------------
+
+    async def get_or_create_material(self, activity_id: UUID, material_type: str) -> KeyMaterial:
+        """Get existing KeyMaterial by (activity_id, material_type) or create one."""
+        result = await self.db.execute(
+            select(KeyMaterial).where(
+                KeyMaterial.activity_id == activity_id,
+                KeyMaterial.material_type == material_type,
+            )
+        )
+        entity = result.scalar_one_or_none()
+        if entity:
+            return entity
+        display_name = TEMPLATE_DISPLAY_NAMES.get(material_type, material_type)
+        entity = KeyMaterial(name=display_name, activity_id=activity_id, material_type=material_type)
+        self.db.add(entity)
+        await self.db.flush()
+        sp = await self.db.execute(
+            select(SecurityPlan).where(SecurityPlan.activity_id == activity_id)
+        )
+        sp = sp.scalar_one_or_none()
+        if sp:
+            self.db.add(SecurityPlanMaterial(security_plan_id=sp.id, material_id=entity.id))
+            await self.db.flush()
+        await self.db.commit()
+        return entity
 
     # ------------------------------------------------------------------
     # schema + draft
@@ -64,6 +93,58 @@ class TemplateService:
         if template_type == "security_plan":
             risk_level = getattr(entity, "risk_level", None) if entity else None
             schema["risk_level"] = risk_level
+
+        # autofill: provide Activity + ActivityPlan snapshot + defaults + cross-template data
+        ACTIVITY_FIELD_MAP = {
+            "project_name": "name",
+            "sponsor": "sponsor",
+            "location_type": "location",
+            "activity_type": "type",
+        }
+        PLAN_FIELD_MAP = {
+            "activity_content": "activity_content",
+            "activity_start": "start_time",
+            "activity_end": "end_time",
+            "staff_count": "staff_count",
+            "crowd_scale": "opening_crowd",
+        }
+        # fixed defaults (sensitive values from .env via settings)
+        from app.config import settings
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        DEFAULT_FIELD_MAP: dict[str, str] = {
+            "reporting_unit": settings.default_reporting_unit or "",
+            "report_date": today,
+            "sponsor_unit": settings.default_reporting_unit or "",
+            "confirm_date": today,
+            "confirm_location": settings.default_confirm_location or "",
+        }
+        all_field_names = {f["name"] for f in schema.get("fields", [])}
+        mappable = all_field_names & (set(ACTIVITY_FIELD_MAP) | set(PLAN_FIELD_MAP) | set(DEFAULT_FIELD_MAP))
+        if mappable:
+            autofill_data: dict[str, object] = {}
+            activity = await self.db.get(Activity, activity_id)
+            plan_snapshot: dict[str, object] = {}
+            plan_result = await self.db.execute(
+                select(ActivityPlan).where(ActivityPlan.activity_id == activity_id)
+            )
+            plan = plan_result.scalar_one_or_none()
+            if plan and plan.current_filled_document_id:
+                plan_fd = await self.db.get(FilledDocument, plan.current_filled_document_id)
+                if plan_fd and plan_fd.data_snapshot:
+                    plan_snapshot = plan_fd.data_snapshot
+            for name in mappable:
+                if name in ACTIVITY_FIELD_MAP and activity:
+                    attr = ACTIVITY_FIELD_MAP[name]
+                    autofill_data[name] = getattr(activity, attr, None) or ""
+                elif name in PLAN_FIELD_MAP:
+                    plan_key = PLAN_FIELD_MAP[name]
+                    val = plan_snapshot.get(plan_key, "") or ""
+                    if plan_key == "opening_crowd" and not val:
+                        val = plan_snapshot.get("regular_crowd", "") or ""
+                    autofill_data[name] = val
+                elif name in DEFAULT_FIELD_MAP:
+                    autofill_data[name] = DEFAULT_FIELD_MAP[name]
+            schema["autofill_data"] = autofill_data
 
         return schema
 
@@ -157,10 +238,27 @@ class TemplateService:
         if not fd or not fd.data_snapshot:
             raise ValueError("未找到当前版本数据")
 
-        from app.templates.activity_plan.schema import ActivityPlanForm
+        from app.templates.activity_plan.schema import ActivityPlanForm, SCHEMA as PLAN_SCHEMA
+
+        # clean snapshot: strip hidden conditional fields, fix int→str for select fields
+        cleaned = dict(fd.data_snapshot)
+        for f in PLAN_SCHEMA["fields"]:
+            cond = f.get("condition")
+            if cond:
+                parts = cond.replace("==", " ").replace("!=", " ").split()
+                if len(parts) >= 3:
+                    cur = cleaned.get(parts[0], "")
+                    target = parts[2].strip("'\"")
+                    match = cur == target if "==" in cond else cur != target
+                    if not match:
+                        cleaned.pop(f["name"], None)
+        select_fields = {f["name"] for f in PLAN_SCHEMA["fields"] if f.get("ui_type") == "select"}
+        for name in select_fields:
+            if isinstance(cleaned.get(name), int):
+                cleaned[name] = str(cleaned[name]) if cleaned[name] != 0 else ""
 
         try:
-            ActivityPlanForm(**fd.data_snapshot)
+            ActivityPlanForm(**cleaned)
         except Exception as e:
             raise ValueError(f"活动方案内容不完整: {e}")
 
@@ -224,11 +322,19 @@ class TemplateService:
         if not fd or not fd.data_snapshot:
             raise ValueError("未找到当前版本数据")
 
-        from app.templates.security_plan.schema import SecurityPlanForm
+        from app.templates.security_plan.schema import SecurityPlanForm, CONDITIONAL_FIELDS as SP_CONDITIONAL
         import re
 
+        # strip conditional fields not applicable to current risk_level
+        cleaned = dict(fd.data_snapshot)
+        risk_level = getattr(entity, "risk_level", "") or ""
+        allowed = set(SP_CONDITIONAL.get(risk_level, []))
+        for cond_field in {"medical_plan", "fire_plan", "crowd_control"}:
+            if cond_field not in allowed:
+                cleaned.pop(cond_field, None)
+
         try:
-            SecurityPlanForm(**fd.data_snapshot)
+            SecurityPlanForm(**cleaned)
         except Exception as e:
             raise ValueError(f"安保方案内容不完整: {e}")
 
@@ -246,15 +352,18 @@ class TemplateService:
             errors.append("安保人员数量必须大于0")
 
         risk_level = getattr(entity, "risk_level", "") or ""
-        if risk_level == "大型" and not data.get("medical_plan"):
-            errors.append("医疗救护措施不能为空（风险等级：大型）")
-        if risk_level in ("大型", "中型", "高风险") and not data.get("fire_plan"):
+        if risk_level == "高风险" and not data.get("medical_plan"):
+            errors.append("医疗救护措施不能为空（风险等级：高风险）")
+        if risk_level in ("高风险", "中低风险") and not data.get("fire_plan"):
             errors.append("消防措施不能为空")
-        if risk_level in ("大型", "高风险") and not data.get("crowd_control"):
+        if risk_level == "高风险" and not data.get("crowd_control"):
             errors.append("人流管控方案不能为空")
 
         if errors:
             raise ValueError("; ".join(errors))
+
+        if entity.rejected_at and fd.created_at and fd.created_at <= entity.rejected_at:
+            raise ValueError("驳回后请先生成新版本再提交审核")
 
         activity = await self.db.get(Activity, activity_id)
         if not activity or activity.status != "待安保方案设计":
@@ -575,6 +684,13 @@ class TemplateService:
                 )
                 self.db.add(entity)
                 await self.db.flush()
+                sp = await self.db.execute(
+                    select(SecurityPlan).where(SecurityPlan.activity_id == activity_id)
+                )
+                sp = sp.scalar_one_or_none()
+                if sp:
+                    self.db.add(SecurityPlanMaterial(security_plan_id=sp.id, material_id=entity.id))
+                    await self.db.flush()
             return entity
         raise ValueError(f"unknown entity type: {entity_type}")
 

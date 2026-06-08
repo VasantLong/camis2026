@@ -62,6 +62,11 @@ export const templatesApi = {
     client.get<VersionDiff[]>(`/activities/${activityId}/security-plan/versions/${v1}/diff/${v2}`),
 
   // ── key materials ──
+  createMaterial: (activityId: string, materialType: string) =>
+    client.post<{ material_id: string; name: string; template_type: string }>(
+      `/activities/${activityId}/materials`, { material_type: materialType },
+    ),
+
   getMaterialSchema: (activityId: string, materialId: string) =>
     client.get<SchemaResponse>(`/activities/${activityId}/materials/${materialId}/schema`),
 

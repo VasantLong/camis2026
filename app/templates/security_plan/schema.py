@@ -17,14 +17,14 @@ class SecurityPlanForm(BaseModel):
 
 # 条件段定义：risk_level 决定哪些字段可见
 CONDITIONAL_FIELDS = {
-    "大型": ["medical_plan", "fire_plan", "crowd_control"],
-    "中型": ["fire_plan"],
-    "高风险": ["fire_plan", "crowd_control"],
+    "高风险": ["medical_plan", "fire_plan", "crowd_control"],
+    "中低风险": ["fire_plan"],
+    "低风险": [],
 }
 
 SCHEMA = {
     "display_name": "安保方案",
-    "risk_level_first": True,  # 前端先弹风险等级选择器
+    "risk_level_first": True,
     "conditional_fields": CONDITIONAL_FIELDS,
     "fields": [
         {"name": "security_staff_config", "ui_label": "安保人员配置", "ui_type": "textarea", "required": True},
@@ -32,9 +32,9 @@ SCHEMA = {
         {"name": "movement_plan", "ui_label": "动线设计", "ui_type": "textarea", "required": True},
         {"name": "equipment_list", "ui_label": "安保设备清单", "ui_type": "textarea", "required": True},
         {"name": "emergency_plan", "ui_label": "应急预案", "ui_type": "textarea", "required": True},
-        {"name": "medical_plan", "ui_label": "医疗救护措施", "ui_type": "textarea", "condition": "大型"},
-        {"name": "fire_plan", "ui_label": "消防措施", "ui_type": "textarea", "condition": "大型/中型/高风险"},
-        {"name": "crowd_control", "ui_label": "人流管控方案", "ui_type": "textarea", "condition": "大型/高风险"},
+        {"name": "medical_plan", "ui_label": "医疗救护措施", "ui_type": "textarea", "condition": "risk_level == '高风险'"},
+        {"name": "fire_plan", "ui_label": "消防措施", "ui_type": "textarea", "condition": "risk_level != '低风险'"},
+        {"name": "crowd_control", "ui_label": "人流管控方案", "ui_type": "textarea", "condition": "risk_level == '高风险'"},
         # manager_signature is NOT in fields — injected at Manager signing time, not shown in form
     ],
 }

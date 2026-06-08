@@ -90,13 +90,16 @@ stateDiagram-v2
 
 Promoter 在活动方案 tab 点击"最终确定方案"→ 系统校验字段完整性 → 不通过弹窗列出问题 → 通过则弹出确认弹窗 → 确认后流转到「待安保方案设计」。已替代 WorkflowActions 的"提交到安保方案设计"按钮。
 
-### UC3 提交审核 + 签署（安保方案）
+### UC3 提交审核 + 签署（安保方案 + 双表）
 
-1. SecurityOfficer 填写安保方案 →"提交生成"（**仅保存数据快照，不生成 DOCX**）→ "提交审核"
-2. 系统校验字段完整性 → 不通过弹窗 → 通过则 `audit_status` = "待签署"，通知 SecurityManager
-3. SecurityManager 进入安保方案 tab → 看到方案内容 + 签名上传区 → 可"确认签署"或"驳回"
-4. 签署：Manager 上传签名 → 系统一次性生成含 Manager 签名的安保方案 + 双表 DOCX → 流转到「待备案申请」
-5. 驳回：Manager 勾选预设原因 + 补充说明 → `audit_status` 回到"待编制" → 通知 SecurityOfficer → Officer 表单显示红色横幅 + 高亮需修改字段 → 生成新版本 → 重新提交审核
+1. SecurityOfficer 在安保方案 tab 内切换三个子 tab：安保方案 | 风险评估表 | 责任确认书
+2. 每个子 tab 独立填写 →"提交生成"（**延迟类型仅保存数据快照，不生成 DOCX**）→ 可选生成多版本
+3. 双表字段支持跨实体自动填入：activity_start/end/content/crowd_scale 从活动方案预填，project_name/activity_type/location_type 从 Activity 预填，固定值从 .env 注入
+4. 安保方案子 tab 点击"提交审核"→ 系统校验字段完整性 → 通过则 `audit_status` = "待签署"，通知 SecurityManager
+5. SecurityManager 进入安保方案 tab → 看到方案内容 + 签名上传区 → 可"确认签署"或"驳回"
+6. 签署：Manager 上传签名 → 系统一次性生成含 Manager 签名的安保方案 + 双表 DOCX → 流转到「待备案申请」
+7. 驳回：Manager 勾选预设原因 + 补充说明 → `audit_status` 回到"待编制" → 通知 Officer → 红色横幅 + 高亮字段 → 驳回后**必须先创建新版本**才能重新提交（防重复提交）
+8. 签署后 Officer 看到绿色"已签署确认"横幅 + "前往备案材料打包"按钮
 
 ## 关键规则
 
@@ -105,4 +108,7 @@ Promoter 在活动方案 tab 点击"最终确定方案"→ 系统校验字段完
 - **待补充备案材料**不是终态，安保部补充后可重新递交
 - 逾期检测（UC2 备选流 2b）不改变状态，仅触发预警通知
 - **安保方案 DOCX 延迟生成**：SecurityOfficer 提交生成时仅保存数据快照（minio_path=NULL），Manager 签署后一次性生成含签名 DOCX
+- **活动方案最终确定后锁定**：进入待安保方案设计后，Promoter 只能查看活动方案，不能编辑或生成新版本
 - **角色视图分离**：活动方案 → Promoter 编辑/AdminStaff 管理版本/其他只读；安保方案 → SecurityOfficer 编辑/SecurityManager 签署+管理版本/AdminStaff 管理版本/其他只读
+- **UC5 GovLiaison 审查**：批文上传（可选）+ 全部材料审查完毕后方可"审批通过"或"要求补件"，驳回不受限
+- **提交审核全字段校验**：三表（安保方案+双表）所有可见字段必须填写，弹窗列出缺失项，点击跳转到对应子 tab 并高亮

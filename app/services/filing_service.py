@@ -32,6 +32,10 @@ FROM key_materials km
 JOIN filing_doc_materials fdm ON fdm.material_id = km.id
 JOIN filing_docs fd ON fd.id = fdm.filing_doc_id
 WHERE fd.activity_id = :activity_id
+UNION
+SELECT km.id, km.name, km.is_qualified, km.opinion
+FROM key_materials km
+WHERE km.activity_id = :activity_id
 """
 
 
@@ -284,12 +288,17 @@ class FilingService:
         result = await self.db.execute(
             text("""
                 SELECT km.id, km.name, km.is_qualified, km.sign_status,
-                       km.audit_round, km.opinion, km.upload_time
+                       km.audit_round, km.opinion, km.upload_time, km.created_at
                 FROM key_materials km
                 JOIN security_plan_materials spm ON spm.material_id = km.id
                 JOIN security_plans sp ON sp.id = spm.security_plan_id
                 WHERE sp.activity_id = :aid
-                ORDER BY km.created_at
+                UNION
+                SELECT km.id, km.name, km.is_qualified, km.sign_status,
+                       km.audit_round, km.opinion, km.upload_time, km.created_at
+                FROM key_materials km
+                WHERE km.activity_id = :aid
+                ORDER BY created_at
             """), {"aid": activity_id})
         rows = result.fetchall()
         return [
@@ -313,6 +322,8 @@ class FilingService:
             SELECT fdm.material_id FROM filing_doc_materials fdm
             JOIN filing_docs fd ON fd.id = fdm.filing_doc_id
             WHERE fd.activity_id = :aid
+            UNION
+            SELECT km.id FROM key_materials km WHERE km.activity_id = :aid
         """), {"aid": activity_id})
         material_ids = [row[0] for row in result.all()]
         if not material_ids:
