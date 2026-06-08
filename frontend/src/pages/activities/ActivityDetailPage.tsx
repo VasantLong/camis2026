@@ -1215,6 +1215,52 @@ export default function ActivityDetailPage() {
                               </Upload>
                               {approvalDocPath && <Tag color="blue" style={{ marginTop: 8 }}>已上传</Tag>}
                             </div>
+                            {/* materials audit table inside review card */}
+                            {materials.length > 0 && (
+                              <>
+                                {selectedRowKeys.length > 0 && (
+                                  <div style={{ marginBottom: 12, padding: "8px 12px", background: "#e6f7ff", borderRadius: 4, display: "flex", alignItems: "center", gap: 8 }}>
+                                    <Typography.Text>已选 {selectedRowKeys.length} 项：</Typography.Text>
+                                    <Button size="small" type="primary"
+                                      onClick={async () => { for (const mid of selectedRowKeys) { await materialsApi.audit(id!, mid, "qualified"); } message.success(`已批量标记 ${selectedRowKeys.length} 项为合格`); setSelectedRowKeys([]); refetchMaterials(); }}>批量合格</Button>
+                                    <Button size="small" danger
+                                      onClick={async () => { for (const mid of selectedRowKeys) { await materialsApi.audit(id!, mid, "unqualified"); } message.success(`已批量标记 ${selectedRowKeys.length} 项为不合格`); setSelectedRowKeys([]); refetchMaterials(); }}>批量不合格</Button>
+                                  </div>
+                                )}
+                                <Table
+                                  dataSource={materials} rowKey="id" size="small" style={{ marginBottom: 16 }} pagination={false}
+                                  locale={{ emptyText: <Empty description="暂无备案材料" /> }}
+                                  rowSelection={{ selectedRowKeys, onChange: (keys) => setSelectedRowKeys(keys as string[]) }}
+                                  columns={[
+                                    { title: "材料名称", dataIndex: "name", key: "name" },
+                                    { title: "签署状态", key: "sign", width: 80, render: (_: unknown, m: any) => (
+                                      <Tag color={m.sign_status === "signed" ? "green" : "default"}>{m.sign_status === "signed" ? "已签" : "未签"}</Tag>
+                                    )},
+                                    { title: "合规", key: "qual", width: 80, render: (_: unknown, m: any) => (
+                                      m.audit_round > 0 ? <Tag color={m.is_qualified ? "green" : "red"}>{m.is_qualified ? "合格" : "不合格"}</Tag> : <Tag color="default">待审查</Tag>
+                                    )},
+                                    { title: "审查轮次", key: "audit", width: 70, render: (_: unknown, m: any) => (
+                                      m.audit_round > 0 ? <Tag>{m.audit_round} 轮</Tag> : <Typography.Text type="secondary">—</Typography.Text>
+                                    )},
+                                    { title: "操作", key: "actions", width: 120, render: (_: unknown, m: any) => (
+                                      <Space size={4}>
+                                        <Button size="small" type="link" icon={<EyeOutlined />}
+                                          onClick={async () => {
+                                            try {
+                                              const mAny = m as any;
+                                              const path = mAny.pdf_path || mAny.minio_path;
+                                              if (path) { const r = await documentsApi.getPresignedByPath(path); if (r.data.url) { setPreviewUrl(r.data.url); return; } }
+                                              message.warning("暂无预览文件");
+                                            } catch { message.error("预览失败"); }
+                                          }}>预览</Button>
+                                        <Button size="small"
+                                          onClick={() => { setAuditTarget({ id: m.id, name: m.name }); setAuditConclusion(m.is_qualified ? "qualified" : "unqualified"); setAuditOpinion(""); }}>审查</Button>
+                                      </Space>
+                                    )},
+                                  ]}
+                                />
+                              </>
+                            )}
                             <Space>
                               <Button type="primary" disabled={!allQualified}
                                 onClick={() => { setApprovalAction("approve"); setApprovalComment(""); setApprovalModalOpen(true); }}>审批通过</Button>
@@ -1245,43 +1291,15 @@ export default function ActivityDetailPage() {
                           </div>
                         );
                       })()}
-                      {/* materials table */}
-                      {materials.length > 0 && (
-                        <>
-                          {isGovLiaisonFilingPhase && isGovLiaison && selectedRowKeys.length > 0 && (
-                            <div style={{ marginTop: 16, padding: "8px 12px", background: "#e6f7ff", borderRadius: 4, display: "flex", alignItems: "center", gap: 8 }}>
-                              <Typography.Text>已选 {selectedRowKeys.length} 项：</Typography.Text>
-                              <Button size="small" type="primary"
-                                onClick={async () => {
-                                  for (const mid of selectedRowKeys) {
-                                    await materialsApi.audit(id!, mid, "qualified");
-                                  }
-                                  message.success(`已批量标记 ${selectedRowKeys.length} 项为合格`);
-                                  setSelectedRowKeys([]);
-                                  refetchMaterials();
-                                }}>批量合格</Button>
-                              <Button size="small" danger
-                                onClick={async () => {
-                                  for (const mid of selectedRowKeys) {
-                                    await materialsApi.audit(id!, mid, "unqualified");
-                                  }
-                                  message.success(`已批量标记 ${selectedRowKeys.length} 项为不合格`);
-                                  setSelectedRowKeys([]);
-                                  refetchMaterials();
-                                }}>批量不合格</Button>
-                            </div>
-                          )}
-                          <Table
-                            dataSource={materials}
-                            rowKey="id"
-                            size="small"
-                            style={{ marginTop: 16 }}
-                            pagination={false}
-                            locale={{ emptyText: <Empty description="暂无备案材料" /> }}
-                            rowSelection={isGovLiaisonFilingPhase && isGovLiaison ? {
-                              selectedRowKeys,
-                              onChange: (keys) => setSelectedRowKeys(keys as string[]),
-                            } : undefined}
+                      {/* materials table for non-GovLiaison roles */}
+                      {materials.length > 0 && !(isGovLiaisonFilingPhase && isGovLiaison) && (
+                        <Table
+                          dataSource={materials}
+                          rowKey="id"
+                          size="small"
+                          style={{ marginTop: 16 }}
+                          pagination={false}
+                          locale={{ emptyText: <Empty description="暂无备案材料" /> }}
                           columns={[
                             { title: "材料名称", dataIndex: "name", key: "name" },
                             { title: "签署状态", key: "sign", width: 100, render: (_: unknown, m: any) => (
@@ -1289,42 +1307,24 @@ export default function ActivityDetailPage() {
                                 {m.sign_status === "signed" ? "已签署" : "未签署"}
                               </Tag>
                             )},
-                            ...(isGovLiaisonFilingPhase && isGovLiaison ? [
-                              { title: "合规", key: "qual", width: 80, render: (_: unknown, m: any) => (
-                                m.audit_round > 0
-                                  ? <Tag color={m.is_qualified ? "green" : "red"}>{m.is_qualified ? "合格" : "不合格"}</Tag>
-                                  : <Tag color="default">待审查</Tag>
-                              )},
-                              { title: "审查轮次", key: "audit", width: 80, render: (_: unknown, m: any) => (
-                                m.audit_round > 0 ? <Tag>{m.audit_round} 轮</Tag> : <Typography.Text type="secondary">—</Typography.Text>
-                              )},
-                            ] : []),
-                            { title: "操作", key: "actions", width: 200, render: (_: unknown, m: any) => (
+                            { title: "操作", key: "actions", width: 160, render: (_: unknown, m: any) => (
                               <Space size={4}>
                                 <Button size="small" type="link" icon={<EyeOutlined />}
                                   onClick={async () => {
                                     try {
                                       const mAny = m as any;
                                       const path = mAny.pdf_path || mAny.minio_path;
-                                      if (path) {
-                                        const r = await documentsApi.getPresignedByPath(path);
-                                        if (r.data.url) { setPreviewUrl(r.data.url); return; }
-                                      }
+                                      if (path) { const r = await documentsApi.getPresignedByPath(path); if (r.data.url) { setPreviewUrl(r.data.url); return; } }
                                       message.warning("暂无预览文件");
                                     } catch { message.error("预览失败"); }
                                   }}>预览</Button>
                                 {isOfficerFilingPhase && canSign && m.sign_status !== "signed" && (
                                   <Button size="small" onClick={() => signMutation.mutate(m.id)} loading={signMutation.isPending}>签署</Button>
                                 )}
-                                {isGovLiaisonFilingPhase && canAudit && (
-                                  <Button size="small"
-                                    onClick={() => { setAuditTarget({ id: m.id, name: m.name }); setAuditConclusion(m.is_qualified ? "qualified" : "unqualified"); setAuditOpinion(""); }}>审查</Button>
-                                )}
                               </Space>
                             )},
                           ]}
                         />
-                        </>
                       )}
 
                       {/* audit history: only in GovLiaison+ phases */}
