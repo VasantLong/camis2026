@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Descriptions, Tabs, Button, Tag, Spin, Typography, Space, Modal, Input, message, Table, List, Select, Upload, Checkbox, Empty, Alert } from "antd";
+import { Descriptions, Tabs, Button, Tag, Spin, Typography, Space, Modal, Input, message, Table, List, Select, Upload, Checkbox, Empty, Alert, Timeline } from "antd";
 import { ArrowLeftOutlined, UploadOutlined, EyeOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -1326,24 +1326,37 @@ export default function ActivityDetailPage() {
                         />
                       )}
 
-                      {/* audit history: only in GovLiaison+ phases */}
-                      {isGovLiaisonFilingPhase && auditHistory.length > 0 && (
+                      {/* audit history */}
+                      {auditHistory.length > 0 && (
                         <div style={{ marginTop: 16 }}>
-                          <Typography.Text strong>审核记录</Typography.Text>
-                          <List
-                            size="small"
-                            dataSource={auditHistory}
-                            renderItem={(h) => (
-                              <List.Item>
-                                <List.Item.Meta
-                                  title={`${h.user_name} · ${h.action === "sign" ? "签署" : "审查"}`}
-                                  description={h.opinion || h.conclusion || "-"}
-                                />
-                                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                                  {new Date(h.created_at).toLocaleString("zh-CN")}
-                                </Typography.Text>
-                              </List.Item>
-                            )}
+                          <Typography.Text strong style={{ display: "block", marginBottom: 8 }}>审核记录</Typography.Text>
+                          <Timeline
+                            items={auditHistory.map((h: any) => ({
+                              color: h.action === "sign" ? "blue" : h.conclusion === "qualified" ? "green" : "red",
+                              children: (
+                                <div>
+                                  <Typography.Text style={{ fontSize: 12, color: "#888" }}>
+                                    {new Date(h.created_at).toLocaleString("zh-CN")}
+                                  </Typography.Text>
+                                  <br />
+                                  <Typography.Text strong>{h.user_name}</Typography.Text>
+                                  <Tag color={h.action === "sign" ? "blue" : "orange"} style={{ marginLeft: 8 }}>
+                                    {h.action === "sign" ? "签署" : "审查"}
+                                  </Tag>
+                                  <Typography.Text> — {h.material_name}</Typography.Text>
+                                  {h.conclusion && (
+                                    <Tag color={h.conclusion === "qualified" ? "green" : "red"} style={{ marginLeft: 8 }}>
+                                      {h.conclusion === "qualified" ? "合格" : "不合格"}
+                                    </Tag>
+                                  )}
+                                  {h.opinion && (
+                                    <Typography.Paragraph type="secondary" style={{ marginBottom: 0, fontSize: 12 }}>
+                                      {h.opinion}
+                                    </Typography.Paragraph>
+                                  )}
+                                </div>
+                              ),
+                            }))}
                           />
                         </div>
                       )}
