@@ -232,7 +232,22 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
         );
       case "signature":
         return (
-          <Form.Item key={field.name} name={field.name} label={field.ui_label} rules={rules} style={itemStyle}>
+          <Form.Item
+            key={field.name}
+            name={field.name}
+            label={field.ui_label}
+            rules={rules}
+            style={itemStyle}
+            valuePropName="fileList"
+            normalize={(val) => {
+              if (typeof val === "string" && val) return [{ uid: "-1", name: "signature", status: "done" as const, url: val }];
+              return [];
+            }}
+            getValueFromEvent={(e) => {
+              const files = Array.isArray(e) ? e : e?.fileList || [];
+              return files.length > 0 ? (files[0].url || files[0].name || "") : "";
+            }}
+          >
             <Upload
               accept="image/*"
               maxCount={1}
