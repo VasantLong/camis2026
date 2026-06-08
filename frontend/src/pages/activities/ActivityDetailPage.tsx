@@ -1343,7 +1343,6 @@ export default function ActivityDetailPage() {
                               items={[...grouped.values()].map((items) => {
                                 const h = items[0];
                                 const hasUnqual = items.some(i => i.conclusion === "unqualified");
-                                const hasQual = items.some(i => i.conclusion === "qualified");
                                 const color = h.action === "sign" ? "blue" : hasUnqual ? "red" : "green";
                                 return {
                                   color,
