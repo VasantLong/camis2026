@@ -523,6 +523,7 @@ class TemplateService:
             if t_entity and t_entity.current_filled_document_id:
                 km.current_filled_document_id = t_entity.current_filled_document_id
             km.sign_status = "signed"
+            logger.info("sign_and_finalize: set sign_status=signed for type=%s km_id=%s", ttype, km.id)
 
         # Ensure activity_plan KeyMaterial exists, link its FilledDocument, mark as signed
         ap_km = await self.get_or_create_material(activity_id, "activity_plan")
