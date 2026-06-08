@@ -744,7 +744,10 @@ export default function ActivityDetailPage() {
                           </div>
                         </Modal>
                         </>
-                      ) : isManager && securityPlan?.audit_status === "已签署" && activity?.status !== "待安保方案设计" && activity?.status !== "待补充备案材料" ? (
+                      ) : isManager && securityPlan?.audit_status === "已签署" && (() => {
+                        const commitSigned = materials.some((m: any) => m.material_type === "filing_commitment" && m.sign_status === "signed");
+                        return activity?.status !== "待安保方案设计" && !(activity?.status === "待补充备案材料" && !commitSigned);
+                      })() ? (
                         <div>
                           <div style={{ marginBottom: 16, padding: "8px 16px", background: "#f6ffed", borderRadius: 4, border: "1px solid #b7eb8f" }}>
                             <Typography.Text strong style={{ color: "#52c41a" }}>已签署确认</Typography.Text>
@@ -763,7 +766,7 @@ export default function ActivityDetailPage() {
                             }
                           />
                         </div>
-                      ) : isManager && securityPlan?.audit_status === "已签署" && (activity?.status === "待安保方案设计" || activity?.status === "待补充备案材料") ? (
+                      ) : isManager && securityPlan?.audit_status === "已签署" && (activity?.status === "待安保方案设计" || (activity?.status === "待补充备案材料" && !materials.some((m: any) => m.material_type === "filing_commitment" && m.sign_status === "signed"))) ? (
                         <>
                           <CommitmentSign
                             activityId={id!}
