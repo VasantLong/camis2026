@@ -34,6 +34,11 @@ async def upload_file(file_path: str, data: bytes, content_type: str) -> None:
     )
 
 
+async def delete_file(file_path: str) -> None:
+    logger.info("minio remove_object bucket=%s key=%s", _bucket, file_path)
+    minio_client.remove_object(bucket_name=_bucket, object_name=file_path)
+
+
 async def get_presigned_url(object_name: str, expires: int = 1800,
                           inline: bool = False, filename: str = "") -> str:
     logger.info("minio presigned_url key=%s expires=%ds inline=%s", object_name, expires, inline)
