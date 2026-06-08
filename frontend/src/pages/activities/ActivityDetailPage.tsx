@@ -1262,7 +1262,7 @@ export default function ActivityDetailPage() {
                             {/* materials audit table inside review card */}
                             {materials.length > 0 && (
                               <Table
-                                dataSource={materials.filter(m => (m as any).material_type !== "activity_plan" && (m as any).material_type !== "filing_commitment")} rowKey="id" size="small" style={{ marginBottom: 12 }} pagination={false}
+                                dataSource={materials.filter((m: any) => ["security_plan", "risk_assessment", "responsibility_letter"].includes(m.material_type))} rowKey="id" size="small" style={{ marginBottom: 12 }} pagination={false}
                                 locale={{ emptyText: <Empty description="暂无备案材料" /> }}
                                 rowSelection={isActive ? { selectedRowKeys, onChange: (keys) => setSelectedRowKeys(keys as string[]) } : undefined}
                                 columns={[
@@ -1366,7 +1366,7 @@ export default function ActivityDetailPage() {
                                       </Typography.Paragraph>
                                     )}
                                     <Typography.Text strong>需修改的材料：</Typography.Text>
-                                    {materials.filter((m: any) => m.material_type !== "activity_plan" && m.material_type !== "filing_commitment" && m.audit_round > 0 && !m.is_qualified).map(m => (
+                                    {materials.filter((m: any) => ["security_plan", "risk_assessment", "responsibility_letter"].includes(m.material_type) && m.audit_round > 0 && !m.is_qualified).map(m => (
                                       <div key={m.id} style={{ marginTop: 4 }}>
                                         <Tag color="red" style={{ cursor: "pointer" }}
                                           onClick={() => { setActiveTab("security-plan"); (document.activeElement as HTMLElement)?.blur(); }}>{m.name}</Tag>
