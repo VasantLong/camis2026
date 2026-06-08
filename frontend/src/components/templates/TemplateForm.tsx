@@ -106,6 +106,10 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
         if (val !== undefined) {
           if (f.ui_type === "date" && typeof val === "string") {
             if (val) vals[f.name] = dayjs(val);
+          } else if (f.ui_type === "signature" && typeof val === "string" && val) {
+            vals[f.name] = [{ uid: "-1", name: "signature", status: "done" as const, url: val }];
+          } else if (f.ui_type === "signature" && Array.isArray(val)) {
+            vals[f.name] = val;
           } else {
             vals[f.name] = val;
           }
@@ -266,15 +270,8 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
             rules={rules}
             style={itemStyle}
             valuePropName="fileList"
-            normalize={(val) => {
-              if (Array.isArray(val)) return val;
-              if (typeof val === "string" && val) return [{ uid: "-1", name: "signature", status: "done" as const, url: val }];
-              return [];
-            }}
-            getValueFromEvent={(e) => {
-              const files = Array.isArray(e) ? e : e?.fileList || [];
-              return files.length > 0 ? [{ uid: files[0].uid || "-1", name: files[0].name, status: "done" as const, url: files[0].originFileObj ? URL.createObjectURL(files[0].originFileObj) : files[0].url || "" }] : [];
-            }}
+            normalize={(val) => (Array.isArray(val) ? val : [])}
+            getValueFromEvent={(e) => (Array.isArray(e) ? e : e?.fileList || [])}
           >
             <Upload
               accept="image/*"

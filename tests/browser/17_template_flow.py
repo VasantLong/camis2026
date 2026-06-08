@@ -51,6 +51,11 @@ with sync_playwright() as p:
         page.keyboard.press("Enter")
         page.wait_for_timeout(300)
 
+    def js_click(selector: str) -> None:
+        """Click via native JS — reliable for React synthetic events in clipped containers."""
+        page.evaluate(f"""() => {{ const el = document.querySelector('{selector}'); if (el) el.click(); }}""")
+        page.wait_for_timeout(300)
+
     def fill_repeater(field_name: str, label: str, items: list[str]) -> None:
         """Add items to a repeater field. Clicks '添加' then fills each input."""
         section = page.locator('.ant-form-item').filter(has_text=label).first

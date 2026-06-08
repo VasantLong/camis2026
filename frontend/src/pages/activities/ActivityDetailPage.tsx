@@ -709,6 +709,7 @@ export default function ActivityDetailPage() {
                                           ],
                                         );
                                         refetchSecuritySchema();
+                                        queryClient.invalidateQueries({ queryKey: ["activities", id, "templates", "security-versions"] });
                                         return result;
                                       }}
                                     />
@@ -794,6 +795,7 @@ export default function ActivityDetailPage() {
                                           ],
                                         );
                                         riskMaterial.refetch();
+                                        queryClient.invalidateQueries({ queryKey: ["activities", id, "templates", "risk-versions"] });
                                         return result;
                                       }}
                                     />
@@ -841,6 +843,7 @@ export default function ActivityDetailPage() {
                                           ],
                                         );
                                         respMaterial.refetch();
+                                        queryClient.invalidateQueries({ queryKey: ["activities", id, "templates", "resp-versions"] });
                                         return result;
                                       }}
                                     />
