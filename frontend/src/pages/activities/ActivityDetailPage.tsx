@@ -831,9 +831,18 @@ export default function ActivityDetailPage() {
                                 return (
                                   <div style={{ marginTop: 8, marginBottom: 8, padding: "4px 12px", background: "#fafafa", borderRadius: 4, display: "flex", alignItems: "center", gap: 8 }}>
                                     <Typography.Text type="secondary" style={{ fontSize: 12 }}>完成进度：</Typography.Text>
-                                    <Tag color={securityPlanVersions.length > 0 ? "green" : "default"} style={{ margin: 0 }}>安保方案</Tag>
-                                    <Tag color={riskVersions.length > 0 ? "green" : "default"} style={{ margin: 0 }}>风险评估表</Tag>
-                                    <Tag color={respVersions.length > 0 ? "green" : "default"} style={{ margin: 0 }}>责任确认书</Tag>
+                                    <Tag color={
+                                      materials.some((m: any) => m.name === "安保方案" && m.audit_round > 0 && !m.is_qualified) ? "orange"
+                                      : securityPlanVersions.length > 0 ? "green" : "default"
+                                    } style={{ margin: 0 }}>安保方案</Tag>
+                                    <Tag color={
+                                      materials.some((m: any) => m.name === "风险评估报备表" && m.audit_round > 0 && !m.is_qualified) ? "orange"
+                                      : riskVersions.length > 0 ? "green" : "default"
+                                    } style={{ margin: 0 }}>风险评估表</Tag>
+                                    <Tag color={
+                                      materials.some((m: any) => m.name === "安全消防责任确认书" && m.audit_round > 0 && !m.is_qualified) ? "orange"
+                                      : respVersions.length > 0 ? "green" : "default"
+                                    } style={{ margin: 0 }}>责任确认书</Tag>
                                     <span style={{ flex: 1 }} />
                                     {submitted ? (
                                       <Tag color="blue" style={{ margin: 0 }}>已提交审核</Tag>
