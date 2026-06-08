@@ -621,11 +621,11 @@ export default function ActivityDetailPage() {
                               )}
                               <Button
                                 type="primary"
-                                disabled={!managerSignaturePath}
+                                disabled={!managerSignaturePath && !(securityPlan as any)?.manager_id}
                                 onClick={async () => {
                                   setFinalizing(true);
                                   try {
-                                    await templatesApi.signSecurityPlan(id!, managerSignaturePath!);
+                                    await templatesApi.signSecurityPlan(id!, managerSignaturePath || "");
                                     message.success("已签署三份安保文件，请继续签署备案承诺书");
                                     setStep1Done(true);
                                     queryClient.invalidateQueries({ queryKey: ["activities", id] });
@@ -641,6 +641,11 @@ export default function ActivityDetailPage() {
                               >
                                 确认签署
                               </Button>
+                              {!managerSignaturePath && (securityPlan as any)?.manager_id && (
+                                <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginTop: 4 }}>
+                                  将复用已上传的签名
+                                </Typography.Text>
+                              )}
                               <Button
                                 danger
                                 onClick={() => {

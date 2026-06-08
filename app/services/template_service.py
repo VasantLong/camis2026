@@ -474,8 +474,23 @@ class TemplateService:
             raise ValueError("当前状态不允许签署")
 
         activity = await self.db.get(Activity, activity_id)
-        if not activity or activity.status != "待安保方案设计":
+        if not activity or activity.status not in ("待安保方案设计", "待补充备案材料"):
             raise ValueError("当前活动状态不允许签署")
+
+        # Reuse existing signature if manager already signed before
+        if not manager_signature:
+            for ttype in ["security_plan", "risk_assessment", "responsibility_letter"]:
+                fd_result = await self.db.execute(
+                    select(FilledDocument).where(
+                        FilledDocument.activity_id == activity_id,
+                        FilledDocument.template_type == ttype,
+                    ).order_by(FilledDocument.version_number.desc()).limit(1)
+                )
+                fd = fd_result.scalar_one_or_none()
+                if fd and fd.data_snapshot:
+                    manager_signature = fd.data_snapshot.get("manager_signature", "")
+                    if manager_signature:
+                        break
 
         # Generate DOCX for the 3 deferred types (NOT filing_commitment)
         SIGN_TYPES = ["security_plan", "risk_assessment", "responsibility_letter"]
@@ -544,7 +559,7 @@ class TemplateService:
             raise ValueError("请先签署安保方案、风险评估表和责任确认书")
 
         activity = await self.db.get(Activity, activity_id)
-        if not activity or activity.status != "待安保方案设计":
+        if not activity or activity.status not in ("待安保方案设计", "待补充备案材料"):
             raise ValueError("当前活动状态不允许签署")
 
         # Get manager signature from any signed FilledDocument

@@ -135,6 +135,9 @@ class WorkflowService:
                 else:
                     sp.audit_status = "待签署"
 
+        elif to_status == "待补充备案材料":
+            sp.audit_status = "待编制"
+
         elif to_status == "审批通过":
             sp.audit_status = "已审核"
 

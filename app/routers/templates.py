@@ -207,7 +207,7 @@ async def security_plan_submit_review(
 
 
 class SignRequest(BaseModel):
-    manager_signature: str  # minio_path of signature image
+    manager_signature: str = ""  # minio_path of signature image, empty to reuse previous
 
 
 @router.post("/{activity_id}/security-plan/sign")
