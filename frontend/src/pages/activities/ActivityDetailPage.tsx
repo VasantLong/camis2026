@@ -1271,7 +1271,9 @@ export default function ActivityDetailPage() {
                                     <Tag color={m.sign_status === "signed" ? "green" : "default"}>{m.sign_status === "signed" ? "已签" : "未签"}</Tag>
                                   )},
                                   { title: "合规", key: "qual", width: 80, render: (_: unknown, m: any) => (
-                                    m.audit_round > 0 ? <Tag color={m.is_qualified ? "green" : "red"}>{m.is_qualified ? "合格" : "不合格"}</Tag> : <Tag color="default">待审查</Tag>
+                                    (m as any).material_type === "activity_plan" || (m as any).material_type === "filing_commitment"
+                                      ? <Tag color="green">合格</Tag>
+                                      : m.audit_round > 0 ? <Tag color={m.is_qualified ? "green" : "red"}>{m.is_qualified ? "合格" : "不合格"}</Tag> : <Tag color="default">待审查</Tag>
                                   )},
                                   { title: "审查轮次", key: "audit", width: 70, render: (_: unknown, m: any) => (
                                     m.audit_round > 0 ? <Tag>{m.audit_round} 轮</Tag> : <Typography.Text type="secondary">—</Typography.Text>
@@ -1396,9 +1398,11 @@ export default function ActivityDetailPage() {
                               )},
                               ...(activity?.status === "待补充备案材料" ? [
                                 { title: "合规", key: "qual", width: 80, render: (_: unknown, m: any) => (
-                                  m.audit_round > 0
-                                    ? <Tag color={m.is_qualified ? "green" : "red"}>{m.is_qualified ? "合格" : "不合格"}</Tag>
-                                    : <Tag color="default">待审查</Tag>
+                                  m.material_type === "activity_plan" || m.material_type === "filing_commitment"
+                                    ? <Tag color="green">合格</Tag>
+                                    : m.audit_round > 0
+                                      ? <Tag color={m.is_qualified ? "green" : "red"}>{m.is_qualified ? "合格" : "不合格"}</Tag>
+                                      : <Tag color="default">待审查</Tag>
                                 )},
                                 { title: "审查轮次", key: "audit", width: 80, render: (_: unknown, m: any) => (
                                   m.audit_round > 0 ? <Tag>{m.audit_round} 轮</Tag> : <Typography.Text type="secondary">—</Typography.Text>
