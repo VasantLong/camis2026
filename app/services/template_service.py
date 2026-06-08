@@ -121,7 +121,7 @@ class TemplateService:
                 "activity_start": "start_time",
                 "activity_end": "end_time",
                 "staff_count": "staff_count",
-                "crowd_scale": "regular_crowd",
+                "crowd_scale": "opening_crowd",   # 主要活动日人数（峰值），fallback below
             }
             for f in autofill_fields:
                 name = f["name"]
@@ -131,7 +131,11 @@ class TemplateService:
                     autofill_data[name] = getattr(activity, attr, None) or ""
                 elif name in PLAN_FIELD_MAP:
                     plan_key = PLAN_FIELD_MAP[name]
-                    autofill_data[name] = plan_snapshot.get(plan_key, "") or ""
+                    val = plan_snapshot.get(plan_key, "") or ""
+                    # crowd_scale: fallback to regular_crowd if opening_crowd unavailable
+                    if plan_key == "opening_crowd" and not val:
+                        val = plan_snapshot.get("regular_crowd", "") or ""
+                    autofill_data[name] = val
             schema["autofill_data"] = autofill_data
 
         return schema
