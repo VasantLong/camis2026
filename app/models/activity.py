@@ -52,6 +52,9 @@ class ActivityPlan(Base):
     activity_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("activities.id", ondelete="CASCADE"), nullable=False
     )
+    material_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("key_materials.id", ondelete="SET NULL"), nullable=True
+    )
     content: Mapped[str | None] = mapped_column(Text)
     attachment_url: Mapped[str | None] = mapped_column(String(2048))
     submit_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -73,6 +76,9 @@ class SecurityPlan(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     activity_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("activities.id", ondelete="CASCADE"), nullable=False
+    )
+    material_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("key_materials.id", ondelete="SET NULL"), nullable=True
     )
     risk_level: Mapped[str | None] = mapped_column(String(64))
     audit_status: Mapped[str] = mapped_column(String(64), default="待编制", nullable=False)
