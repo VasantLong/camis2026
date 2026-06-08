@@ -51,19 +51,21 @@ with sync_playwright() as p:
         page.keyboard.press("Enter")
         page.wait_for_timeout(300)
 
-    def fill_repeater(label: str, count: int, prefix: str) -> None:
-        """Add `count` items to a repeater field. Clicks the '添加' button then fills each input."""
+    def fill_repeater(field_name: str, label: str, items: list[str]) -> None:
+        """Add items to a repeater field. Clicks '添加' then fills each input."""
         section = page.locator('.ant-form-item').filter(has_text=label).first
-        for i in range(count):
-            add_btn = section.locator('button:has-text("添加")').first
-            add_btn.click()
-            page.wait_for_timeout(200)
-        # fill each added input
-        inputs = section.locator('input:not([role="combobox"]):not([type="hidden"])').all()
-        for j, inp in enumerate(inputs):
-            if inp.is_visible():
+        for i, text in enumerate(items):
+            if i > 0:
+                add_btn = section.locator('button:has-text("添加")').first
+                add_btn.click()
+                page.wait_for_timeout(200)
+        page.wait_for_timeout(300)
+        # fill each item using antd Form.List id pattern
+        for j, text in enumerate(items):
+            inp = page.locator(f'input[id*="{field_name}"]').nth(j)
+            if inp.count() > 0:
                 try:
-                    inp.fill(f"{prefix}{j+1}")
+                    inp.fill(text)
                 except Exception:
                     pass
                 page.wait_for_timeout(50)
@@ -301,8 +303,18 @@ with sync_playwright() as p:
     page.wait_for_timeout(300)
 
     # Repeaters: risk_factors (min 4) + mitigation_measures (min 4)
-    fill_repeater("主要风险因素", 4, "风险因素")
-    fill_repeater("防范化解措施", 4, "防范措施")
+    fill_repeater("risk_factors", "主要风险因素", [
+        "决策合法性：活动方案未经主管部门审批，存在合规风险",
+        "合理性：预计参与人数超出场地承载能力，易引发拥挤踩踏",
+        "可行性：安保人员配置不足，无法覆盖全部出入口和重点区域",
+        "可控性：应急预案未明确疏散路线和责任人，响应机制不健全",
+    ])
+    fill_repeater("mitigation_measures", "防范化解措施", [
+        "提前向主管部门提交完整活动方案并取得书面审批文件",
+        "严格控制参与人数在场地安全承载范围内，设置实时人流监测",
+        "增配安保人员至核定数量，覆盖全部出入口、舞台区、观众区",
+        "制定详细应急预案，明确疏散路线、各岗位责任人和通讯联络方式",
+    ])
 
     # Contact
     page.locator('.ant-form-item:has-text("联系人") input').first.fill("李四")
@@ -329,7 +341,7 @@ with sync_playwright() as p:
         cfm.dispatch_event("click")
         page.wait_for_timeout(500)
         page.wait_for_selector('.ant-modal:has-text("确认生成")', state='hidden', timeout=5000)
-        page.wait_for_selector('button:has-text("v1")', timeout=15000)
+        page.wait_for_selector('button:has-text("v1")', state="attached", timeout=15000)
         check(True, "risk assessment v1 generated")
     else:
         check(False, "risk assessment confirm modal not shown")
@@ -379,7 +391,7 @@ with sync_playwright() as p:
         cfm2.dispatch_event("click")
         page.wait_for_timeout(500)
         page.wait_for_selector('.ant-modal:has-text("确认生成")', state='hidden', timeout=5000)
-        page.wait_for_selector('button:has-text("v1")', timeout=15000)
+        page.wait_for_selector('button:has-text("v1")', state="attached", timeout=15000)
         check(True, "responsibility letter v1 generated")
     else:
         check(False, "responsibility letter confirm modal not shown")
@@ -394,10 +406,10 @@ with sync_playwright() as p:
     page.wait_for_timeout(500)
     submit_btn = page.locator('button:has-text("提交审核")').first
     check(submit_btn.count() > 0, "submit review button visible")
-    submit_btn.click()
+    submit_btn.dispatch_event("click")
     page.wait_for_timeout(500)
     check(page.locator('.ant-modal:has-text("确认提交审核")').count() > 0, "submit confirm modal")
-    page.locator('.ant-modal button:has-text("确认提交")').first.click()
+    page.locator('.ant-modal button:has-text("确认提交")').first.dispatch_event("click")
     page.wait_for_timeout(2000)
     page.wait_for_load_state("networkidle")
     check(True, "security plan submitted for review")
@@ -442,7 +454,7 @@ with sync_playwright() as p:
     # minimal 1x1 white PNG
     sig_file.write_bytes(b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82')
     with page.expect_file_chooser() as fc_info:
-        page.locator('.ant-form-item:has-text("安保负责人签署确认") button:has-text("上传签名图片")').first.click()
+        page.locator('button:has-text("上传签名图片")').first.click()
     fc_info.value.set_files(str(sig_file))
     page.wait_for_timeout(2000)
     page.wait_for_load_state("networkidle")

@@ -121,9 +121,9 @@ export default function ActivityDetailPage() {
     enabled: canViewSecurity,
   });
 
-  const canEditTemplates = canEditSecurity && activity?.status === "待安保方案设计";
-  const riskMaterial = useMaterialSchema(id!, "risk_assessment", !!canEditTemplates);
-  const respMaterial = useMaterialSchema(id!, "responsibility_letter", !!canEditTemplates);
+  const canViewTemplates = (canEditSecurity || isManager) && !!activity?.status && ["待安保方案设计", "待备案申请"].includes(activity.status);
+  const riskMaterial = useMaterialSchema(id!, "risk_assessment", !!canViewTemplates);
+  const respMaterial = useMaterialSchema(id!, "responsibility_letter", !!canViewTemplates);
 
   const { data: riskVersions = [] } = useQuery({
     queryKey: ["activities", id, "templates", "risk-versions"],
@@ -474,7 +474,15 @@ export default function ActivityDetailPage() {
                         <>
                           <div style={{ padding: 16, border: "1px solid #1677ff", borderRadius: 8 }}>
                             <Typography.Title level={5}>安保负责人签署确认</Typography.Title>
-                            <VersionSnapshot schema={securityPlanSchema} />
+                            {/* Read-only preview: 安保方案 + 双表 */}
+                            {(() => {
+                              const items: any[] = [
+                                { key: "security_plan", label: "安保方案", children: <VersionSnapshot schema={securityPlanSchema} /> },
+                              ];
+                              if (riskMaterial.schema) items.push({ key: "risk_assessment", label: "风险评估表", children: <VersionSnapshot schema={riskMaterial.schema} /> });
+                              if (respMaterial.schema) items.push({ key: "responsibility_letter", label: "责任确认书", children: <VersionSnapshot schema={respMaterial.schema} /> });
+                              return <Tabs size="small" type="card" items={items} style={{ marginBottom: 16 }} />;
+                            })()}
                           <div style={{ marginTop: 16 }}>
                             <Space>
                               <Upload
@@ -644,7 +652,14 @@ export default function ActivityDetailPage() {
                       ) : canEditSecurity ? (
                         <>
                           {activity?.status === "待安保方案设计" ? (
-                            <Tabs size="small" activeKey={templateTab} onChange={(key) => setTemplateTab(key as typeof templateTab)} style={{ marginTop: 8 }} items={[
+                            <>
+                              <div style={{ marginTop: 8, marginBottom: 8, padding: "4px 12px", background: "#fafafa", borderRadius: 4, display: "flex", alignItems: "center", gap: 8 }}>
+                                <Typography.Text type="secondary" style={{ fontSize: 12 }}>完成进度：</Typography.Text>
+                                <Tag color={securityPlanVersions.length > 0 ? "green" : "default"} style={{ margin: 0 }}>安保方案</Tag>
+                                <Tag color={riskVersions.length > 0 ? "green" : "default"} style={{ margin: 0 }}>风险评估表</Tag>
+                                <Tag color={respVersions.length > 0 ? "green" : "default"} style={{ margin: 0 }}>责任确认书</Tag>
+                              </div>
+                              <Tabs size="small" type="card" activeKey={templateTab} onChange={(key) => setTemplateTab(key as typeof templateTab)} items={[
                               {
                                 key: "security_plan",
                                 label: "安保方案",
@@ -714,19 +729,22 @@ export default function ActivityDetailPage() {
                                         ? securityPlanVersions.some((v) => v.created_at && new Date(v.created_at).getTime() > rejectedAt)
                                         : true;
                                       const blockedByReject = !!rejectedAt && !latestVersionAfterReject;
+                                      const allThreeReady = securityPlanVersions.length > 0 && riskVersions.length > 0 && respVersions.length > 0;
                                       const btnLabel = submitted
                                         ? auditStatus === "待签署"
                                           ? "已提交审核，等待负责人签署"
                                           : "负责人已签署"
                                         : blockedByReject
                                           ? "被驳回，请先生成新版本后再提交审核"
-                                          : "提交审核";
+                                          : !allThreeReady
+                                            ? "请完成安保方案及双表后再提交审核"
+                                            : "提交审核";
 
-                                      return securityPlanVersions.length > 0 && (
+                                      return (
                                         <Button
                                           type="primary"
                                           style={{ marginTop: 16 }}
-                                          disabled={submitted || blockedByReject}
+                                          disabled={submitted || blockedByReject || !allThreeReady}
                                           onClick={() => {
                                             const errs = validateSecurityPlan(securityPlanSchema?.snapshot_data, securityPlanSchema?.risk_level);
                                             if (errs.length > 0) {
@@ -839,6 +857,7 @@ export default function ActivityDetailPage() {
                                 ) : null,
                               },
                             ]} />
+                            </>
                           ) : (
                             <>
                               <div style={{ marginBottom: 16 }}>
