@@ -31,7 +31,7 @@ async def lifespan(app: FastAPI):
     await engine.dispose()
 
 
-app = FastAPI(title="CAMIS API", version="0.27.0", lifespan=lifespan)
+app = FastAPI(title="CAMIS API", version="0.28.0", lifespan=lifespan)
 
 app.add_middleware(RequestIDMiddleware)
 app.add_middleware(
