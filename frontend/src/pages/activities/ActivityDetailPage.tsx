@@ -639,26 +639,33 @@ export default function ActivityDetailPage() {
                           </div>
                         </div>
                         {step1Done && (
-                          <CommitmentSign
-                            activityId={id!}
-                            activityName={activity?.name || ""}
-                            sponsor={activity?.sponsor || ""}
-                            estimatedTime={activity?.estimated_time ? dayjs(activity.estimated_time).format("YYYY年MM月DD日") : ""}
-                            location={activity?.location || ""}
-                            crowdScale={String(planSchema?.snapshot_data?.opening_crowd || planSchema?.snapshot_data?.regular_crowd || "")}
-                            securityStaffCount={String(securityPlanSchema?.snapshot_data?.security_staff_count || "")}
-                            signatureUrl={signaturePreview}
-                            onSigned={() => {
-                              setStep1Done(false);
-                              setSignaturePreview(null);
-                              setManagerSignaturePath(null);
-                              setSignatureUploadTime(null);
-                              queryClient.invalidateQueries({ queryKey: ["activities", id] });
-                              queryClient.invalidateQueries({ queryKey: ["activities", id, "security-plan"] });
-                              queryClient.invalidateQueries({ queryKey: ["activities", id, "filing", "status"] });
-                              refetchSecuritySchema();
-                            }}
-                          />
+                          <>
+                            <CommitmentSign
+                              activityId={id!}
+                              activityName={activity?.name || ""}
+                              sponsor={activity?.sponsor || ""}
+                              estimatedTime={activity?.estimated_time ? dayjs(activity.estimated_time).format("YYYY年MM月DD日") : ""}
+                              location={activity?.location || ""}
+                              crowdScale={String(planSchema?.snapshot_data?.opening_crowd || planSchema?.snapshot_data?.regular_crowd || "")}
+                              securityStaffCount={String(securityPlanSchema?.snapshot_data?.security_staff_count || "")}
+                              signatureUrl={signaturePreview}
+                              onSigned={() => {
+                                setStep1Done(false);
+                                setSignaturePreview(null);
+                                setManagerSignaturePath(null);
+                                setSignatureUploadTime(null);
+                                queryClient.invalidateQueries({ queryKey: ["activities", id] });
+                                queryClient.invalidateQueries({ queryKey: ["activities", id, "security-plan"] });
+                                queryClient.invalidateQueries({ queryKey: ["activities", id, "filing", "status"] });
+                                refetchSecuritySchema();
+                              }}
+                            />
+                            <Tabs size="small" type="card" style={{ marginTop: 16 }} items={[
+                              { key: "sec", label: "安保方案", children: <VersionSnapshot schema={securityPlanSchema} /> },
+                              riskSchema ? { key: "risk", label: "风险评估表", children: <VersionSnapshot schema={riskSchema} /> } : null,
+                              respMaterial.schema ? { key: "resp", label: "责任确认书", children: <VersionSnapshot schema={respMaterial.schema} /> } : null,
+                            ].filter(Boolean) as any} />
+                          </>
                         )}
                         <Modal
                           title="驳回安保方案"
@@ -723,25 +730,32 @@ export default function ActivityDetailPage() {
                           />
                         </div>
                       ) : isManager && securityPlan?.audit_status === "已签署" && activity?.status === "待安保方案设计" ? (
-                        <CommitmentSign
-                          activityId={id!}
-                          activityName={activity?.name || ""}
-                          sponsor={activity?.sponsor || ""}
-                          estimatedTime={activity?.estimated_time ? dayjs(activity.estimated_time).format("YYYY年MM月DD日") : ""}
-                          location={activity?.location || ""}
-                          crowdScale={String(planSchema?.snapshot_data?.opening_crowd || planSchema?.snapshot_data?.regular_crowd || "")}
-                          securityStaffCount={String(securityPlanSchema?.snapshot_data?.security_staff_count || "")}
-                          signatureUrl={signaturePreview}
-                          onSigned={() => {
-                            setSignaturePreview(null);
-                            setManagerSignaturePath(null);
-                            setSignatureUploadTime(null);
-                            queryClient.invalidateQueries({ queryKey: ["activities", id] });
-                            queryClient.invalidateQueries({ queryKey: ["activities", id, "security-plan"] });
-                            queryClient.invalidateQueries({ queryKey: ["activities", id, "filing", "status"] });
-                            refetchSecuritySchema();
-                          }}
-                        />
+                        <>
+                          <CommitmentSign
+                            activityId={id!}
+                            activityName={activity?.name || ""}
+                            sponsor={activity?.sponsor || ""}
+                            estimatedTime={activity?.estimated_time ? dayjs(activity.estimated_time).format("YYYY年MM月DD日") : ""}
+                            location={activity?.location || ""}
+                            crowdScale={String(planSchema?.snapshot_data?.opening_crowd || planSchema?.snapshot_data?.regular_crowd || "")}
+                            securityStaffCount={String(securityPlanSchema?.snapshot_data?.security_staff_count || "")}
+                            signatureUrl={signaturePreview}
+                            onSigned={() => {
+                              setSignaturePreview(null);
+                              setManagerSignaturePath(null);
+                              setSignatureUploadTime(null);
+                              queryClient.invalidateQueries({ queryKey: ["activities", id] });
+                              queryClient.invalidateQueries({ queryKey: ["activities", id, "security-plan"] });
+                              queryClient.invalidateQueries({ queryKey: ["activities", id, "filing", "status"] });
+                              refetchSecuritySchema();
+                            }}
+                          />
+                          <Tabs size="small" type="card" style={{ marginTop: 16 }} items={[
+                            { key: "sec", label: "安保方案", children: <VersionSnapshot schema={securityPlanSchema} /> },
+                            riskSchema ? { key: "risk", label: "风险评估表", children: <VersionSnapshot schema={riskSchema} /> } : null,
+                            respMaterial.schema ? { key: "resp", label: "责任确认书", children: <VersionSnapshot schema={respMaterial.schema} /> } : null,
+                          ].filter(Boolean) as any} />
+                        </>
                       ) : isManager ? (
                         <VersionTimeline
                           versions={securityPlanVersions}
