@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Descriptions, Tabs, Button, Tag, Spin, Typography, Space, Modal, Input, message, List, Select, Upload, Checkbox } from "antd";
 import { ArrowLeftOutlined, CheckOutlined, CloseOutlined, EditOutlined, UploadOutlined } from "@ant-design/icons";
@@ -125,6 +125,23 @@ export default function ActivityDetailPage() {
   const canViewTemplates = (canEditSecurity || isManager) && !!activity?.status && ["待安保方案设计", "待备案申请"].includes(activity.status);
   const riskMaterial = useMaterialSchema(id!, "risk_assessment", !!canViewTemplates);
   const respMaterial = useMaterialSchema(id!, "responsibility_letter", !!canViewTemplates);
+
+  // Inject security_staff_count from security plan into risk assessment autofill
+  const riskSchema = useMemo(() => {
+    const raw = riskMaterial.schema;
+    if (!raw) return raw;
+    const secStaffCount =
+      securityPlanSchema?.draft_data?.security_staff_count
+      ?? securityPlanSchema?.snapshot_data?.security_staff_count;
+    if (secStaffCount == null) return raw;
+    return {
+      ...raw,
+      autofill_data: {
+        ...(raw.autofill_data || {}),
+        security_count: secStaffCount,
+      },
+    };
+  }, [riskMaterial.schema, securityPlanSchema?.draft_data?.security_staff_count, securityPlanSchema?.snapshot_data?.security_staff_count]);
 
   const { data: riskVersions = [] } = useQuery({
     queryKey: ["activities", id, "templates", "risk-versions"],
@@ -524,7 +541,7 @@ export default function ActivityDetailPage() {
                               const items: any[] = [
                                 { key: "security_plan", label: "安保方案", children: <VersionSnapshot schema={securityPlanSchema} /> },
                               ];
-                              if (riskMaterial.schema) items.push({ key: "risk_assessment", label: "风险评估表", children: <VersionSnapshot schema={riskMaterial.schema} /> });
+                              if (riskSchema) items.push({ key: "risk_assessment", label: "风险评估表", children: <VersionSnapshot schema={riskSchema} /> });
                               if (respMaterial.schema) items.push({ key: "responsibility_letter", label: "责任确认书", children: <VersionSnapshot schema={respMaterial.schema} /> });
                               return <Tabs size="small" type="card" items={items} style={{ marginBottom: 16 }} />;
                             })()}
@@ -768,7 +785,7 @@ export default function ActivityDetailPage() {
                                           const spRL = securityPlanSchema?.risk_level;
                                           allErrs.push(...validateSecurityPlan(securityPlanSchema?.snapshot_data, spRL));
                                           if (securityPlanSchema?.fields) allErrs.push(...validateAllFieldsFilled(securityPlanSchema?.snapshot_data, securityPlanSchema.fields, "安保方案", spRL));
-                                          if (riskMaterial.schema?.fields) allErrs.push(...validateAllFieldsFilled(riskMaterial.schema?.snapshot_data, riskMaterial.schema.fields, "风险评估表", null));
+                                          if (riskSchema?.fields) allErrs.push(...validateAllFieldsFilled(riskSchema?.snapshot_data, riskSchema.fields, "风险评估表", null));
                                           if (respMaterial.schema?.fields) allErrs.push(...validateAllFieldsFilled(respMaterial.schema?.snapshot_data, respMaterial.schema.fields, "责任确认书", null));
                                           if (allErrs.length > 0) { setValidationContext("submit"); setValidationErrors(allErrs); setValidationModalOpen(true); }
                                           else { setSecuritySubmitOpen(true); }
@@ -852,11 +869,11 @@ export default function ActivityDetailPage() {
                                 label: "风险评估表",
                                 children: riskMaterial.isLoading ? (
                                   <Spin />
-                                ) : riskMaterial.schema ? (
+                                ) : riskSchema ? (
                                   <>
                                     <TemplateForm
                                       activityId={id!}
-                                      schema={riskMaterial.schema}
+                                      schema={riskSchema}
                                       disabled={!!(securityPlan?.audit_status && securityPlan.audit_status !== "待编制")}
                                       highlightFields={highlightFields}
                                       onSaveDraft={async (data) => {
@@ -1352,7 +1369,7 @@ export default function ActivityDetailPage() {
                 setValidationModalOpen(false);
                 // switch to correct sub-tab before scrolling
                 if (securityPlanSchema?.fields?.some((f: any) => f.name === e.field)) setTemplateTab("security_plan");
-                else if (riskMaterial.schema?.fields?.some((f: any) => f.name === e.field)) setTemplateTab("risk_assessment");
+                else if (riskSchema?.fields?.some((f: any) => f.name === e.field)) setTemplateTab("risk_assessment");
                 else if (respMaterial.schema?.fields?.some((f: any) => f.name === e.field)) setTemplateTab("responsibility_letter");
                 setTimeout(() => {
                   document.getElementById(e.field)?.scrollIntoView({ behavior: "smooth", block: "center" });
