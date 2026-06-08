@@ -46,6 +46,7 @@ export default function CommitmentSign({
       message.success("备案承诺书已签署，活动已提交备案");
       onSigned();
     } catch (e: any) {
+      console.error("signCommitment error:", e?.response?.data || e);
       message.error(e?.response?.data?.detail || "签署失败");
     } finally {
       setSigning(false);
