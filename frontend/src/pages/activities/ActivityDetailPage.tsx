@@ -1260,9 +1260,13 @@ export default function ActivityDetailPage() {
                 if (!e.field) return;
                 setHighlightFields([e.field]);
                 setValidationModalOpen(false);
+                // switch to correct sub-tab before scrolling
+                if (securityPlanSchema?.fields?.some((f: any) => f.name === e.field)) setTemplateTab("security_plan");
+                else if (riskMaterial.schema?.fields?.some((f: any) => f.name === e.field)) setTemplateTab("risk_assessment");
+                else if (respMaterial.schema?.fields?.some((f: any) => f.name === e.field)) setTemplateTab("responsibility_letter");
                 setTimeout(() => {
                   document.getElementById(e.field)?.scrollIntoView({ behavior: "smooth", block: "center" });
-                }, 150);
+                }, 200);
               }}>
               <strong>{e.label}</strong>：{e.reason}
             </li>
