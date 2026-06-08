@@ -549,7 +549,36 @@ class TemplateService:
                 if mgr_sig:
                     break
 
-        # Generate filing_commitment DOCX
+        # Build autofill data for filing_commitment
+        plan_result = await self.db.execute(
+            select(ActivityPlan).where(ActivityPlan.activity_id == activity_id)
+        )
+        plan = plan_result.scalar_one_or_none()
+        plan_snapshot: dict = {}
+        if plan and plan.current_filled_document_id:
+            plan_fd = await self.db.get(FilledDocument, plan.current_filled_document_id)
+            if plan_fd and plan_fd.data_snapshot:
+                plan_snapshot = plan_fd.data_snapshot
+
+        sec_snapshot: dict = {}
+        if entity.current_filled_document_id:
+            sec_fd = await self.db.get(FilledDocument, entity.current_filled_document_id)
+            if sec_fd and sec_fd.data_snapshot:
+                sec_snapshot = sec_fd.data_snapshot
+
+        commit_data = {
+            "project_name": activity.name,
+            "sponsor": activity.sponsor,
+            "estimated_time": activity.estimated_time.strftime("%Y年%m月%d日") if activity.estimated_time else "",
+            "location": activity.location,
+            "activity_type": activity.type,
+            "crowd_scale": plan_snapshot.get("opening_crowd") or plan_snapshot.get("regular_crowd", ""),
+            "security_staff_count": str(sec_snapshot.get("security_staff_count", "")),
+            "filing_date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+            "manager_signature": mgr_sig,
+        }
+
+        # Generate filing_commitment DOCX (create FilledDocument if not deferred)
         fds = await self.db.execute(
             select(FilledDocument).where(
                 FilledDocument.activity_id == activity_id,
@@ -557,29 +586,41 @@ class TemplateService:
                 FilledDocument.minio_path.is_(None),
             )
         )
-        for fd in fds.scalars().all():
-            data = dict(fd.data_snapshot or {})
-            data["manager_signature"] = mgr_sig
-            fd.data_snapshot = data
-
-            docx_bytes = await self._render_docx("filing_commitment", data, None)
-            fd.template_hash = hashlib.sha256(
+        fd_list = fds.scalars().all()
+        commit_fd = None
+        if fd_list:
+            for fd in fd_list:
+                fd.data_snapshot = {**fd.data_snapshot, "manager_signature": mgr_sig}
+                docx_bytes = await self._render_docx("filing_commitment", dict(fd.data_snapshot), None)
+                fd.template_hash = hashlib.sha256(
+                    (TEMPLATES_ROOT / "filing_commitment" / "template.docx").read_bytes()
+                ).hexdigest()
+                minio_path = f"filled_documents/{activity_id}/filing_commitment/v{fd.version_number}.docx"
+                await minio_client.upload_file(minio_path, docx_bytes, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+                fd.minio_path = minio_path
+                commit_fd = fd
+        else:
+            # No deferred FilledDocument — create one on the fly
+            vn = await self._next_version(activity_id, "filing_commitment")
+            docx_bytes = await self._render_docx("filing_commitment", commit_data, None)
+            template_hash = hashlib.sha256(
                 (TEMPLATES_ROOT / "filing_commitment" / "template.docx").read_bytes()
             ).hexdigest()
-            minio_path = f"filled_documents/{activity_id}/filing_commitment/v{fd.version_number}.docx"
+            minio_path = f"filled_documents/{activity_id}/filing_commitment/v{vn}.docx"
             await minio_client.upload_file(minio_path, docx_bytes, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-            fd.minio_path = minio_path
-
-        # Mark filing_commitment KeyMaterial as signed
-        km_result = await self.db.execute(
-            select(KeyMaterial).where(
-                KeyMaterial.activity_id == activity_id,
-                KeyMaterial.material_type == "filing_commitment",
+            commit_fd = FilledDocument(
+                activity_id=activity_id, template_type="filing_commitment",
+                version_number=vn, data_snapshot=commit_data,
+                minio_path=minio_path, template_hash=template_hash,
+                generated_by=user_id,
             )
-        )
-        km = km_result.scalar_one_or_none()
-        if km:
-            km.sign_status = "signed"
+            self.db.add(commit_fd)
+            await self.db.flush()
+
+        # Ensure filing_commitment KeyMaterial exists, linked, and signed
+        km = await self.get_or_create_material(activity_id, "filing_commitment")
+        km.current_filled_document_id = commit_fd.id
+        km.sign_status = "signed"
 
         await self.db.commit()
 
