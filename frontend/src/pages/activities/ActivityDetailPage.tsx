@@ -1385,6 +1385,10 @@ export default function ActivityDetailPage() {
           queryClient.invalidateQueries({ queryKey: ["activities", id, "templates", "security-versions"] });
           riskMaterial.refetch();
           respMaterial.refetch();
+          queryClient.invalidateQueries({ queryKey: ["activities", id, "templates", "risk-versions"] });
+          queryClient.invalidateQueries({ queryKey: ["activities", id, "templates", "resp-versions"] });
+          queryClient.invalidateQueries({ queryKey: ["activities", id, "material", "risk_assessment", "schema"] });
+          queryClient.invalidateQueries({ queryKey: ["activities", id, "material", "responsibility_letter", "schema"] });
           message.success("安保方案已生成，风险评估表已同步更新");
           crossSyncData.resolve(result);
           setCrossSyncData(null);
