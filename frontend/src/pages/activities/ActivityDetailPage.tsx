@@ -60,12 +60,6 @@ export default function ActivityDetailPage() {
   const isOfficerFilingPhase = activity?.status === "待备案申请" || activity?.status === "待补充备案材料";
   const isGovLiaisonFilingPhase = activity?.status === "备案材料已交接";
 
-  const { data: validation = [], isLoading: validationLoading } = useQuery({
-    queryKey: ["activities", id, "filing", "validate"],
-    queryFn: () => filingsApi.validate(id!).then((r) => r.data),
-    enabled: showFiling,
-  });
-
   const { data: securityPlan } = useQuery({
     queryKey: ["activities", id, "security-plan"],
     queryFn: () => activitiesApi.getSecurityPlan(id!).then((r) => r.data),
