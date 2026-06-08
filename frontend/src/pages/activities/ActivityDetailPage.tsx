@@ -570,8 +570,11 @@ export default function ActivityDetailPage() {
                         </div>
                       )}
                       {activity?.status === "待补充备案材料" && securityPlan?.audit_status && securityPlan.audit_status !== "待编制" && (
-                        <Alert type="info" showIcon title="已提交审核"
-                          description="安保方案已提交审核，等待安保负责人签署确认。签署完成后可重新打包备案材料。" style={{ marginBottom: 16 }} />
+                        <Alert type="info" showIcon title={isManager ? "待签署确认" : "已提交审核"}
+                          description={isManager
+                            ? "安保方案已提交审核，请签署确认。签署完成后由编制人员重新打包备案材料。"
+                            : "安保方案已提交审核，等待安保负责人签署确认。签署完成后可重新打包备案材料。"}
+                          style={{ marginBottom: 16 }} />
                       )}
                       {securityPlan?.risk_level && (
                         <div style={{ marginBottom: 16 }}>
