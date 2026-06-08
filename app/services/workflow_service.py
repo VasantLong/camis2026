@@ -116,7 +116,10 @@ class WorkflowService:
             return
 
         from app.models.activity import SecurityPlan
-        sp = await self.db.get(SecurityPlan, activity_id)
+        sp_result = await self.db.execute(
+            select(SecurityPlan).where(SecurityPlan.activity_id == activity_id)
+        )
+        sp = sp_result.scalar_one_or_none()
         if sp is None:
             return
 
