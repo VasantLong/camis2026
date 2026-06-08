@@ -496,12 +496,21 @@ class TemplateService:
                 await minio_client.upload_file(minio_path, docx_bytes, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
                 fd.minio_path = minio_path
 
-            # Ensure KeyMaterial exists and mark as signed
+            # Ensure KeyMaterial exists, link FilledDocument, mark as signed
             km = await self.get_or_create_material(activity_id, ttype)
+            t_entity = entity if ttype == "security_plan" else await self._get_entity(ttype, activity_id, ttype)
+            if t_entity and t_entity.current_filled_document_id:
+                km.current_filled_document_id = t_entity.current_filled_document_id
             km.sign_status = "signed"
 
-        # Ensure activity_plan KeyMaterial exists and mark as signed
+        # Ensure activity_plan KeyMaterial exists, link its FilledDocument, mark as signed
         ap_km = await self.get_or_create_material(activity_id, "activity_plan")
+        ap_result = await self.db.execute(
+            select(ActivityPlan).where(ActivityPlan.activity_id == activity_id)
+        )
+        ap = ap_result.scalar_one_or_none()
+        if ap and ap.current_filled_document_id:
+            ap_km.current_filled_document_id = ap.current_filled_document_id
         ap_km.sign_status = "signed"
 
         # Update SecurityPlan
