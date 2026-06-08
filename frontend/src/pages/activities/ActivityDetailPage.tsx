@@ -167,6 +167,7 @@ export default function ActivityDetailPage() {
   const queryClient = useQueryClient();
   const [auditTarget, setAuditTarget] = useState<{ id: string; name: string } | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [auditConclusion, setAuditConclusion] = useState<string>("qualified");
   const [auditOpinion, setAuditOpinion] = useState("");
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
@@ -1246,13 +1247,41 @@ export default function ActivityDetailPage() {
                       })()}
                       {/* materials table */}
                       {materials.length > 0 && (
-                        <Table
-                          dataSource={materials}
-                          rowKey="id"
-                          size="small"
-                          style={{ marginTop: 16 }}
-                          pagination={false}
-                          locale={{ emptyText: <Empty description="暂无备案材料" /> }}
+                        <>
+                          {isGovLiaisonFilingPhase && isGovLiaison && selectedRowKeys.length > 0 && (
+                            <div style={{ marginTop: 16, padding: "8px 12px", background: "#e6f7ff", borderRadius: 4, display: "flex", alignItems: "center", gap: 8 }}>
+                              <Typography.Text>已选 {selectedRowKeys.length} 项：</Typography.Text>
+                              <Button size="small" type="primary"
+                                onClick={async () => {
+                                  for (const mid of selectedRowKeys) {
+                                    await materialsApi.audit(id!, mid, "qualified");
+                                  }
+                                  message.success(`已批量标记 ${selectedRowKeys.length} 项为合格`);
+                                  setSelectedRowKeys([]);
+                                  refetchMaterials();
+                                }}>批量合格</Button>
+                              <Button size="small" danger
+                                onClick={async () => {
+                                  for (const mid of selectedRowKeys) {
+                                    await materialsApi.audit(id!, mid, "unqualified");
+                                  }
+                                  message.success(`已批量标记 ${selectedRowKeys.length} 项为不合格`);
+                                  setSelectedRowKeys([]);
+                                  refetchMaterials();
+                                }}>批量不合格</Button>
+                            </div>
+                          )}
+                          <Table
+                            dataSource={materials}
+                            rowKey="id"
+                            size="small"
+                            style={{ marginTop: 16 }}
+                            pagination={false}
+                            locale={{ emptyText: <Empty description="暂无备案材料" /> }}
+                            rowSelection={isGovLiaisonFilingPhase && isGovLiaison ? {
+                              selectedRowKeys,
+                              onChange: (keys) => setSelectedRowKeys(keys as string[]),
+                            } : undefined}
                           columns={[
                             { title: "材料名称", dataIndex: "name", key: "name" },
                             { title: "签署状态", key: "sign", width: 100, render: (_: unknown, m: any) => (
@@ -1295,6 +1324,7 @@ export default function ActivityDetailPage() {
                             )},
                           ]}
                         />
+                        </>
                       )}
 
                       {/* audit history: only in GovLiaison+ phases */}
