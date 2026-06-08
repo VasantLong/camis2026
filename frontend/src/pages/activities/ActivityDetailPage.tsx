@@ -1345,7 +1345,7 @@ export default function ActivityDetailPage() {
                       )}
 
                       {/* audit history */}
-                      {auditHistory.length > 0 && (() => {
+                      {auditHistory.length > 0 && isGovLiaison && (() => {
                         const grouped = new Map<string, typeof auditHistory>();
                         for (const h of auditHistory) {
                           const key = h.created_at.slice(0, 16);
