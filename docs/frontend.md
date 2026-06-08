@@ -413,12 +413,37 @@ flowchart LR
 ```mermaid
 flowchart LR
     Login[/登录/] --> Home[首页]
-    Home --> |"待编制(2)"| Draft[编制安保方案]
-    Draft --> Submit[提交负责人审核]
-    Submit --> Sign[SecurityManager<br/>双表电子签名]
+    Home --> |"待编制"| Draft[安保方案tab]
+    Draft --> SubTabs[子tab：安保方案丨风险评估表丨责任确认书]
+    SubTabs --> |三表均生成版本| Submit[提交审核]
+    Submit --> Sign[SecurityManager<br/>签署确认]
     Sign --> |签署完成| Pack[打包备案]
     Pack --> |线下交接| Handover[确认已交接]
 ```
+
+**GovLiaison**
+
+```mermaid
+flowchart LR
+    Login2[/登录/] --> Home2[首页]
+    Home2 --> |"待审查"| Review[活动详情-备案tab]
+    Review --> Audit[逐条审查材料]
+    Audit --> |全部审查完毕| Upload[上传批文]
+    Upload --> Decision{审批决定}
+    Decision --> |通过| Approved[审批通过]
+    Decision --> |补件| Revise[待补充备案材料]
+    Decision --> |驳回| Rejected[不通过/已终止]
+```
+
+**TemplateForm 模式**
+
+表单组件统一模式支持双表：
+- `onValidate` prop：生成前自定义校验（`validateRiskAssessment`/`validateResponsibilityLetter`）
+- `ui_type: "autofill"`：只读灰底 Input（Activity/ActivityPlan 自动填入）
+- `ui_type: "declarations"`：只读法律声明块（责任确认书 8 条）
+- `ui_type: "signature"`：上传+预览+删除，刷新后通过 `/documents/presign/by-path` 恢复预览
+- `hint` 字段：repeater 旁 `QuestionCircleOutlined` + Tooltip
+- 条件字段：`==`/`!=` 格式解析，`risk_level` 通过外部传入值判断（非表单字段）
 
 ### 无多角色用户
 

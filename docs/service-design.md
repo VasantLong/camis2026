@@ -520,7 +520,7 @@ flowchart TD
     DBR --> DBS --> DB
 ```
 
-> **注**：`WorkflowService` 是枢纽——它依赖 `NotificationService`（发通知）和 `ActivityService`（查状态）。`AuthService` 和 `AdminService` 为独立服务，无跨服务依赖。`TemplateService` 依赖 MinIO（文件上传）和 `WorkflowService`（activity_plan generate 后自动状态变迁）。
+> **注**：`WorkflowService` 是枢纽——它依赖 `NotificationService`（发通知）和 `ActivityService`（查状态）。`AuthService` 和 `AdminService` 为独立服务，无跨服务依赖。`TemplateService` 依赖 MinIO（文件上传）和 `WorkflowService`（activity_plan generate 后自动状态变迁）。`TemplateService` 新增 `get_or_create_material()`（懒创建 KeyMaterial）和 `get_schema()` 跨实体 autofill（Activity + ActivityPlan snapshot → 双表字段自动填入），Pydantic 校验前自动清理不满足条件的隐藏字段。
 
 ---
 
