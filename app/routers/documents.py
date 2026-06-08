@@ -132,3 +132,14 @@ async def download_document(
 
     url = await svc.get_presigned_download_url(doc_id)
     return RedirectResponse(url=url, status_code=status.HTTP_302_FOUND)
+
+
+@router.get("/presign/by-path")
+async def presign_by_path(
+    path: str,
+    current_user: User = Depends(get_current_user),
+):
+    """Return a presigned URL for a minio_path (for signature preview recovery)."""
+    from app.services.minio_client import get_presigned_url
+    url = await get_presigned_url(path)
+    return {"url": url}

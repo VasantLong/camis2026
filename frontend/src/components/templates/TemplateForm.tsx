@@ -13,7 +13,6 @@ import {
   Typography,
   Tooltip,
   Image,
-  Tag,
   App,
 } from "antd";
 import { PlusOutlined, DeleteOutlined, UploadOutlined, QuestionCircleOutlined, CloseOutlined } from "@ant-design/icons";
@@ -42,6 +41,30 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
   const [isDirty, setIsDirty] = useState(false);
   const [highlightSet, setHighlightSet] = useState<Set<string>>(new Set());
   const [sigPreviews, setSigPreviews] = useState<Record<string, string>>({});
+
+  // load presigned URLs for stored signatures on mount (draft/snapshot restore)
+  useEffect(() => {
+    const loadStoredSigs = async () => {
+      const previews: Record<string, string> = {};
+      for (const f of schema.fields) {
+        if (f.ui_type !== "signature") continue;
+        const v = (schema.draft_data || schema.snapshot_data)?.[f.name];
+        if (!v) continue;
+        // check for URL string or fileList with url/minio_path
+        const path = typeof v === "string" ? v : (Array.isArray(v) && v.length > 0 ? (v[0]?.url || v[0]?.response?.minio_path) : "");
+        if (path) {
+          try {
+            const res = await documentsApi.getPresignedByPath(path);
+            previews[f.name] = res.data.url;
+          } catch { /* presign may fail; skip */ }
+        }
+      }
+      if (Object.keys(previews).length > 0) {
+        setSigPreviews(prev => ({ ...prev, ...previews }));
+      }
+    };
+    loadStoredSigs();
+  }, [schema]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync highlightFields prop
   useEffect(() => {
@@ -302,6 +325,7 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
                 name: f.name || "signature",
                 status: f.status || "done",
                 url: f.response?.minio_path || f.url || "",
+                docId: f.response?.id || f.docId || "",
               }));
             }}
           >
@@ -336,17 +360,6 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
                 }} />
             </div>
           )}
-          {!previewUrl && (() => {
-            const storedVal = schema.draft_data?.[field.name] || schema.snapshot_data?.[field.name];
-            const hasUrl = (Array.isArray(storedVal) && storedVal.length > 0 && (storedVal[0]?.url || storedVal[0]?.response?.minio_path)) || (typeof storedVal === "string" && !!storedVal);
-            return hasUrl ? (
-              <div style={{ marginTop: -4, marginBottom: 24, display: "flex", alignItems: "center", gap: 8 }}>
-                <Tag color="green" style={{ margin: 0 }}>已上传签名</Tag>
-                <Button size="small" icon={<CloseOutlined />} danger
-                  onClick={() => { form.setFieldValue(field.name, []); }} />
-              </div>
-            ) : null;
-          })()}
           </Fragment>
         );
       }

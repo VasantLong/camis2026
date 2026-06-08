@@ -10,6 +10,12 @@ export const documentsApi = {
     return client.post<DocumentResponse>("/documents/upload", formData);
   },
 
+  getPresignedUrl: (docId: string) =>
+    client.get<{ url: string }>(`/documents/${docId}/url?inline=1`),
+
+  getPresignedByPath: (minioPath: string) =>
+    client.get<{ url: string }>(`/documents/presign/by-path?path=${encodeURIComponent(minioPath)}`),
+
   _getUrl: async (docId: string, inline: boolean) => {
     const res = await client.get<{ url: string }>(
       `/documents/${docId}/url?inline=${inline ? "1" : "0"}`
