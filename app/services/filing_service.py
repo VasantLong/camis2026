@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import tempfile
 import zipfile
 from datetime import datetime, timezone
@@ -20,6 +21,8 @@ from app.services import minio_client
 
 # These tables are created by init-scripts/02-activity-tables.sql but ORM models
 # not yet defined. We'll use raw SQL for the join queries until models are added.
+logger = logging.getLogger("camis.filing")
+
 JOIN_QUERY = """
 SELECT km.id, km.name, km.is_qualified, km.opinion, km.sign_status, km.audit_round
 FROM key_materials km
