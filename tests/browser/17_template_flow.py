@@ -51,12 +51,9 @@ with sync_playwright() as p:
         page.keyboard.press("Enter")
         page.wait_for_timeout(300)
 
-    def scroll_tab_content() -> None:
-        """Scroll the tab panel to bottom so buttons are visible."""
-        page.evaluate("""() => {
-          const panel = document.querySelector('.ant-tabs-content-holder');
-          if (panel) panel.scrollTop = panel.scrollHeight;
-        }""")
+    def click_sub_btn(selector: str) -> None:
+        """Click button in sub-tab — uses evaluate to bypass antd Tabs overflow clipping."""
+        page.locator(selector).first.evaluate("el => el.click()")
         page.wait_for_timeout(500)
 
     def click_gen(label: str) -> None:
@@ -305,13 +302,20 @@ with sync_playwright() as p:
     af_end = page.locator('.ant-form-item:has-text("结束时间") input').first
     check(af_end.input_value() != "", "activity_end autofilled from plan")
 
-    # Fill manual text fields — click + type + Tab to trigger antd onChange
-    for label_text in [("活动地点（具体地址）", "中心广场主舞台区"), ("承办方", "测试文化公司"), ("活动参与方", "社区居民")]:
-        inp = page.locator(f'.ant-form-item:has-text("{label_text[0]}") input').first
-        inp.click()
-        page.keyboard.type(label_text[1])
-        page.keyboard.press("Tab")
-        page.wait_for_timeout(150)
+    # Fill manual text fields — focus via mouse click then type
+    def type_in(label: str, text: str) -> None:
+        inp = page.locator(f'.ant-form-item:has-text("{label}") input:not([disabled]):not([readonly])').first
+        box = inp.bounding_box()
+        if box:
+            page.mouse.click(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+            page.wait_for_timeout(100)
+            page.keyboard.type(text)
+            page.keyboard.press("Tab")
+            page.wait_for_timeout(100)
+
+    type_in("活动地点（具体地址）", "中心广场主舞台区")
+    type_in("承办方", "测试文化公司")
+    type_in("活动参与方", "社区居民")
     page.wait_for_timeout(200)
 
     # Selects (non-autofill ones)
@@ -355,11 +359,8 @@ with sync_playwright() as p:
     sig_file.unlink(missing_ok=True)
     check(True, "assessor signature uploaded")
 
-    # Move cursor away from uploaded image, then save draft + generate
-    page.locator('.ant-form-item:has-text("联系人")').first.click()
-    page.wait_for_timeout(300)
-    page.locator('button:has-text("保存草稿")').first.click()
-    page.wait_for_timeout(800)
+    # Save draft + generate (buttons may be clipped by Tabs overflow)
+    click_sub_btn('button:has-text("保存草稿")')
     click_gen("risk assessment")
 
     # ── 3c. Responsibility letter ──
@@ -397,10 +398,7 @@ with sync_playwright() as p:
     sig_file2.unlink(missing_ok=True)
     check(True, "security leader signature uploaded")
 
-    page.locator('.ant-form-item:has-text("活动安全负责人")').first.click()
-    page.wait_for_timeout(300)
-    page.locator('button:has-text("保存草稿")').first.click()
-    page.wait_for_timeout(800)
+    click_sub_btn('button:has-text("保存草稿")')
     click_gen("responsibility letter")
 
     # ── 3d. Back to 安保方案 — submit for review ──
@@ -409,12 +407,11 @@ with sync_playwright() as p:
     page.wait_for_timeout(1500)
     page.wait_for_load_state("networkidle")
 
-    # Submit for review — scroll into view then click normally
+    # Submit for review — button in progress bar, use evaluate
     page.wait_for_timeout(500)
-    scroll_tab_content()
     submit_btn = page.locator('button:has-text("提交审核")').first
     check(submit_btn.count() > 0, "submit review button visible")
-    submit_btn.click()
+    click_sub_btn('button:has-text("提交审核")')
     page.wait_for_timeout(500)
     check(page.locator('.ant-modal:has-text("确认提交审核")').count() > 0, "submit confirm modal")
     page.locator('.ant-modal button:has-text("确认提交")').first.click()

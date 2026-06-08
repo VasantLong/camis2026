@@ -16,7 +16,7 @@ import TemplateForm from "@/components/templates/TemplateForm";
 import VersionTimeline from "@/components/templates/VersionTimeline";
 import VersionSnapshot from "@/components/templates/VersionSnapshot";
 import { useMaterialSchema } from "@/hooks/useMaterialSchema";
-import { validateActivityPlan, validateSecurityPlan, type ValidationError } from "@/utils/templateValidation";
+import { validateActivityPlan, validateSecurityPlan, validateRiskAssessment, validateResponsibilityLetter, type ValidationError } from "@/utils/templateValidation";
 import { filingsApi } from "@/api/filings";
 import { documentsApi } from "@/api/documents";
 import { activitiesApi } from "@/api/activities";
@@ -789,6 +789,7 @@ export default function ActivityDetailPage() {
                                         queryClient.invalidateQueries({ queryKey: ["activities", id, "templates", "risk-versions"] });
                                         return result;
                                       }}
+                                      onValidate={(data) => validateRiskAssessment(data)}
                                     />
                                     <VersionTimeline
                                       versions={riskVersions}
@@ -837,6 +838,7 @@ export default function ActivityDetailPage() {
                                         queryClient.invalidateQueries({ queryKey: ["activities", id, "templates", "resp-versions"] });
                                         return result;
                                       }}
+                                      onValidate={(data) => validateResponsibilityLetter(data)}
                                     />
                                     <VersionTimeline
                                       versions={respVersions}

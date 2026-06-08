@@ -28,9 +28,10 @@ interface Props {
   highlightFields?: string[];
   onSaveDraft: (data: Record<string, unknown>) => Promise<void>;
   onSubmit: (data: Record<string, unknown>) => Promise<GenerateResponse>;
+  onValidate?: (data: Record<string, unknown>) => { field: string; label: string; reason: string }[];
 }
 
-export default function TemplateForm({ activityId, schema, loading, disabled, highlightFields, onSaveDraft, onSubmit }: Props) {
+export default function TemplateForm({ activityId, schema, loading, disabled, highlightFields, onSaveDraft, onSubmit, onValidate }: Props) {
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -288,7 +289,11 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
             rules={rules}
             style={itemStyle}
             valuePropName="fileList"
-            normalize={(val) => (Array.isArray(val) ? val : [])}
+            normalize={(val) => {
+              if (Array.isArray(val)) return val;
+              if (typeof val === "string" && val) return [{ uid: "-1", name: "signature", status: "done" as const, url: val }];
+              return [];
+            }}
             getValueFromEvent={(e) => (Array.isArray(e) ? e : e?.fileList || [])}
           >
             <Upload
@@ -390,7 +395,17 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
   };
 
   const handleSubmit = () => {
-    form.validateFields().then(() => setConfirmOpen(true)).catch(() => {});
+    form.validateFields().then(() => {
+      if (onValidate) {
+        const data = serializeFormData(form.getFieldsValue(), schema.fields);
+        const errs = onValidate(data);
+        if (errs.length > 0) {
+          message.error(errs.map(e => `${e.label}: ${e.reason}`).join("；"));
+          return;
+        }
+      }
+      setConfirmOpen(true);
+    }).catch(() => {});
   };
 
   const nextVersion = (schema.current_version ?? 0) + 1;
