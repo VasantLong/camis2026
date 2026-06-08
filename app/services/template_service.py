@@ -132,22 +132,6 @@ class TemplateService:
                 plan_fd = await self.db.get(FilledDocument, plan.current_filled_document_id)
                 if plan_fd and plan_fd.data_snapshot:
                     plan_snapshot = plan_fd.data_snapshot
-            # cross-template: responsibility_letter venue_name ← risk_assessment activity_location
-            cross_data: dict[str, str] = {}
-            if template_type == "responsibility_letter" and "venue_name" in mappable:
-                ra_result = await self.db.execute(
-                    select(KeyMaterial).where(
-                        KeyMaterial.activity_id == activity_id,
-                        KeyMaterial.material_type == "risk_assessment",
-                    )
-                )
-                ra = ra_result.scalar_one_or_none()
-                if ra and ra.current_filled_document_id:
-                    ra_fd = await self.db.get(FilledDocument, ra.current_filled_document_id)
-                    if ra_fd and ra_fd.data_snapshot:
-                        loc = ra_fd.data_snapshot.get("activity_location", "")
-                        if loc:
-                            cross_data["venue_name"] = str(loc)
             for name in mappable:
                 if name in ACTIVITY_FIELD_MAP and activity:
                     attr = ACTIVITY_FIELD_MAP[name]
@@ -160,8 +144,6 @@ class TemplateService:
                     autofill_data[name] = val
                 elif name in DEFAULT_FIELD_MAP:
                     autofill_data[name] = DEFAULT_FIELD_MAP[name]
-                if name in cross_data:
-                    autofill_data[name] = cross_data[name]  # cross-template overrides
             schema["autofill_data"] = autofill_data
 
         return schema

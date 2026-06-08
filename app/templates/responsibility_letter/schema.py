@@ -5,7 +5,6 @@ class ResponsibilityLetterForm(BaseModel):
     """主办单位安全和消防责任确认书表单数据"""
 
     sponsor_unit: str = Field(default="", description="活动主办单位")
-    venue_name: str = Field(default="", description="举办场所名称")
     security_leader_name: str = Field(default="", description="安全负责人姓名")
     security_leader_signature: str = Field(default="", description="安全负责人签字")
     # sponsor_seal omitted — physical stamp applied offline after DOCX printing
@@ -30,7 +29,6 @@ SCHEMA = {
     "display_name": "安全消防责任确认书",
     "fields": [
         {"name": "sponsor_unit", "ui_label": "活动主办单位", "ui_type": "autofill", "autofill_from": "default", "required": True},
-        {"name": "venue_name", "ui_label": "举办场所名称", "ui_type": "autofill", "autofill_from": "cross.risk_assessment.activity_location", "required": True},
         {"name": "declarations", "ui_label": "安全消防责任确认", "ui_type": "declarations",
          "declaration_items": DECLARATION_ITEMS,
          "hint": "依据国务院《大型群众性活动安全管理条例》《安全生产法》《消防法》等法律法规。以下声明由主办单位公章及安全负责人签字确认，依法承担相应法律责任。"},
