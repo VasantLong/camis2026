@@ -112,6 +112,7 @@ class TemplateService:
         }
         SECURITY_PLAN_FIELD_MAP = {
             "security_staff_count": "security_staff_count",
+            "security_count": "security_staff_count",
         }
         # fixed defaults (sensitive values from .env via settings)
         from app.config import settings
@@ -133,22 +134,26 @@ class TemplateService:
                 select(ActivityPlan).where(ActivityPlan.activity_id == activity_id)
             )
             plan = plan_result.scalar_one_or_none()
-            if plan and plan.current_filled_document_id:
-                plan_fd = await self.db.get(FilledDocument, plan.current_filled_document_id)
-                if plan_fd and plan_fd.data_snapshot:
-                    plan_snapshot = plan_fd.data_snapshot
+            if plan:
+                if plan.current_filled_document_id:
+                    plan_fd = await self.db.get(FilledDocument, plan.current_filled_document_id)
+                    if plan_fd and plan_fd.data_snapshot:
+                        plan_snapshot = dict(plan_fd.data_snapshot)
+                if plan.draft_data:
+                    plan_snapshot.update(plan.draft_data)
             sec_snapshot: dict[str, object] = {}
             if mappable & set(SECURITY_PLAN_FIELD_MAP):
                 sec_result = await self.db.execute(
                     select(SecurityPlan).where(SecurityPlan.activity_id == activity_id)
                 )
                 sec = sec_result.scalar_one_or_none()
-                if sec and sec.current_filled_document_id:
-                    sec_fd = await self.db.get(FilledDocument, sec.current_filled_document_id)
-                    if sec_fd and sec_fd.data_snapshot:
-                        sec_snapshot = sec_fd.data_snapshot
-                elif sec and sec.draft_data:
-                    sec_snapshot = sec.draft_data
+                if sec:
+                    if sec.current_filled_document_id:
+                        sec_fd = await self.db.get(FilledDocument, sec.current_filled_document_id)
+                        if sec_fd and sec_fd.data_snapshot:
+                            sec_snapshot = dict(sec_fd.data_snapshot)
+                    if sec.draft_data:
+                        sec_snapshot.update(sec.draft_data)
             for name in mappable:
                 if name in ACTIVITY_FIELD_MAP and activity:
                     attr = ACTIVITY_FIELD_MAP[name]

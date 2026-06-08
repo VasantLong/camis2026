@@ -53,7 +53,7 @@ SCHEMA = {
         {"name": "crowd_scale", "ui_label": "预计参与人数规模", "ui_type": "select",
          "options": ["1000以下", "1000-3000", "3000-5000", "5000-10000", "10000以上"]},
         {"name": "staff_count", "ui_label": "工作人员数量", "ui_type": "autofill", "autofill_from": "plan.staff_count", "min": 0},
-        {"name": "security_count", "ui_label": "安保人员数量", "ui_type": "number", "min": 0},
+        {"name": "security_count", "ui_label": "安保人员数量", "ui_type": "autofill", "autofill_from": "security_plan.security_staff_count"},
         {"name": "has_tickets", "ui_label": "是否销售门票", "ui_type": "select", "options": ["是", "否"]},
         {"name": "has_media", "ui_label": "是否有媒体直播或采录", "ui_type": "select", "options": ["是", "否"]},
         {"name": "media_channel", "ui_label": "媒体采录方式", "ui_type": "select",
