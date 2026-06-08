@@ -103,7 +103,8 @@ export default function ActivityDetailPage() {
   const canViewPlan = permissions.includes("submit_plan") || permissions.includes("view_owned_activity");
   const canViewSecurity = permissions.includes("manage_security") || permissions.includes("view_owned_activity");
   const canEditPlan = permissions.includes("submit_plan") && activity?.status === "待设计方案";
-  const canEditSecurity = permissions.includes("manage_security");
+  const EDITABLE_SEC_STATUSES = ["待安保方案设计", "待备案申请", "待补充备案材料"];
+  const canEditSecurity = permissions.includes("manage_security") && !!activity?.status && EDITABLE_SEC_STATUSES.includes(activity.status);
   const isManager = permissions.includes("review_security_plan");
   const isAdmin = permissions.includes("view_dashboard") && !canEditPlan && !canEditSecurity;
   const isGovLiaison = permissions.includes("audit_material") && !canEditPlan && !canEditSecurity && !isManager;
@@ -539,6 +540,10 @@ export default function ActivityDetailPage() {
                             ? "安保方案已提交审核，请签署确认。签署完成后由编制人员重新打包备案材料。"
                             : "安保方案已提交审核，等待安保负责人签署确认。签署完成后可重新打包备案材料。"}
                           style={{ marginBottom: 16 }} />
+                      )}
+                      {activity?.status && ["审批通过-待举办", "举办中", "已结束"].includes(activity.status) && (
+                        <Alert type="info" showIcon title="方案已锁定"
+                          description="活动已进入举办阶段，方案不可编辑。可上传附件记录活动。" style={{ marginBottom: 16 }} />
                       )}
                       {securityPlan?.risk_level && (
                         <div style={{ marginBottom: 16 }}>
