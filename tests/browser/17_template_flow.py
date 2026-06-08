@@ -51,10 +51,25 @@ with sync_playwright() as p:
         page.keyboard.press("Enter")
         page.wait_for_timeout(300)
 
-    def js_click(selector: str) -> None:
-        """Click via native JS — reliable for React synthetic events in clipped containers."""
-        page.evaluate(f"""() => {{ const el = document.querySelector('{selector}'); if (el) el.click(); }}""")
-        page.wait_for_timeout(300)
+    def scroll_tab_content() -> None:
+        """Scroll the tab panel to bottom so buttons are visible."""
+        page.evaluate("""() => {
+          const panel = document.querySelector('.ant-tabs-content-holder');
+          if (panel) panel.scrollTop = panel.scrollHeight;
+        }""")
+        page.wait_for_timeout(500)
+
+    def click_gen(label: str) -> None:
+        """Click '提交生成' and confirm modal — same pattern as security plan."""
+        btn = page.locator('button:has-text("提交生成")').first
+        btn.click()
+        page.wait_for_timeout(1000)
+        check(page.locator('.ant-modal:has-text("确认生成")').count() > 0, f"{label} confirm modal shown")
+        page.locator('.ant-modal button:has-text("确认生成")').first.click()
+        page.wait_for_timeout(500)
+        page.wait_for_selector('.ant-modal:has-text("确认生成")', state='hidden', timeout=5000)
+        page.wait_for_selector('button:has-text("v1")', state="attached", timeout=15000)
+        check(True, f"{label} v1 generated")
 
     def fill_repeater(field_name: str, label: str, items: list[str]) -> None:
         """Add items to a repeater field. Clicks '添加' then fills each input."""
@@ -249,20 +264,21 @@ with sync_playwright() as p:
         sp_count.fill("10")
         page.wait_for_timeout(100)
 
-    # Generate
+    # Save draft + generate
+    draft_sp = page.locator('button:has-text("保存草稿")').first
+    if draft_sp.count() > 0 and draft_sp.is_enabled():
+        draft_sp.click()
+        page.wait_for_timeout(500)
     sp_gen = page.locator('button:has-text("提交生成")').first
     check(sp_gen.count() > 0, "generate button visible")
     sp_gen.click()
     page.wait_for_timeout(1000)
-    cfm3 = page.locator('.ant-modal button:has-text("确认生成")').first
-    if cfm3.count() > 0:
-        cfm3.click()
-        page.wait_for_timeout(500)
-        page.wait_for_selector('.ant-modal:has-text("确认生成")', state='hidden', timeout=5000)
-        page.wait_for_selector('button:has-text("v1")', timeout=10000)
-        check(True, "security plan v1 generated")
-    else:
-        check(False, "confirmation modal not shown for security plan")
+    check(page.locator('.ant-modal:has-text("确认生成")').count() > 0, "security plan confirm modal shown")
+    page.locator('.ant-modal button:has-text("确认生成")').first.click()
+    page.wait_for_timeout(500)
+    page.wait_for_selector('.ant-modal:has-text("确认生成")', state='hidden', timeout=5000)
+    page.wait_for_selector('button:has-text("v1")', timeout=10000)
+    check(True, "security plan v1 generated")
 
     # ── 3b. Risk assessment ──
     print("\n--- 3b: risk assessment ---")
@@ -336,20 +352,12 @@ with sync_playwright() as p:
     sig_file.unlink(missing_ok=True)
     check(True, "assessor signature uploaded")
 
-    # Generate — button may be hidden by Tabs overflow; dispatch click via JS
-    ra_gen = page.locator('button:has-text("提交生成")').first
-    check(ra_gen.count() > 0, "risk assessment generate button")
-    ra_gen.dispatch_event("click")
-    page.wait_for_timeout(1000)
-    cfm = page.locator('.ant-modal button:has-text("确认生成")').first
-    if cfm.count() > 0:
-        cfm.dispatch_event("click")
-        page.wait_for_timeout(500)
-        page.wait_for_selector('.ant-modal:has-text("确认生成")', state='hidden', timeout=5000)
-        page.wait_for_selector('button:has-text("v1")', state="attached", timeout=15000)
-        check(True, "risk assessment v1 generated")
-    else:
-        check(False, "risk assessment confirm modal not shown")
+    # Move cursor away from uploaded image, then save draft + generate
+    page.locator('.ant-form-item:has-text("联系人")').first.click()
+    page.wait_for_timeout(300)
+    page.locator('button:has-text("保存草稿")').first.click()
+    page.wait_for_timeout(800)
+    click_gen("risk assessment")
 
     # ── 3c. Responsibility letter ──
     print("\n--- 3c: responsibility letter ---")
@@ -386,20 +394,11 @@ with sync_playwright() as p:
     sig_file2.unlink(missing_ok=True)
     check(True, "security leader signature uploaded")
 
-    # Generate
-    rl_gen = page.locator('button:has-text("提交生成")').first
-    check(rl_gen.count() > 0, "responsibility letter generate button")
-    rl_gen.dispatch_event("click")
-    page.wait_for_timeout(1000)
-    cfm2 = page.locator('.ant-modal button:has-text("确认生成")').first
-    if cfm2.count() > 0:
-        cfm2.dispatch_event("click")
-        page.wait_for_timeout(500)
-        page.wait_for_selector('.ant-modal:has-text("确认生成")', state='hidden', timeout=5000)
-        page.wait_for_selector('button:has-text("v1")', state="attached", timeout=15000)
-        check(True, "responsibility letter v1 generated")
-    else:
-        check(False, "responsibility letter confirm modal not shown")
+    page.locator('.ant-form-item:has-text("活动安全负责人")').first.click()
+    page.wait_for_timeout(300)
+    page.locator('button:has-text("保存草稿")').first.click()
+    page.wait_for_timeout(800)
+    click_gen("responsibility letter")
 
     # ── 3d. Back to 安保方案 — submit for review ──
     print("\n--- 3d: submit for review ---")
@@ -407,14 +406,15 @@ with sync_playwright() as p:
     page.wait_for_timeout(1500)
     page.wait_for_load_state("networkidle")
 
-    # Submit for review
+    # Submit for review — scroll into view then click normally
     page.wait_for_timeout(500)
+    scroll_tab_content()
     submit_btn = page.locator('button:has-text("提交审核")').first
     check(submit_btn.count() > 0, "submit review button visible")
-    submit_btn.dispatch_event("click")
+    submit_btn.click()
     page.wait_for_timeout(500)
     check(page.locator('.ant-modal:has-text("确认提交审核")').count() > 0, "submit confirm modal")
-    page.locator('.ant-modal button:has-text("确认提交")').first.dispatch_event("click")
+    page.locator('.ant-modal button:has-text("确认提交")').first.click()
     page.wait_for_timeout(2000)
     page.wait_for_load_state("networkidle")
     check(True, "security plan submitted for review")

@@ -653,12 +653,41 @@ export default function ActivityDetailPage() {
                         <>
                           {activity?.status === "待安保方案设计" ? (
                             <>
-                              <div style={{ marginTop: 8, marginBottom: 8, padding: "4px 12px", background: "#fafafa", borderRadius: 4, display: "flex", alignItems: "center", gap: 8 }}>
-                                <Typography.Text type="secondary" style={{ fontSize: 12 }}>完成进度：</Typography.Text>
-                                <Tag color={securityPlanVersions.length > 0 ? "green" : "default"} style={{ margin: 0 }}>安保方案</Tag>
-                                <Tag color={riskVersions.length > 0 ? "green" : "default"} style={{ margin: 0 }}>风险评估表</Tag>
-                                <Tag color={respVersions.length > 0 ? "green" : "default"} style={{ margin: 0 }}>责任确认书</Tag>
-                              </div>
+                              {(() => {
+                                const auditStatus = securityPlan?.audit_status;
+                                const submitted = !!(auditStatus && auditStatus !== "待编制");
+                                const rejectedAt = securityPlan?.rejected_at ? new Date(securityPlan.rejected_at).getTime() : 0;
+                                const latestVersionAfterReject = rejectedAt
+                                  ? securityPlanVersions.some((v) => v.created_at && new Date(v.created_at).getTime() > rejectedAt)
+                                  : true;
+                                const blockedByReject = !!rejectedAt && !latestVersionAfterReject;
+                                const allThreeReady = securityPlanVersions.length > 0 && riskVersions.length > 0 && respVersions.length > 0;
+                                return (
+                                  <div style={{ marginTop: 8, marginBottom: 8, padding: "4px 12px", background: "#fafafa", borderRadius: 4, display: "flex", alignItems: "center", gap: 8 }}>
+                                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>完成进度：</Typography.Text>
+                                    <Tag color={securityPlanVersions.length > 0 ? "green" : "default"} style={{ margin: 0 }}>安保方案</Tag>
+                                    <Tag color={riskVersions.length > 0 ? "green" : "default"} style={{ margin: 0 }}>风险评估表</Tag>
+                                    <Tag color={respVersions.length > 0 ? "green" : "default"} style={{ margin: 0 }}>责任确认书</Tag>
+                                    <span style={{ flex: 1 }} />
+                                    {submitted ? (
+                                      <Tag color="blue" style={{ margin: 0 }}>已提交审核</Tag>
+                                    ) : blockedByReject ? (
+                                      <Button size="small" disabled style={{ marginLeft: "auto" }}>被驳回，请先生成新版本</Button>
+                                    ) : allThreeReady ? (
+                                      <Button type="primary" size="small" style={{ marginLeft: "auto" }}
+                                        onClick={() => {
+                                          const errs = validateSecurityPlan(securityPlanSchema?.snapshot_data, securityPlanSchema?.risk_level);
+                                          if (errs.length > 0) { setValidationErrors(errs); setValidationModalOpen(true); }
+                                          else { setSecuritySubmitOpen(true); }
+                                        }}>
+                                        提交审核
+                                      </Button>
+                                    ) : (
+                                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>请完成安保方案及双表</Typography.Text>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                               <Tabs size="small" type="card" activeKey={templateTab} onChange={(key) => setTemplateTab(key as typeof templateTab)} items={[
                               {
                                 key: "security_plan",
@@ -722,44 +751,6 @@ export default function ActivityDetailPage() {
                                         templatesApi.getSecurityPlanVersionDiff(id!, v1, v2).then((r) => r.data)
                                       }
                                     />
-                                    {(() => {
-                                      const auditStatus = securityPlan?.audit_status;
-                                      const submitted = !!(auditStatus && auditStatus !== "待编制");
-                                      const rejectedAt = securityPlan?.rejected_at ? new Date(securityPlan.rejected_at).getTime() : 0;
-                                      const latestVersionAfterReject = rejectedAt
-                                        ? securityPlanVersions.some((v) => v.created_at && new Date(v.created_at).getTime() > rejectedAt)
-                                        : true;
-                                      const blockedByReject = !!rejectedAt && !latestVersionAfterReject;
-                                      const allThreeReady = securityPlanVersions.length > 0 && riskVersions.length > 0 && respVersions.length > 0;
-                                      const btnLabel = submitted
-                                        ? auditStatus === "待签署"
-                                          ? "已提交审核，等待负责人签署"
-                                          : "负责人已签署"
-                                        : blockedByReject
-                                          ? "被驳回，请先生成新版本后再提交审核"
-                                          : !allThreeReady
-                                            ? "请完成安保方案及双表后再提交审核"
-                                            : "提交审核";
-
-                                      return (
-                                        <Button
-                                          type="primary"
-                                          style={{ marginTop: 16 }}
-                                          disabled={submitted || blockedByReject || !allThreeReady}
-                                          onClick={() => {
-                                            const errs = validateSecurityPlan(securityPlanSchema?.snapshot_data, securityPlanSchema?.risk_level);
-                                            if (errs.length > 0) {
-                                              setValidationErrors(errs);
-                                              setValidationModalOpen(true);
-                                            } else {
-                                              setSecuritySubmitOpen(true);
-                                            }
-                                          }}
-                                        >
-                                          {btnLabel}
-                                        </Button>
-                                      );
-                                    })()}
                                   </>
                                 ),
                               },

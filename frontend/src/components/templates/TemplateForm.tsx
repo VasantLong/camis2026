@@ -82,8 +82,9 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
     } else {
       // no snapshot — form is dirty if any field has a non-default value
       for (const f of schema.fields) {
+        if (f.ui_type === "autofill" || f.ui_type === "declarations") continue;
         const cur = allValues[f.name];
-        if (cur !== undefined && cur !== null && cur !== "" && cur !== 0) {
+        if (cur !== undefined && cur !== null && cur !== "" && cur !== false && cur !== 0) {
           if (f.ui_type !== "repeater" || (Array.isArray(cur) && (cur as any[]).length > 0)) {
             hasAnyChange = true;
             break;
@@ -289,7 +290,7 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
             <Upload
               accept="image/*"
               maxCount={1}
-              listType="picture-card"
+              showUploadList={false}
               customRequest={async ({ file, onSuccess, onError }) => {
                 try {
                   const res = await documentsApi.upload(activityId, file as File, ["signature"]);
@@ -306,6 +307,14 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
             >
               <Button icon={<UploadOutlined />}>上传签名图片</Button>
             </Upload>
+            <Form.Item shouldUpdate noStyle>
+              {() => {
+                const fileList = form.getFieldValue(field.name) as any[] | undefined;
+                const thumbUrl = fileList?.[0]?.thumbUrl;
+                if (!thumbUrl) return null;
+                return <img src={thumbUrl} alt="签名预览" style={{ maxWidth: 200, maxHeight: 80, marginTop: 8, borderRadius: 4, border: "1px solid #d9d9d9", display: "block" }} />;
+              }}
+            </Form.Item>
           </Form.Item>
         );
       case "autofill":
