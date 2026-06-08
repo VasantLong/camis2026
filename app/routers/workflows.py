@@ -35,7 +35,7 @@ async def update_status(
     svc: WorkflowService = Depends(_service),
 ):
     perms = await get_user_permissions(user=current_user, db=db)
-    if "manage_security" not in perms and "audit_material" not in perms and "submit_plan" not in perms:
+    if "manage_security" not in perms and "audit_material" not in perms and "submit_plan" not in perms and "view_dashboard" not in perms:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="缺少工作流操作权限"
         )

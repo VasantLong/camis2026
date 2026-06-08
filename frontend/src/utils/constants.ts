@@ -84,13 +84,9 @@ export function getAvailableTransitions(
     if (has("audit_material"))
       actions.push({ label: "驳回—不通过", mode: "transition", toStatus: "不通过/已终止", permission: "audit_material" });
   }
-  if (status === "审批通过-待举办") {
-    if (has("manage_security"))
-      actions.push({ label: "活动开始举办", mode: "transition", toStatus: "举办中", permission: "manage_security" });
-  }
   if (status === "举办中") {
     if (has("manage_security"))
-      actions.push({ label: "活动结束", mode: "transition", toStatus: "已结束", permission: "manage_security" });
+      actions.push({ label: "标记结束", mode: "transition", toStatus: "已结束", permission: "view_dashboard" });
   }
 
   if (has("force_cancel"))
