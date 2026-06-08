@@ -168,6 +168,8 @@ export default function ActivityDetailPage() {
   const [auditTarget, setAuditTarget] = useState<{ id: string; name: string } | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
+  const [batchUnqualOpen, setBatchUnqualOpen] = useState(false);
+  const [batchUnqualReason, setBatchUnqualReason] = useState("");
   const [auditConclusion, setAuditConclusion] = useState<string>("qualified");
   const [auditOpinion, setAuditOpinion] = useState("");
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
@@ -1223,7 +1225,7 @@ export default function ActivityDetailPage() {
                                     <Button size="small" type="primary"
                                       onClick={async () => { for (const mid of selectedRowKeys) { await materialsApi.audit(id!, mid, "qualified"); } message.success(`已批量标记 ${selectedRowKeys.length} 项为合格`); setSelectedRowKeys([]); refetchMaterials(); }}>批量合格</Button>
                                     <Button size="small" danger
-                                      onClick={async () => { for (const mid of selectedRowKeys) { await materialsApi.audit(id!, mid, "unqualified"); } message.success(`已批量标记 ${selectedRowKeys.length} 项为不合格`); setSelectedRowKeys([]); refetchMaterials(); }}>批量不合格</Button>
+                                      onClick={() => { setBatchUnqualReason(""); setBatchUnqualOpen(true); }}>批量不合格</Button>
                                   </div>
                                 )}
                                 <Table
@@ -1396,6 +1398,29 @@ export default function ActivityDetailPage() {
                         </div>
                       )}
 
+                      {/* batch unqual reason modal */}
+                      <Modal
+                        title="批量标记不合格"
+                        open={batchUnqualOpen}
+                        onOk={async () => {
+                          for (const mid of selectedRowKeys) {
+                            await materialsApi.audit(id!, mid, "unqualified", batchUnqualReason || undefined);
+                          }
+                          message.success(`已批量标记 ${selectedRowKeys.length} 项为不合格`);
+                          setSelectedRowKeys([]); setBatchUnqualOpen(false);
+                          refetchMaterials();
+                        }}
+                        onCancel={() => setBatchUnqualOpen(false)}
+                        okText="确认"
+                        cancelText="取消"
+                      >
+                        <Typography.Paragraph type="secondary">
+                          将 {selectedRowKeys.length} 项材料标记为不合格，请输入原因：
+                        </Typography.Paragraph>
+                        <Input.TextArea rows={3} value={batchUnqualReason}
+                          onChange={(e) => setBatchUnqualReason(e.target.value)}
+                          placeholder="不合格原因..." />
+                      </Modal>
                       {/* audit modal */}
                       <Modal
                         title={`审查: ${auditTarget?.name}`}
