@@ -788,7 +788,8 @@ export default function ActivityDetailPage() {
                             templatesApi.getSecurityPlanVersionDiff(id!, v1, v2).then((r) => r.data)
                           }
                         />
-                      ) : canEditSecurity && securityPlan?.audit_status === "已签署" ? (
+                      ) : (() => { console.log("[sec-tab] canEditSecurity:", canEditSecurity, "audit_status:", securityPlan?.audit_status, "activity.status:", activity?.status); return null; })()}
+                      {canEditSecurity && securityPlan?.audit_status === "已签署" ? (
                         <div>
                           <div style={{ marginBottom: 16, padding: "8px 16px", background: "#f6ffed", borderRadius: 4, border: "1px solid #b7eb8f" }}>
                             <Typography.Text strong style={{ color: "#52c41a" }}>已签署确认</Typography.Text>

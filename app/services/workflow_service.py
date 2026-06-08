@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -9,6 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.activity import Activity, ActivityStatusLog
 from app.models.user import User
 from app.services.notification_service import NotificationService
+
+logger = logging.getLogger("camis.workflow")
 
 TRANSITION_MATRIX: dict[str, set[str]] = {
     "待设计方案":     {"待安保方案设计"},
@@ -137,6 +140,7 @@ class WorkflowService:
 
         elif to_status == "待补充备案材料":
             sp.audit_status = "待编制"
+            logger.info("reset audit_status to 待编制 for supplement activity=%s", activity_id)
 
         elif to_status == "审批通过":
             sp.audit_status = "已审核"
