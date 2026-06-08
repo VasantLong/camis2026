@@ -287,6 +287,7 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
             normalize={(val) => (Array.isArray(val) ? val : [])}
             getValueFromEvent={(e) => (Array.isArray(e) ? e : e?.fileList || [])}
           >
+            <div>
             <Upload
               accept="image/*"
               maxCount={1}
@@ -315,6 +316,7 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
                 return <img src={thumbUrl} alt="签名预览" style={{ maxWidth: 200, maxHeight: 80, marginTop: 8, borderRadius: 4, border: "1px solid #d9d9d9", display: "block" }} />;
               }}
             </Form.Item>
+            </div>
           </Form.Item>
         );
       case "autofill":

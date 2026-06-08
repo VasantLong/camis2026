@@ -80,15 +80,15 @@ with sync_playwright() as p:
                 add_btn.click()
                 page.wait_for_timeout(200)
         page.wait_for_timeout(300)
-        # fill each item using antd Form.List id pattern
         for j, text in enumerate(items):
             inp = page.locator(f'input[id*="{field_name}"]').nth(j)
             if inp.count() > 0:
                 try:
-                    inp.fill(text)
+                    inp.click()
+                    page.keyboard.type(text)
                 except Exception:
                     pass
-                page.wait_for_timeout(50)
+                page.wait_for_timeout(80)
 
     # ============================================================
     # 1. Promoter: activity plan draft → generate → version
@@ -305,10 +305,13 @@ with sync_playwright() as p:
     af_end = page.locator('.ant-form-item:has-text("结束时间") input').first
     check(af_end.input_value() != "", "activity_end autofilled from plan")
 
-    # Fill manual text fields
-    page.locator('.ant-form-item:has-text("活动地点（具体地址）") input').first.fill("中心广场主舞台区")
-    page.locator('.ant-form-item:has-text("承办方") input').first.fill("测试文化公司")
-    page.locator('.ant-form-item:has-text("活动参与方") input').first.fill("社区居民")
+    # Fill manual text fields — click + type + Tab to trigger antd onChange
+    for label_text in [("活动地点（具体地址）", "中心广场主舞台区"), ("承办方", "测试文化公司"), ("活动参与方", "社区居民")]:
+        inp = page.locator(f'.ant-form-item:has-text("{label_text[0]}") input').first
+        inp.click()
+        page.keyboard.type(label_text[1])
+        page.keyboard.press("Tab")
+        page.wait_for_timeout(150)
     page.wait_for_timeout(200)
 
     # Selects (non-autofill ones)
