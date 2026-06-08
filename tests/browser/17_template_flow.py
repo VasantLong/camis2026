@@ -1,6 +1,6 @@
-"""Template flow: Promoter plan draft→generate→version→diff; SecurityOfficer 双表 (风险评估表+责任确认书) + security plan.
+"""Full workflow: Promoter plan→Officer 双表+安保方案→Manager签署→Officer打包交接→GovLiaison审查通过.
 
-Setup uses API for activity creation (not the focus). All template interactions go through UI.
+Setup uses API for activity creation. All interactions go through UI from user perspective.
 """
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
@@ -233,34 +233,35 @@ with sync_playwright() as p:
     page.wait_for_load_state("networkidle")
     page.wait_for_timeout(1000)
 
-    # Verify autofill fields populated (from Activity + plan snapshot)
-    af_name = page.locator('.ant-form-item:has-text("活动名称") input').first
-    check(af_name.count() > 0 and af_name.input_value() != "", "activity_name autofilled")
+    # Verify autofill fields populated (from Activity + plan snapshot + defaults)
+    af_project = page.locator('.ant-form-item:has-text("项目名称") input').first
+    check(af_project.count() > 0 and af_project.input_value() != "", "project_name autofilled from activity.name")
     af_sponsor = page.locator('.ant-form-item:has-text("主办方") input').first
     check(af_sponsor.count() > 0 and af_sponsor.input_value() != "", "sponsor autofilled")
-    af_location = page.locator('.ant-form-item:has-text("活动地点") input').first
-    check(af_location.count() > 0 and af_location.input_value() != "", "activity_location autofilled")
-
-    # Also verify date+content autofilled from plan snapshot
+    af_type = page.locator('.ant-form-item:has-text("活动类型") input').first
+    check(af_type.count() > 0 and af_type.input_value() != "", "activity_type autofilled")
+    af_loc_type = page.locator('.ant-form-item:has-text("场所类型") input').first
+    check(af_loc_type.count() > 0 and af_loc_type.input_value() != "", "location_type autofilled")
+    af_unit = page.locator('.ant-form-item:has-text("填报单位") input').first
+    check(af_unit.count() > 0 and af_unit.input_value() != "", "reporting_unit autofilled from env")
+    af_content = page.locator('.ant-form-item:has-text("活动内容") input').first
+    check(af_content.count() > 0 and af_content.input_value() != "", "activity_content autofilled from plan")
     af_start = page.locator('.ant-form-item:has-text("开始时间") input').first
     check(af_start.input_value() != "", "activity_start autofilled from plan")
     af_end = page.locator('.ant-form-item:has-text("结束时间") input').first
     check(af_end.input_value() != "", "activity_end autofilled from plan")
 
     # Fill manual text fields
-    page.locator('.ant-form-item:has-text("填报单位") input').first.fill("测试街道办")
-    page.locator('.ant-form-item:has-text("项目名称") input').first.fill("春节文艺汇演")
+    page.locator('.ant-form-item:has-text("活动地点（具体地址）") input').first.fill("中心广场主舞台区")
     page.locator('.ant-form-item:has-text("承办方") input').first.fill("测试文化公司")
     page.locator('.ant-form-item:has-text("活动参与方") input').first.fill("社区居民")
     page.wait_for_timeout(200)
 
-    # Selects
-    select_antd("活动类型", "文艺汇演")
+    # Selects (non-autofill ones)
     select_antd("室内/户外", "室内")
-    select_antd("场所类型", "中心广场")
     select_antd("预计参与人数规模", "1000-3000")
-    select_antd("是否销售门票", "是")
-    select_antd("媒体直播", "无")
+    select_antd("是否销售门票", "否")
+    select_antd("是否有媒体直播或采录", "否")
     page.wait_for_timeout(300)
 
     # Repeaters: risk_factors (min 4) + mitigation_measures (min 4)
@@ -302,12 +303,16 @@ with sync_playwright() as p:
     decl_items = page.locator('ol li').all()
     check(len(decl_items) >= 8, f"all 8 declaration items visible (found {len(decl_items)})")
 
-    # Fill text fields
-    page.locator('.ant-form-item:has-text("活动主办单位") input').first.fill("测试主办方")
-    page.locator('.ant-form-item:has-text("举办场所名称") input').first.fill("中心广场")
+    # Verify autofill fields
+    af_sponsor_unit = page.locator('.ant-form-item:has-text("活动主办单位") input').first
+    check(af_sponsor_unit.count() > 0 and af_sponsor_unit.input_value() != "", "sponsor_unit autofilled from env")
+    af_conf_date = page.locator('.ant-form-item:has-text("确认日期") input').first
+    check(af_conf_date.input_value() != "", "confirm_date autofilled (today)")
+    af_conf_loc = page.locator('.ant-form-item:has-text("确认地点") input').first
+    check(af_conf_loc.count() > 0 and af_conf_loc.input_value() != "", "confirm_location autofilled from env")
+
+    # Fill manual text fields
     page.locator('.ant-form-item:has-text("活动安全负责人") input').first.fill("王五")
-    page.locator('.ant-form-item:has-text("主办单位（公章）") input').first.fill("测试街道办公章")
-    page.locator('.ant-form-item:has-text("确认地点") input').first.fill("中心广场会议室")
     page.wait_for_timeout(300)
 
     # Generate
@@ -383,6 +388,216 @@ with sync_playwright() as p:
     risk_tab2.click()
     page.wait_for_timeout(1000)
     check(True, "risk assessment tab still accessible after submit")
+
+    # ============================================================
+    # 4. SecurityManager: sign security plan
+    # ============================================================
+    print("\n=== TC4: SecurityManager sign ===")
+    login_as(page, "security_mgr@test.com", "pass123")
+
+    sidebar_nav(page, "全部活动")
+    page.wait_for_selector('.ant-table-tbody', timeout=10000)
+    page.wait_for_timeout(500)
+    link = page.locator(f'a:has-text("{activity_name}")').first
+    link.click()
+    page.wait_for_timeout(2000)
+    page.wait_for_load_state("networkidle")
+
+    sp_tab = page.locator('.ant-tabs-tab:has-text("安保方案")').first
+    sp_tab.click()
+    page.wait_for_timeout(1500)
+    page.wait_for_load_state("networkidle")
+
+    # Verify signing UI visible
+    sign_section = page.locator('text=安保负责人签署确认').first
+    check(sign_section.count() > 0, "Manager signing section visible")
+
+    # Upload signature image (dummy 1x1 PNG)
+    sig_file = Path("/tmp/_test_sig.png")
+    # minimal 1x1 white PNG
+    sig_file.write_bytes(b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82')
+    with page.expect_file_chooser() as fc_info:
+        page.locator('button:has-text("上传签名图片")').first.click()
+    fc_info.value.set_files(str(sig_file))
+    page.wait_for_timeout(2000)
+    page.wait_for_load_state("networkidle")
+    check(True, "signature uploaded")
+
+    # Confirm sign
+    sign_btn = page.locator('button:has-text("确认签署并提交备案")').first
+    check(sign_btn.count() > 0, "sign button visible")
+    sign_btn.click()
+    page.wait_for_timeout(2000)
+    page.wait_for_load_state("networkidle")
+    check(True, "Manager signed → status transitioned to 待备案申请")
+
+    # ============================================================
+    # 5. SecurityOfficer: pack + handover
+    # ============================================================
+    print("\n=== TC5: Officer pack + handover ===")
+    login_as(page, "security@test.com", "pass123")
+
+    sidebar_nav(page, "全部活动")
+    page.wait_for_selector('.ant-table-tbody', timeout=10000)
+    page.wait_for_timeout(500)
+    link = page.locator(f'a:has-text("{activity_name}")').first
+    link.click()
+    page.wait_for_timeout(2000)
+    page.wait_for_load_state("networkidle")
+
+    # Open filing tab
+    filing_tab = page.locator('.ant-tabs-tab:has-text("备案")').first
+    check(filing_tab.count() > 0, "filing tab visible")
+    filing_tab.click()
+    page.wait_for_timeout(1500)
+    page.wait_for_load_state("networkidle")
+
+    # Verify materials list (should include template materials + seed materials)
+    page.wait_for_timeout(1000)
+    material_rows = page.locator('.ant-list-item').all()
+    print(f"  materials found: {len(material_rows)}")
+    check(len(material_rows) > 0, f"materials visible in filing tab ({len(material_rows)} items)")
+
+    # Sign any unsigned materials
+    sign_btns = page.locator('button:has-text("签署")').all()
+    for btn in sign_btns:
+        if btn.is_visible() and btn.is_enabled():
+            btn.click()
+            page.wait_for_timeout(300)
+    page.wait_for_timeout(500)
+
+    # Review any unreviewed materials (audit as qualified)
+    audit_btns = page.locator('button:has-text("审查")').all()
+    for btn in audit_btns:
+        if btn.is_visible() and btn.is_enabled():
+            btn.click()
+            page.wait_for_timeout(500)
+            # click "合格" tag to toggle
+            qual_tag = page.locator('text=合格').first
+            if qual_tag.count() > 0:
+                qual_tag.click()
+                page.wait_for_timeout(200)
+            # submit audit
+            submit_audit = page.locator('button:has-text("提交审查")').first
+            if submit_audit.count() > 0:
+                submit_audit.click()
+                page.wait_for_timeout(800)
+    page.wait_for_timeout(500)
+
+    # Pack
+    pack_btn = page.locator('button:has-text("打包备案材料")').first
+    if pack_btn.count() > 0:
+        pack_btn.click()
+        page.wait_for_timeout(1000)
+        # confirm in modal
+        confirm_pack = page.locator('.ant-modal button:has-text("确认打包")').first
+        if confirm_pack.count() > 0:
+            confirm_pack.click()
+            page.wait_for_timeout(2000)
+            page.wait_for_load_state("networkidle")
+            check(True, "materials packed")
+    else:
+        check(False, "pack button not found")
+
+    # Confirm handover
+    page.wait_for_timeout(1000)
+    handover_btn = page.locator('button:has-text("确认纸质交接")').first
+    if handover_btn.count() > 0:
+        handover_btn.click()
+        page.wait_for_timeout(500)
+        # check confirmation checkbox
+        cb = page.locator('.ant-modal .ant-checkbox-input').first
+        if cb.count() > 0:
+            cb.click()
+            page.wait_for_timeout(200)
+        confirm_ho = page.locator('.ant-modal button:has-text("确认")').first
+        if confirm_ho.count() > 0:
+            confirm_ho.click()
+            page.wait_for_timeout(2000)
+            page.wait_for_load_state("networkidle")
+            check(True, "handover confirmed → 备案材料已交接")
+    else:
+        check(False, "handover button not found")
+
+    # ============================================================
+    # 6. GovLiaison: review materials + approve
+    # ============================================================
+    print("\n=== TC6: GovLiaison review + approve ===")
+    login_as(page, "liaison@test.com", "pass123")
+
+    sidebar_nav(page, "全部活动")
+    page.wait_for_selector('.ant-table-tbody', timeout=10000)
+    page.wait_for_timeout(500)
+    link = page.locator(f'a:has-text("{activity_name}")').first
+    check(link.count() > 0, f"activity visible to GovLiaison")
+    link.click()
+    page.wait_for_timeout(2000)
+    page.wait_for_load_state("networkidle")
+
+    # Open filing tab
+    filing_tab2 = page.locator('.ant-tabs-tab:has-text("备案")').first
+    filing_tab2.click()
+    page.wait_for_timeout(1500)
+    page.wait_for_load_state("networkidle")
+
+    # Verify review panel visible
+    review_panel = page.locator('text=政府对接 — 审批决策').first
+    check(review_panel.count() > 0, "GovLiaison review panel visible")
+
+    # Verify audit status shows unreviewed count
+    page.wait_for_timeout(500)
+    audit_status = page.locator('text=尚有').first
+    check(audit_status.count() > 0, "pending audit count shown")
+
+    # Audit materials (mark as qualified)
+    audit_btns2 = page.locator('button:has-text("审查")').all()
+    audited = 0
+    for btn in audit_btns2:
+        if btn.is_visible() and btn.is_enabled():
+            btn.click()
+            page.wait_for_timeout(500)
+            qual_tag = page.locator('text=合格').first
+            if qual_tag.count() > 0:
+                qual_tag.click()
+                page.wait_for_timeout(200)
+            submit_btn = page.locator('button:has-text("提交审查")').first
+            if submit_btn.count() > 0:
+                submit_btn.click()
+                page.wait_for_timeout(800)
+                audited += 1
+    check(audited > 0, f"audited {audited} materials")
+
+    # Verify all-audited status
+    page.wait_for_timeout(1000)
+    all_audited_tag = page.locator('text=全部材料已审查').first
+    check(all_audited_tag.count() > 0, "all materials audited")
+
+    # Upload approval document (dummy PDF)
+    approval_file = Path("/tmp/_test_approval.pdf")
+    approval_file.write_text("dummy approval document")
+    with page.expect_file_chooser() as fc_info:
+        page.locator('button:has-text("选择批文文件")').first.click()
+    fc_info.value.set_files(str(approval_file))
+    page.wait_for_timeout(2000)
+    check(True, "approval document uploaded")
+
+    # Approve
+    approve_btn = page.locator('button:has-text("审批通过")').first
+    check(approve_btn.is_enabled(), "approve button enabled after all audited")
+    approve_btn.click()
+    page.wait_for_timeout(500)
+    confirm_approve = page.locator('.ant-modal button:has-text("确认")').first
+    if confirm_approve.count() > 0:
+        confirm_approve.click()
+        page.wait_for_timeout(2000)
+        page.wait_for_load_state("networkidle")
+        check(True, "GovLiaison approved → 审批通过")
+    else:
+        check(False, "approve confirm modal not shown")
+
+    # Cleanup temp files
+    sig_file.unlink(missing_ok=True)
+    approval_file.unlink(missing_ok=True)
 
     # ============================================================
     # Report
