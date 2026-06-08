@@ -226,8 +226,39 @@ with sync_playwright() as p:
     page.wait_for_load_state("networkidle")
     check(True, "risk level set to 大型")
 
-    # ── 3a. Risk assessment ──
-    print("\n--- 3a: risk assessment ---")
+    # ── 3a. Security plan (fill first, on default sub-tab) ──
+    print("\n--- 3a: security plan ---")
+
+    # Fill required textareas for security plan
+    sp_textareas = page.locator('textarea').all()
+    for i, ta_el in enumerate(sp_textareas):
+        if ta_el.is_visible():
+            ta_el.fill(f"浏览器测试安保方案字段{i+1}")
+    page.wait_for_timeout(300)
+
+    # security_staff_count
+    sp_count = page.locator('.ant-form-item:has-text("安保人员数量") input[role="spinbutton"]').first
+    if sp_count.count() > 0:
+        sp_count.fill("10")
+        page.wait_for_timeout(100)
+
+    # Generate
+    sp_gen = page.locator('button:has-text("提交生成")').first
+    check(sp_gen.count() > 0, "generate button visible")
+    sp_gen.click()
+    page.wait_for_timeout(1000)
+    cfm3 = page.locator('.ant-modal button:has-text("确认生成")').first
+    if cfm3.count() > 0:
+        cfm3.click()
+        page.wait_for_timeout(500)
+        page.wait_for_selector('.ant-modal:has-text("确认生成")', state='hidden', timeout=5000)
+        page.wait_for_selector('button:has-text("v1")', timeout=10000)
+        check(True, "security plan v1 generated")
+    else:
+        check(False, "confirmation modal not shown for security plan")
+
+    # ── 3b. Risk assessment ──
+    print("\n--- 3b: risk assessment ---")
     risk_tab.click()
     page.wait_for_timeout(1500)
     page.wait_for_load_state("networkidle")
@@ -261,7 +292,12 @@ with sync_playwright() as p:
     select_antd("室内/户外", "室内")
     select_antd("预计参与人数规模", "1000-3000")
     select_antd("是否销售门票", "否")
-    select_antd("是否有媒体直播或采录", "否")
+    select_antd("是否有媒体直播或采录", "是")
+    page.wait_for_timeout(500)
+    # Conditional fields: media_channel, media_name, media_type
+    select_antd("媒体采录方式", "直播")
+    page.locator('.ant-form-item:has-text("媒体名称") input').first.fill("测试电视台")
+    select_antd("媒体类型", "官方")
     page.wait_for_timeout(300)
 
     # Repeaters: risk_factors (min 4) + mitigation_measures (min 4)
@@ -273,16 +309,24 @@ with sync_playwright() as p:
     page.locator('.ant-form-item:has-text("联系电话") input').first.fill("13800138002")
     page.wait_for_timeout(200)
 
-    # Scroll to bottom and generate
-    page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-    page.wait_for_timeout(500)
+    # Upload assessor signature
+    sig_file = Path("/tmp/_test_assessor_sig.png")
+    sig_file.write_bytes(b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82')
+    with page.expect_file_chooser() as fc_info:
+        page.locator('.ant-form-item:has-text("评估主体负责人签字") button:has-text("上传签名图片")').first.click()
+    fc_info.value.set_files(str(sig_file))
+    page.wait_for_timeout(2000)
+    sig_file.unlink(missing_ok=True)
+    check(True, "assessor signature uploaded")
+
+    # Generate — button may be hidden by Tabs overflow; dispatch click via JS
     ra_gen = page.locator('button:has-text("提交生成")').first
     check(ra_gen.count() > 0, "risk assessment generate button")
-    ra_gen.click()
+    ra_gen.dispatch_event("click")
     page.wait_for_timeout(1000)
     cfm = page.locator('.ant-modal button:has-text("确认生成")').first
     if cfm.count() > 0:
-        cfm.click()
+        cfm.dispatch_event("click")
         page.wait_for_timeout(500)
         page.wait_for_selector('.ant-modal:has-text("确认生成")', state='hidden', timeout=5000)
         page.wait_for_selector('button:has-text("v1")', timeout=15000)
@@ -290,8 +334,8 @@ with sync_playwright() as p:
     else:
         check(False, "risk assessment confirm modal not shown")
 
-    # ── 3b. Responsibility letter ──
-    print("\n--- 3b: responsibility letter ---")
+    # ── 3c. Responsibility letter ──
+    print("\n--- 3c: responsibility letter ---")
     resp_tab.click()
     page.wait_for_timeout(1500)
     page.wait_for_load_state("networkidle")
@@ -315,16 +359,24 @@ with sync_playwright() as p:
     page.locator('.ant-form-item:has-text("活动安全负责人") input').first.fill("王五")
     page.wait_for_timeout(300)
 
+    # Upload security leader signature
+    sig_file2 = Path("/tmp/_test_leader_sig.png")
+    sig_file2.write_bytes(b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82')
+    with page.expect_file_chooser() as fc_info:
+        page.locator('.ant-form-item:has-text("安全负责人签字") button:has-text("上传签名图片")').first.click()
+    fc_info.value.set_files(str(sig_file2))
+    page.wait_for_timeout(2000)
+    sig_file2.unlink(missing_ok=True)
+    check(True, "security leader signature uploaded")
+
     # Generate
-    page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-    page.wait_for_timeout(500)
     rl_gen = page.locator('button:has-text("提交生成")').first
     check(rl_gen.count() > 0, "responsibility letter generate button")
-    rl_gen.click()
+    rl_gen.dispatch_event("click")
     page.wait_for_timeout(1000)
     cfm2 = page.locator('.ant-modal button:has-text("确认生成")').first
     if cfm2.count() > 0:
-        cfm2.click()
+        cfm2.dispatch_event("click")
         page.wait_for_timeout(500)
         page.wait_for_selector('.ant-modal:has-text("确认生成")', state='hidden', timeout=5000)
         page.wait_for_selector('button:has-text("v1")', timeout=15000)
@@ -332,41 +384,14 @@ with sync_playwright() as p:
     else:
         check(False, "responsibility letter confirm modal not shown")
 
-    # ── 3c. Security plan ──
-    print("\n--- 3c: security plan ---")
+    # ── 3d. Back to 安保方案 — submit for review ──
+    print("\n--- 3d: submit for review ---")
     page.locator('.ant-tabs-tab:has-text("安保方案")').first.click()
     page.wait_for_timeout(1500)
     page.wait_for_load_state("networkidle")
 
-    # Fill security plan textareas
-    sp_textareas = page.locator('textarea').all()
-    for i, ta_el in enumerate(sp_textareas):
-        if ta_el.is_visible():
-            ta_el.fill(f"浏览器测试安保方案字段{i+1}")
-    page.wait_for_timeout(300)
-
-    # security_staff_count
-    sp_count = page.locator('.ant-form-item:has-text("安保人员数量") input[role="spinbutton"]').first
-    if sp_count.count() > 0:
-        sp_count.fill("10")
-        page.wait_for_timeout(100)
-
-    # Generate
-    sp_gen = page.locator('button:has-text("提交生成")').first
-    check(sp_gen.count() > 0, "generate button visible")
-    sp_gen.click()
-    page.wait_for_timeout(1000)
-    cfm3 = page.locator('.ant-modal button:has-text("确认生成")').first
-    if cfm3.count() > 0:
-        cfm3.click()
-        page.wait_for_timeout(500)
-        page.wait_for_selector('.ant-modal:has-text("确认生成")', state='hidden', timeout=5000)
-        page.wait_for_selector('button:has-text("v1")', timeout=10000)
-        check(True, "security plan v1 generated")
-    else:
-        check(False, "confirmation modal not shown for security plan")
-
     # Submit for review
+    page.wait_for_timeout(500)
     submit_btn = page.locator('button:has-text("提交审核")').first
     check(submit_btn.count() > 0, "submit review button visible")
     submit_btn.click()
@@ -417,7 +442,7 @@ with sync_playwright() as p:
     # minimal 1x1 white PNG
     sig_file.write_bytes(b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82')
     with page.expect_file_chooser() as fc_info:
-        page.locator('button:has-text("上传签名图片")').first.click()
+        page.locator('.ant-form-item:has-text("安保负责人签署确认") button:has-text("上传签名图片")').first.click()
     fc_info.value.set_files(str(sig_file))
     page.wait_for_timeout(2000)
     page.wait_for_load_state("networkidle")

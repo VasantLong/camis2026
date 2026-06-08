@@ -267,22 +267,25 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
             style={itemStyle}
             valuePropName="fileList"
             normalize={(val) => {
+              if (Array.isArray(val)) return val;
               if (typeof val === "string" && val) return [{ uid: "-1", name: "signature", status: "done" as const, url: val }];
               return [];
             }}
             getValueFromEvent={(e) => {
               const files = Array.isArray(e) ? e : e?.fileList || [];
-              return files.length > 0 ? (files[0].url || files[0].name || "") : "";
+              return files.length > 0 ? [{ uid: files[0].uid || "-1", name: files[0].name, status: "done" as const, url: files[0].originFileObj ? URL.createObjectURL(files[0].originFileObj) : files[0].url || "" }] : [];
             }}
           >
             <Upload
               accept="image/*"
               maxCount={1}
+              listType="picture-card"
               customRequest={async ({ file, onSuccess, onError }) => {
                 try {
                   const res = await documentsApi.upload(activityId, file as File, ["signature"]);
                   const doc = res.data;
-                  form.setFieldValue(field.name, doc.minio_path);
+                  const previewUrl = URL.createObjectURL(file as File);
+                  form.setFieldValue(field.name, [{ uid: "-1", name: (file as File).name, status: "done", url: doc.minio_path, thumbUrl: previewUrl }]);
                   onSuccess?.(doc);
                   message.success(`已上传签名图片`);
                 } catch {
@@ -409,6 +412,10 @@ function serializeFormData(values: Record<string, unknown>, fields: FieldDef[]):
       out[f.name] = dayjs.isDayjs(v) ? (v as dayjs.Dayjs).format("YYYY-MM-DD") : String(v);
     } else if (f.ui_type === "number") {
       out[f.name] = typeof v === "number" ? v : Number(v) || 0;
+    } else if (f.ui_type === "signature") {
+      // stored as fileList array; extract URL string for backend DOCX rendering
+      const files = Array.isArray(v) ? v : [];
+      out[f.name] = files.length > 0 ? (files[0].url || "") : "";
     } else {
       out[f.name] = v;
     }
