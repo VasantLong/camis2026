@@ -94,22 +94,44 @@ class TemplateService:
             risk_level = getattr(entity, "risk_level", None) if entity else None
             schema["risk_level"] = risk_level
 
-        # autofill: provide Activity data for ui_type="autofill" fields
+        # autofill: provide Activity + ActivityPlan snapshot data
         autofill_fields = [f for f in schema.get("fields", []) if f.get("ui_type") == "autofill"]
         if autofill_fields:
+            autofill_data: dict[str, object] = {}
+            # source A: Activity model
+            ACTIVITY_FIELD_MAP = {
+                "activity_name": "name",
+                "sponsor": "sponsor",
+                "activity_location": "location",
+            }
             activity = await self.db.get(Activity, activity_id)
-            if activity:
-                autofill_data: dict[str, object] = {}
-                FIELD_TO_ACTIVITY = {
-                    "activity_name": "name",
-                    "sponsor": "sponsor",
-                    "activity_location": "location",
-                }
-                for f in autofill_fields:
-                    attr = FIELD_TO_ACTIVITY.get(f["name"])
-                    if attr:
-                        autofill_data[f["name"]] = getattr(activity, attr, None) or ""
-                schema["autofill_data"] = autofill_data
+            # source B: ActivityPlan snapshot (if plan has been generated)
+            plan_snapshot: dict[str, object] = {}
+            plan_result = await self.db.execute(
+                select(ActivityPlan).where(ActivityPlan.activity_id == activity_id)
+            )
+            plan = plan_result.scalar_one_or_none()
+            if plan and plan.current_filled_document_id:
+                plan_fd = await self.db.get(FilledDocument, plan.current_filled_document_id)
+                if plan_fd and plan_fd.data_snapshot:
+                    plan_snapshot = plan_fd.data_snapshot
+            PLAN_FIELD_MAP = {
+                "activity_content": "activity_content",
+                "activity_start": "start_time",
+                "activity_end": "end_time",
+                "staff_count": "staff_count",
+                "crowd_scale": "regular_crowd",
+            }
+            for f in autofill_fields:
+                name = f["name"]
+                # try Activity first, then plan snapshot
+                if name in ACTIVITY_FIELD_MAP and activity:
+                    attr = ACTIVITY_FIELD_MAP[name]
+                    autofill_data[name] = getattr(activity, attr, None) or ""
+                elif name in PLAN_FIELD_MAP:
+                    plan_key = PLAN_FIELD_MAP[name]
+                    autofill_data[name] = plan_snapshot.get(plan_key, "") or ""
+            schema["autofill_data"] = autofill_data
 
         return schema
 

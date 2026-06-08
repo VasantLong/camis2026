@@ -2,6 +2,8 @@ export interface FieldDef {
   name: string;
   ui_label: string;
   ui_type: "text" | "textarea" | "number" | "date" | "select" | "repeater" | "signature" | "checkbox" | "autofill" | "declarations";
+  hint?: string;
+  declaration_items?: string[];
   required?: boolean;
   min?: number;
   max?: number;

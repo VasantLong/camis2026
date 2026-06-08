@@ -11,9 +11,10 @@ import {
   Upload,
   Modal,
   Typography,
+  Tooltip,
   App,
 } from "antd";
-import { PlusOutlined, DeleteOutlined, UploadOutlined } from "@ant-design/icons";
+import { PlusOutlined, DeleteOutlined, UploadOutlined, QuestionCircleOutlined } from "@ant-design/icons";
 import type { SchemaResponse, FieldDef, GenerateResponse } from "@/types/template";
 import { documentsApi } from "@/api/documents";
 import dayjs from "dayjs";
@@ -111,12 +112,18 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
         }
       }
     }
-    // autofill from Activity data (only for empty fields)
+    // autofill from Activity/Plan data (for empty fields of any type)
     if (schema.autofill_data) {
       for (const f of schema.fields) {
-        if (f.ui_type === "autofill" && vals[f.name] === undefined) {
+        if (vals[f.name] === undefined) {
           const autoVal = schema.autofill_data[f.name];
-          if (autoVal !== undefined && autoVal !== null) vals[f.name] = autoVal;
+          if (autoVal !== undefined && autoVal !== null && autoVal !== "") {
+            if (f.ui_type === "date" && typeof autoVal === "string") {
+              vals[f.name] = dayjs(autoVal);
+            } else {
+              vals[f.name] = autoVal;
+            }
+          }
         }
       }
     }
@@ -220,7 +227,16 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
           <Form.List key={field.name} name={field.name}>
             {(items, { add, remove }) => (
               <>
-                <Form.Item label={field.ui_label}>
+                <Form.Item label={
+                  <span>
+                    {field.ui_label}
+                    {(field as any).hint && (
+                      <Tooltip title={(field as any).hint}>
+                        <QuestionCircleOutlined style={{ marginLeft: 6, color: "#999", cursor: "help" }} />
+                      </Tooltip>
+                    )}
+                  </span>
+                }>
                   <Button type="dashed" onClick={() => add("")} icon={<PlusOutlined />} block>
                     添加
                   </Button>
@@ -287,12 +303,15 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
         );
       case "declarations": {
         const items = (field as any).declaration_items as string[] | undefined;
+        const hint = (field as any).hint as string | undefined;
         return (
           <div key={field.name} style={{ ...itemStyle, marginBottom: 16, padding: 12, border: "1px solid #d9d9d9", borderRadius: 6, background: "#fafafa" }}>
             <Typography.Text strong>{field.ui_label}</Typography.Text>
-            <Typography.Paragraph type="secondary" style={{ marginTop: 4, marginBottom: 0, fontSize: 12 }}>
-              依据国务院《大型群众性活动安全管理条例》等法律法规，确认如下：
-            </Typography.Paragraph>
+            {hint && (
+              <Typography.Paragraph type="secondary" style={{ marginTop: 4, marginBottom: 8, fontSize: 12 }}>
+                {hint}
+              </Typography.Paragraph>
+            )}
             <ol style={{ marginTop: 8, paddingLeft: 20, fontSize: 13, lineHeight: 1.8 }}>
               {(items || []).map((item, i) => (
                 <li key={i}>{item}</li>
