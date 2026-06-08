@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 
 from app.database import get_db
 from app.deps import get_current_user
@@ -119,6 +120,28 @@ async def create_approval_record(
         raise NotFoundError(str(e))
     except ValueError as e:
         raise ValidationError(str(e))
+
+
+@router.get("/{activity_id}/filing/approval")
+async def get_approval_record(
+    activity_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    from app.models.activity import ApprovalRecord as AR
+    result = await db.execute(
+        select(AR).where(AR.activity_id == activity_id).order_by(AR.created_at.desc()).limit(1)
+    )
+    record = result.scalar_one_or_none()
+    if not record:
+        return {"id": None, "approval_status": None}
+    return {
+        "id": str(record.id),
+        "approval_status": record.approval_status,
+        "approval_date": record.approval_date.isoformat() if record.approval_date else None,
+        "rectification_opinion": record.rectification_opinion,
+        "attachment_url": record.attachment_url,
+    }
 
 
 # ── material sign & audit ──
