@@ -436,15 +436,10 @@ async def seed():
             # ── key_materials for security plan activities ──
             if "security_plan" in needs:
                 from sqlalchemy import text as sa_text
-                is_bad = (target == "待补充备案材料")
                 materials = [
                     ("消防验收证明", True),
-                    ("安全责任书", True),
-                    ("场地审批表", True),
-                    ("应急预案", not is_bad),
+                    ("应急预案", True),
                 ]
-                if is_bad:
-                    materials.append(("活动预算明细", False))
                 pre_signed = target not in ("待备案申请", "待补充备案材料", "待安保方案设计")
                 for mat_name, qualified in materials:
                     mat_id_val = uuid4()
