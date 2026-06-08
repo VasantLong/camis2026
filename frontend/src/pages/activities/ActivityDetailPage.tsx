@@ -183,7 +183,7 @@ export default function ActivityDetailPage() {
   const [rejectComment, setRejectComment] = useState("");
   const [rejecting, setRejecting] = useState(false);
 
-  const REJECT_PRESETS = [
+  const ALL_REJECT_PRESETS = [
     "安保人员配置不足或不当",
     "动线设计不合理",
     "设备清单不完善",
@@ -193,6 +193,15 @@ export default function ActivityDetailPage() {
     "人流管控方案不合理",
     "其他（需补充说明）",
   ];
+
+  const REJECT_PRESETS = useMemo(() => {
+    const rl = securityPlan?.risk_level || securityPlanSchema?.risk_level;
+    if (rl === "低风险") return ALL_REJECT_PRESETS.filter(p =>
+      !["医疗救护措施不完善", "消防措施不充分", "人流管控方案不合理"].includes(p));
+    if (rl === "中低风险") return ALL_REJECT_PRESETS.filter(p =>
+      !["医疗救护措施不完善", "人流管控方案不合理"].includes(p));
+    return ALL_REJECT_PRESETS;
+  }, [securityPlan?.risk_level, securityPlanSchema?.risk_level]);
 
   const REJECT_FIELD_MAP: Record<string, string[]> = {
     "安保人员配置不足或不当": ["security_staff_config", "security_staff_count"],
@@ -373,8 +382,8 @@ export default function ActivityDetailPage() {
                 {securityPlan?.risk_level && (
                   <Descriptions.Item label="风险等级">
                     <Tag color={
-                      securityPlan.risk_level === "高" ? "red"
-                      : securityPlan.risk_level === "低" ? "green"
+                      securityPlan.risk_level === "高风险" ? "red"
+                      : securityPlan.risk_level === "低风险" ? "green"
                       : "orange"
                     }>
                       {securityPlan.risk_level}
@@ -538,6 +547,14 @@ export default function ActivityDetailPage() {
                           <div style={{ marginTop: 4 }}>
                             <Typography.Text>{securityPlan.last_reject_reason}</Typography.Text>
                           </div>
+                        </div>
+                      )}
+                      {securityPlan?.risk_level && (
+                        <div style={{ marginBottom: 16 }}>
+                          <Typography.Text strong>风险等级：</Typography.Text>
+                          <Tag color={securityPlan.risk_level === "高风险" ? "red" : securityPlan.risk_level === "低风险" ? "green" : "orange"}>
+                            {securityPlan.risk_level}
+                          </Tag>
                         </div>
                       )}
                       {isManager && securityPlan?.audit_status === "待签署" ? (
