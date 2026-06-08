@@ -929,7 +929,9 @@ async def render_pdf_background(
                 await db.commit()
             logger.info("pdf render ok fd=%s path=%s", fd_id, pdf_path)
         except Exception as e:
-            logger.warning("pdf render failed fd=%s: %s", fd_id, e)
+            logger.warning("pdf render failed fd=%s type=%s: %s", fd_id, template_type, e)
+            import traceback
+            traceback.print_exc()
 
 
 async def _docx_to_pdf_sync(docx_bytes: bytes) -> bytes:
