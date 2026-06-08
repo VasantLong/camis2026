@@ -281,11 +281,12 @@ class FilingService:
         )
         fd = result.scalar_one_or_none()
         if fd is None:
-            return {"packed": False, "handed_over": False, "generated_at": None}
+            return {"packed": False, "handed_over": False, "generated_at": None, "pack_url": None}
         return {
             "packed": fd.generated_at is not None and fd.is_qualified,
             "handed_over": fd.handover_status == "已交接",
             "generated_at": fd.generated_at.isoformat() if fd.generated_at else None,
+            "pack_url": fd.pack_url,
         }
 
     async def create_approval_record(

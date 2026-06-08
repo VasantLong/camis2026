@@ -1272,6 +1272,13 @@ export default function ActivityDetailPage() {
                           {filingStatus.packed && !filingStatus.handed_over && (
                             <>
                               <Tag color="blue" style={{ marginRight: 8 }}>已打包 ✓</Tag>
+                              {(filingStatus as any).pack_url && (
+                                <Button size="small" type="link" style={{ marginRight: 8 }}
+                                  onClick={async () => {
+                                    const r = await documentsApi.getPresignedByPath((filingStatus as any).pack_url);
+                                    if (r.data.url) window.open(r.data.url, "_blank");
+                                  }}>下载打包文件</Button>
+                              )}
                               <Button onClick={() => setFilingModal("handover")}>
                                 确认纸质交接
                               </Button>
