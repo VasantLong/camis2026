@@ -1168,7 +1168,8 @@ export default function ActivityDetailPage() {
                         <Alert type="info" showIcon title="政府审查" description="请逐项审查备案材料，全部审查完毕后做出审批决定。" style={{ marginBottom: 16 }} />
                       )}
                       {/* GovLiaison review panel — right below alert */}
-                      {isGovLiaison && activity?.status === "备案材料已交接" && (() => {
+                      {isGovLiaison && (activity?.status === "备案材料已交接" || activity?.status === "待补充备案材料") && (() => {
+                        const isActive = activity?.status === "备案材料已交接";
                         const auditedCount = materials.filter(m => m.audit_round > 0).length;
                         const allAudited = materials.length > 0 && auditedCount === materials.length;
                         const allQualified = allAudited && materials.every(m => m.is_qualified);
@@ -1188,7 +1189,7 @@ export default function ActivityDetailPage() {
                             </div>
                             <div style={{ marginBottom: 16 }}>
                               <Typography.Text strong>上传政府批文（必传）：</Typography.Text>
-                              <Upload accept=".pdf,.jpg,.jpeg,.png" maxCount={1} showUploadList={false}
+                              <Upload accept=".pdf,.jpg,.jpeg,.png" maxCount={1} showUploadList={false} disabled={!isActive}
                                 customRequest={async ({ file, onSuccess, onError }) => {
                                   try {
                                     const res = await documentsApi.upload(id!, file as File, ["approval"]);
@@ -1206,7 +1207,7 @@ export default function ActivityDetailPage() {
                               <Table
                                 dataSource={materials} rowKey="id" size="small" style={{ marginBottom: 12 }} pagination={false}
                                 locale={{ emptyText: <Empty description="暂无备案材料" /> }}
-                                rowSelection={{ selectedRowKeys, onChange: (keys) => setSelectedRowKeys(keys as string[]) }}
+                                rowSelection={isActive ? { selectedRowKeys, onChange: (keys) => setSelectedRowKeys(keys as string[]) } : undefined}
                                 columns={[
                                   { title: "材料名称", dataIndex: "name", key: "name" },
                                   { title: "签署状态", key: "sign", width: 80, render: (_: unknown, m: any) => (
@@ -1234,33 +1235,40 @@ export default function ActivityDetailPage() {
                                 ]}
                               />
                             )}
-                            {/* action bar: batch audit left, approval right */}
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                              <Space>
-                                {selectedRowKeys.length > 0 && (
-                                  <>
-                                    <Typography.Text>已选 {selectedRowKeys.length} 项：</Typography.Text>
-                                    <Button size="small" type="primary"
-                                      onClick={async () => { for (const mid of selectedRowKeys) { await materialsApi.audit(id!, mid, "qualified"); } message.success(`已批量标记 ${selectedRowKeys.length} 项为合格`); setSelectedRowKeys([]); refetchMaterials(); }}>批量合格</Button>
-                                    <Button size="small" danger
-                                      onClick={() => { setBatchUnqualReason(""); setBatchUnqualOpen(true); }}>批量不合格</Button>
-                                  </>
-                                )}
-                              </Space>
-                              <Space>
-                                <Button type="primary" disabled={!allQualified || !approvalDocPath}
-                                  onClick={() => { setApprovalAction("approve"); setApprovalComment(""); setApprovalModalOpen(true); }}>审批通过</Button>
-                                <Button disabled={!allAudited || allQualified}
-                                  onClick={() => {
-                                    setApprovalAction("revise");
-                                    const unqual = materials.filter(m => m.audit_round > 0 && !m.is_qualified).map(m => m.name);
-                                    setApprovalComment(unqual.length > 0 ? `以下材料不合格需整改：${unqual.join("、")}` : "");
-                                    setApprovalModalOpen(true);
-                                  }}>要求补件</Button>
-                                <Button danger
-                                  onClick={() => { setApprovalAction("reject"); setApprovalComment(""); setApprovalModalOpen(true); }}>驳回—不通过</Button>
-                              </Space>
-                            </div>
+                            {/* action bar: batch audit left, approval right — only when active */}
+                            {isActive && (
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                <Space>
+                                  {selectedRowKeys.length > 0 && (
+                                    <>
+                                      <Typography.Text>已选 {selectedRowKeys.length} 项：</Typography.Text>
+                                      <Button size="small" type="primary"
+                                        onClick={async () => { for (const mid of selectedRowKeys) { await materialsApi.audit(id!, mid, "qualified"); } message.success(`已批量标记 ${selectedRowKeys.length} 项为合格`); setSelectedRowKeys([]); refetchMaterials(); }}>批量合格</Button>
+                                      <Button size="small" danger
+                                        onClick={() => { setBatchUnqualReason(""); setBatchUnqualOpen(true); }}>批量不合格</Button>
+                                    </>
+                                  )}
+                                </Space>
+                                <Space>
+                                  <Button type="primary" disabled={!allQualified || !approvalDocPath}
+                                    onClick={() => { setApprovalAction("approve"); setApprovalComment(""); setApprovalModalOpen(true); }}>审批通过</Button>
+                                  <Button disabled={!allAudited || allQualified}
+                                    onClick={() => {
+                                      setApprovalAction("revise");
+                                      const unqual = materials.filter(m => m.audit_round > 0 && !m.is_qualified).map(m => m.name);
+                                      setApprovalComment(unqual.length > 0 ? `以下材料不合格需整改：${unqual.join("、")}` : "");
+                                      setApprovalModalOpen(true);
+                                    }}>要求补件</Button>
+                                  <Button danger
+                                    onClick={() => { setApprovalAction("reject"); setApprovalComment(""); setApprovalModalOpen(true); }}>驳回—不通过</Button>
+                                </Space>
+                              </div>
+                            )}
+                            {!isActive && (
+                              <div style={{ padding: "8px 12px", background: "#fffbe6", borderRadius: 4, border: "1px solid #ffe58f" }}>
+                                <Typography.Text type="warning">已要求补件，等待安保部重新提交备案材料</Typography.Text>
+                              </div>
+                            )}
                             <Modal
                               title={approvalAction === "approve" ? "确认审批通过" : approvalAction === "revise" ? "要求补充材料" : "确认驳回"}
                               open={approvalModalOpen}
@@ -1284,7 +1292,7 @@ export default function ActivityDetailPage() {
                         );
                       })()}
                       {/* materials table for non-GovLiaison roles */}
-                      {materials.length > 0 && !(isGovLiaisonFilingPhase && isGovLiaison) && (
+                      {materials.length > 0 && !(isGovLiaison && (activity?.status === "备案材料已交接" || activity?.status === "待补充备案材料")) && (
                         <Table
                           dataSource={materials}
                           rowKey="id"
