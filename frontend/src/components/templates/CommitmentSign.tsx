@@ -21,6 +21,7 @@ export default function CommitmentSign({
   location, crowdScale, securityStaffCount, signatureUrl, onSigned, loading,
 }: Props) {
   const [signing, setSigning] = useState(false);
+  console.log("[CommitmentSign] signatureUrl:", signatureUrl, "loading:", loading, "activityId:", activityId);
 
   const handleSign = async () => {
     setSigning(true);
