@@ -478,11 +478,27 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
   );
 }
 
+function evalFieldCondition(cond: string | undefined, allValues: Record<string, unknown>): boolean {
+  if (!cond) return true;
+  const parts = cond.split(/\s*(==|!=)\s*/);
+  if (parts.length === 3) {
+    const key = parts[0].trim();
+    const op = parts[1].trim();
+    const val = parts[2].trim().replace(/['"]/g, "");
+    const cur = allValues[key];
+    if (op === "==") return cur === val;
+    if (op === "!=") return cur !== val;
+  }
+  return true;
+}
+
 function serializeFormData(form: any, fields: FieldDef[]): Record<string, unknown> {
   const out: Record<string, unknown> = {};
+  const allValues = form.getFieldsValue();
+  const skipped: string[] = [];
   for (const f of fields) {
     if (f.ui_type === "declarations") continue;
-    // read value directly from form instance to avoid valuePropName issues
+    if (!evalFieldCondition(f.condition, allValues)) { skipped.push(f.name); continue; }
     const v = form.getFieldValue(f.name);
     if (v === undefined || v === null || v === "") {
       out[f.name] = f.ui_type === "repeater" ? [] : f.ui_type === "number" ? 0 : "";
@@ -504,5 +520,6 @@ function serializeFormData(form: any, fields: FieldDef[]): Record<string, unknow
       out[f.name] = v;
     }
   }
+  if (skipped.length > 0) console.log("[serializeFormData] skipped conditional fields:", skipped);
   return out;
 }

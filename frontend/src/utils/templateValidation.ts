@@ -138,16 +138,31 @@ export function validateResponsibilityLetter(
 /** Validate every visible field has a non-empty value (submit gate). */
 export function validateAllFieldsFilled(
   snapshot: Record<string, unknown> | null | undefined,
-  fields: { name: string; ui_label: string; ui_type: string }[],
+  fields: { name: string; ui_label: string; ui_type: string; condition?: string }[],
 ): ValidationError[] {
   const errors: ValidationError[] = [];
   if (!snapshot) return errors;
   for (const f of fields) {
     if (f.ui_type === "autofill" || f.ui_type === "declarations") continue;
+    // skip hidden conditional fields
+    if (f.condition && !evalCondition(f.condition, snapshot)) continue;
     const v = snapshot[f.name];
     if (v === undefined || v === null || v === "") {
       errors.push({ field: f.name, label: f.ui_label, reason: "请填写" });
     }
   }
   return errors;
+}
+
+function evalCondition(cond: string, snapshot: Record<string, unknown>): boolean {
+  const parts = cond.split(/\s*(==|!=)\s*/);
+  if (parts.length === 3) {
+    const key = parts[0].trim();
+    const op = parts[1].trim();
+    const val = parts[2].trim().replace(/['"]/g, "");
+    const cur = snapshot[key];
+    if (op === "==") return cur === val;
+    if (op === "!=") return cur !== val;
+  }
+  return true; // unknown condition → always show
 }

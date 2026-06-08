@@ -238,10 +238,27 @@ class TemplateService:
         if not fd or not fd.data_snapshot:
             raise ValueError("未找到当前版本数据")
 
-        from app.templates.activity_plan.schema import ActivityPlanForm
+        from app.templates.activity_plan.schema import ActivityPlanForm, SCHEMA as PLAN_SCHEMA
+
+        # clean snapshot: strip hidden conditional fields, fix int→str for select fields
+        cleaned = dict(fd.data_snapshot)
+        for f in PLAN_SCHEMA["fields"]:
+            cond = f.get("condition")
+            if cond:
+                parts = cond.replace("==", " ").replace("!=", " ").split()
+                if len(parts) >= 3:
+                    cur = cleaned.get(parts[0], "")
+                    target = parts[2].strip("'\"")
+                    match = cur == target if "==" in cond else cur != target
+                    if not match:
+                        cleaned.pop(f["name"], None)
+        select_fields = {f["name"] for f in PLAN_SCHEMA["fields"] if f.get("ui_type") == "select"}
+        for name in select_fields:
+            if isinstance(cleaned.get(name), int):
+                cleaned[name] = str(cleaned[name]) if cleaned[name] != 0 else ""
 
         try:
-            ActivityPlanForm(**fd.data_snapshot)
+            ActivityPlanForm(**cleaned)
         except Exception as e:
             raise ValueError(f"活动方案内容不完整: {e}")
 
