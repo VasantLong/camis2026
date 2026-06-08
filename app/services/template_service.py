@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import logging
 import subprocess
@@ -229,6 +230,9 @@ class TemplateService:
         )
         self.db.add(fd)
         await self.db.flush()
+
+        if not is_deferred and docx_bytes:
+            asyncio.create_task(render_pdf_background(fd.id, docx_bytes, activity_id, template_type, version_number))
 
         # link to entity
         entity.current_filled_document_id = fd.id
@@ -495,6 +499,7 @@ class TemplateService:
                 minio_path = f"filled_documents/{activity_id}/{ttype}/v{fd.version_number}.docx"
                 await minio_client.upload_file(minio_path, docx_bytes, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
                 fd.minio_path = minio_path
+                asyncio.create_task(render_pdf_background(fd.id, docx_bytes, activity_id, ttype, fd.version_number))
 
             # Ensure KeyMaterial exists, link FilledDocument, mark as signed
             km = await self.get_or_create_material(activity_id, ttype)
@@ -605,6 +610,7 @@ class TemplateService:
                 minio_path = f"filled_documents/{activity_id}/filing_commitment/v{fd.version_number}.docx"
                 await minio_client.upload_file(minio_path, docx_bytes, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
                 fd.minio_path = minio_path
+                asyncio.create_task(render_pdf_background(fd.id, docx_bytes, activity_id, "filing_commitment", fd.version_number))
                 commit_fd = fd
         else:
             # No deferred FilledDocument — create one on the fly
@@ -623,6 +629,7 @@ class TemplateService:
             )
             self.db.add(commit_fd)
             await self.db.flush()
+            asyncio.create_task(render_pdf_background(commit_fd.id, docx_bytes, activity_id, "filing_commitment", vn))
 
         # Ensure filing_commitment KeyMaterial exists, linked, and signed
         km = await self.get_or_create_material(activity_id, "filing_commitment")
