@@ -100,9 +100,10 @@ class TemplateService:
             autofill_data: dict[str, object] = {}
             # source A: Activity model
             ACTIVITY_FIELD_MAP = {
-                "activity_name": "name",
+                "project_name": "name",
                 "sponsor": "sponsor",
-                "activity_location": "location",
+                "location_type": "location",
+                "activity_type": "type",
             }
             activity = await self.db.get(Activity, activity_id)
             # source B: ActivityPlan snapshot (if plan has been generated)

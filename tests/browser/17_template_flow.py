@@ -40,6 +40,34 @@ with sync_playwright() as p:
     activity_name = resp["name"]
     check("id" in resp, f"activity created: {activity_id[:8]}...")
 
+    def select_antd(label: str, option: str) -> None:
+        """Select an antd Select option via keyboard (readonly combobox needs keyboard.type)."""
+        item = page.locator('.ant-form-item').filter(has_text=label).first
+        cb = item.locator('input[role="combobox"]').first
+        cb.click()
+        page.wait_for_timeout(300)
+        page.keyboard.type(option)
+        page.wait_for_timeout(200)
+        page.keyboard.press("Enter")
+        page.wait_for_timeout(300)
+
+    def fill_repeater(label: str, count: int, prefix: str) -> None:
+        """Add `count` items to a repeater field. Clicks the '添加' button then fills each input."""
+        section = page.locator('.ant-form-item').filter(has_text=label).first
+        for i in range(count):
+            add_btn = section.locator('button:has-text("添加")').first
+            add_btn.click()
+            page.wait_for_timeout(200)
+        # fill each added input
+        inputs = section.locator('input:not([role="combobox"]):not([type="hidden"])').all()
+        for j, inp in enumerate(inputs):
+            if inp.is_visible():
+                try:
+                    inp.fill(f"{prefix}{j+1}")
+                except Exception:
+                    pass
+                page.wait_for_timeout(50)
+
     # ============================================================
     # 1. Promoter: activity plan draft → generate → version
     # ============================================================
@@ -63,17 +91,6 @@ with sync_playwright() as p:
     page.wait_for_load_state("networkidle")
     page.wait_for_selector('textarea', timeout=5000)
 
-    def select_antd(label: str, option: str) -> None:
-        """Select an antd Select option via keyboard (readonly combobox needs keyboard.type)."""
-        item = page.locator('.ant-form-item').filter(has_text=label).first
-        cb = item.locator('input[role="combobox"]').first
-        cb.click()
-        page.wait_for_timeout(300)
-        page.keyboard.type(option)
-        page.wait_for_timeout(200)
-        page.keyboard.press("Enter")
-        page.wait_for_timeout(300)
-
     # Textareas
     page.locator('textarea').first.fill("浏览器测试：活动主要内容填写验证——文艺汇演")
     page.locator('.ant-form-item:has-text("搭建方案") textarea').first.fill("浏览器测试：搭建方案——含材料明细、平面图")
@@ -84,19 +101,19 @@ with sync_playwright() as p:
     dps[0].fill("2026-08-01"); dps[0].press("Enter"); page.wait_for_timeout(400)
     dps[1].fill("2026-08-03"); dps[1].press("Enter"); page.wait_for_timeout(500)
 
-    # Selects (reliable: click .ant-select-item-option-content)
+    # Selects — these values become cross-entity autofill sources for 双表
     select_antd("平日人数", "1000-3000")
     select_antd("是否有开幕式", "是")
     select_antd("是否有演员嘉宾", "是")
-
-    # Conditional fields now visible — fill them
     page.wait_for_timeout(500)
+
+    # Conditional fields
     dps2 = page.locator('.ant-picker input').all()
     if len(dps2) >= 4:
         dps2[2].fill("2026-08-01"); dps2[2].press("Enter"); page.wait_for_timeout(200)
         dps2[3].fill("2026-08-02"); dps2[3].press("Enter"); page.wait_for_timeout(300)
-
     select_antd("主要活动日人数", "1000-3000")
+    page.wait_for_timeout(300)
 
     # Enabled number inputs
     for i, inp in enumerate(page.locator('input[role="spinbutton"]:not([disabled])').all()):
@@ -118,13 +135,9 @@ with sync_playwright() as p:
     gen_btn = page.locator('button:has-text("提交生成")').first
     gen_btn.click()
     page.wait_for_timeout(1000)
-
-    # Confirm modal → click OK
     check(page.locator('.ant-modal:has-text("确认生成")').count() > 0, "confirmation modal shown")
     page.locator('.ant-modal button:has-text("确认生成")').first.click()
     page.wait_for_timeout(500)
-
-    # Wait for modal to close and v1 to appear (setQueryData makes this instant)
     page.wait_for_selector('.ant-modal:has-text("确认生成")', state='hidden', timeout=5000)
     page.wait_for_selector('button:has-text("v1")', timeout=10000)
     check(True, "v1 appears in timeline")
@@ -149,31 +162,26 @@ with sync_playwright() as p:
     page.wait_for_selector('button:has-text("v2")', timeout=20000)
     check(True, "v2 appears in timeline")
 
-    # Select v1 and v2 for diff
+    # Diff v1 vs v2
     page.locator('button:has-text("v1")').first.click()
     page.locator('button:has-text("v2")').first.click()
     page.wait_for_timeout(300)
-
     diff_btn = page.locator('button:has-text("对比")').first
     check(diff_btn.count() > 0, "diff button appears")
     diff_btn.click()
     page.wait_for_timeout(1500)
-
     diff_modal = page.locator('.ant-modal:has-text("版本对比")').first
     check(diff_modal.count() > 0, "diff modal open")
     changed = diff_modal.locator('.ant-descriptions').count()
     check(changed > 0, f"diff shows {changed} changed field(s)")
-
     diff_modal.locator('.ant-modal-close').first.click()
     page.wait_for_timeout(500)
 
-    # Finalize plan: click → confirm modal → submit
+    # Finalize plan
     finalize_btn = page.locator('button:has-text("最终确定方案")').first
     check(finalize_btn.count() > 0, "finalize button visible")
     finalize_btn.click()
     page.wait_for_timeout(500)
-
-    # Confirm modal
     check(page.locator('.ant-modal:has-text("确认最终确定方案")').count() > 0, "finalize confirm modal")
     page.locator('.ant-modal button:has-text("确认提交")').first.click()
     page.wait_for_timeout(2000)
@@ -202,14 +210,13 @@ with sync_playwright() as p:
     page.wait_for_timeout(1500)
     page.wait_for_load_state("networkidle")
 
-    # Verify sub-tabs are visible
-    sub_tabs = page.locator('.ant-tabs-tab')
+    # Verify sub-tabs
     risk_tab = page.locator('.ant-tabs-tab:has-text("风险评估表")').first
     resp_tab = page.locator('.ant-tabs-tab:has-text("责任确认书")').first
     check(risk_tab.count() > 0, "risk assessment sub-tab visible")
     check(resp_tab.count() > 0, "responsibility letter sub-tab visible")
 
-    # Select risk level — on 安保方案 sub-tab (default active)
+    # Select risk level on 安保方案 sub-tab (default active)
     page.locator('input[role="combobox"]').first.click()
     page.wait_for_timeout(300)
     page.keyboard.type("大型")
@@ -219,70 +226,55 @@ with sync_playwright() as p:
     page.wait_for_load_state("networkidle")
     check(True, "risk level set to 大型")
 
-    # ── 3a. Risk assessment sub-tab ──
+    # ── 3a. Risk assessment ──
     print("\n--- 3a: risk assessment ---")
     risk_tab.click()
-    page.wait_for_timeout(1000)
+    page.wait_for_timeout(1500)
     page.wait_for_load_state("networkidle")
-
-    # Wait for schema to load and form to render
     page.wait_for_timeout(1000)
-    ra_textareas = page.locator('textarea').all()
-    ra_filled = 0
-    for ta_el in ra_textareas:
-        if ta_el.is_visible():
-            ta_el.fill(f"浏览器测试风险评估字段{ra_filled+1}")
-            ra_filled += 1
+
+    # Verify autofill fields populated (from Activity + plan snapshot)
+    af_name = page.locator('.ant-form-item:has-text("活动名称") input').first
+    check(af_name.count() > 0 and af_name.input_value() != "", "activity_name autofilled")
+    af_sponsor = page.locator('.ant-form-item:has-text("主办方") input').first
+    check(af_sponsor.count() > 0 and af_sponsor.input_value() != "", "sponsor autofilled")
+    af_location = page.locator('.ant-form-item:has-text("活动地点") input').first
+    check(af_location.count() > 0 and af_location.input_value() != "", "activity_location autofilled")
+
+    # Also verify date+content autofilled from plan snapshot
+    af_start = page.locator('.ant-form-item:has-text("开始时间") input').first
+    check(af_start.input_value() != "", "activity_start autofilled from plan")
+    af_end = page.locator('.ant-form-item:has-text("结束时间") input').first
+    check(af_end.input_value() != "", "activity_end autofilled from plan")
+
+    # Fill manual text fields
+    page.locator('.ant-form-item:has-text("填报单位") input').first.fill("测试街道办")
+    page.locator('.ant-form-item:has-text("项目名称") input').first.fill("春节文艺汇演")
+    page.locator('.ant-form-item:has-text("承办方") input').first.fill("测试文化公司")
+    page.locator('.ant-form-item:has-text("活动参与方") input').first.fill("社区居民")
+    page.wait_for_timeout(200)
+
+    # Selects
+    select_antd("活动类型", "文艺汇演")
+    select_antd("室内/户外", "室内")
+    select_antd("场所类型", "中心广场")
+    select_antd("预计参与人数规模", "1000-3000")
+    select_antd("是否销售门票", "是")
+    select_antd("媒体直播", "无")
     page.wait_for_timeout(300)
 
-    # Fill number inputs (crowd_scale, staff_count, security_count)
-    spin_inputs = page.locator('input[role="spinbutton"]:not([disabled])').all()
-    for inp in spin_inputs:
-        if inp.is_visible():
-            inp.fill("100")
-            page.wait_for_timeout(100)
+    # Repeaters: risk_factors (min 4) + mitigation_measures (min 4)
+    fill_repeater("主要风险因素", 4, "风险因素")
+    fill_repeater("防范化解措施", 4, "防范措施")
 
-    # Fill text inputs (reporting_unit, sponsor, contact fields, etc.)
-    text_inputs = page.locator('input:not([role="combobox"]):not([role="spinbutton"]):not([type="hidden"])').all()
-    for inp in text_inputs:
-        if inp.is_visible() and inp.get_attribute("readonly") is None:
-            try:
-                inp.fill("测试")
-            except Exception:
-                pass
-            page.wait_for_timeout(50)
+    # Contact
+    page.locator('.ant-form-item:has-text("联系人") input').first.fill("李四")
+    page.locator('.ant-form-item:has-text("联系电话") input').first.fill("13800138002")
+    page.wait_for_timeout(200)
 
-    check(ra_filled > 0, f"filled {ra_filled} risk assessment fields")
-
-    # Debug: inspect the generate button's bounding box and visibility
-    btn_info = page.evaluate("""() => {
-      const btn = document.querySelector('button');
-      if (!btn) return 'no button found';
-      const rect = btn.getBoundingClientRect();
-      const style = window.getComputedStyle(btn);
-      return {
-        tag: btn.textContent?.substring(0, 20),
-        rect: { x: rect.x, y: rect.y, w: rect.width, h: rect.height },
-        display: style.display,
-        visibility: style.visibility,
-        opacity: style.opacity,
-        overflow: style.overflow,
-      };
-    }""")
-    print(f"  DEBUG first button: {btn_info}")
-
-    # Check all buttons
-    all_btns = page.evaluate("""() => {
-      return Array.from(document.querySelectorAll('button')).map(b => ({
-        text: b.textContent?.substring(0, 30),
-        visible: b.offsetParent !== null,
-        rect: (() => { const r = b.getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height), y: Math.round(r.y) }; })()
-      }));
-    }""")
-    for b in all_btns[:15]:
-        print(f"  BTN: {b['text'][:30]} visible={b['visible']} size={b['rect']['w']}x{b['rect']['h']} y={b['rect']['y']}")
-
-    # Generate
+    # Scroll to bottom and generate
+    page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+    page.wait_for_timeout(500)
     ra_gen = page.locator('button:has-text("提交生成")').first
     check(ra_gen.count() > 0, "risk assessment generate button")
     ra_gen.click()
@@ -297,46 +289,32 @@ with sync_playwright() as p:
     else:
         check(False, "risk assessment confirm modal not shown")
 
-    # ── 3b. Responsibility letter sub-tab ──
+    # ── 3b. Responsibility letter ──
     print("\n--- 3b: responsibility letter ---")
     resp_tab.click()
-    page.wait_for_timeout(1000)
+    page.wait_for_timeout(1500)
     page.wait_for_load_state("networkidle")
     page.wait_for_timeout(1000)
 
-    # Verify declarations section is visible (8 legal statements, not checkboxes)
+    # Verify declarations section (not checkboxes — readonly legal statements)
     decl_section = page.locator('text=安全消防责任确认').first
     check(decl_section.count() > 0, "declarations section visible")
-
-    # Verify declaration items (legal statements in ordered list)
     decl_items = page.locator('ol li').all()
     check(len(decl_items) >= 8, f"all 8 declaration items visible (found {len(decl_items)})")
 
     # Fill text fields
-    rl_textareas = page.locator('textarea').all()
-    rl_filled = 0
-    for ta_el in rl_textareas:
-        if ta_el.is_visible():
-            ta_el.fill(f"浏览器测试责任确认书字段{rl_filled+1}")
-            rl_filled += 1
+    page.locator('.ant-form-item:has-text("活动主办单位") input').first.fill("测试主办方")
+    page.locator('.ant-form-item:has-text("举办场所名称") input').first.fill("中心广场")
+    page.locator('.ant-form-item:has-text("活动安全负责人") input').first.fill("王五")
+    page.locator('.ant-form-item:has-text("主办单位（公章）") input').first.fill("测试街道办公章")
+    page.locator('.ant-form-item:has-text("确认地点") input').first.fill("中心广场会议室")
     page.wait_for_timeout(300)
-
-    # Fill text inputs (sponsor_unit, venue_name, security_leader_name, sponsor_seal, confirm_location)
-    for inp in page.locator('input:not([role="combobox"]):not([role="spinbutton"]):not([type="hidden"]):not([disabled])').all():
-        if inp.is_visible():
-            try:
-                inp.fill("测试责任方")
-            except Exception:
-                pass
-            page.wait_for_timeout(50)
-
-    check(rl_filled > 0, f"filled {rl_filled} responsibility letter fields")
 
     # Generate
+    page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+    page.wait_for_timeout(500)
     rl_gen = page.locator('button:has-text("提交生成")').first
     check(rl_gen.count() > 0, "responsibility letter generate button")
-    rl_gen.scroll_into_view_if_needed()
-    page.wait_for_timeout(300)
     rl_gen.click()
     page.wait_for_timeout(1000)
     cfm2 = page.locator('.ant-modal button:has-text("确认生成")').first
@@ -349,26 +327,26 @@ with sync_playwright() as p:
     else:
         check(False, "responsibility letter confirm modal not shown")
 
-    # ── 3c. Security plan (back to first sub-tab) ──
+    # ── 3c. Security plan ──
     print("\n--- 3c: security plan ---")
     page.locator('.ant-tabs-tab:has-text("安保方案")').first.click()
-    page.wait_for_timeout(1000)
+    page.wait_for_timeout(1500)
     page.wait_for_load_state("networkidle")
 
-    # Fill required textareas for security plan
+    # Fill security plan textareas
     sp_textareas = page.locator('textarea').all()
     for i, ta_el in enumerate(sp_textareas):
         if ta_el.is_visible():
             ta_el.fill(f"浏览器测试安保方案字段{i+1}")
     page.wait_for_timeout(300)
 
-    # Fill security_staff_count
+    # security_staff_count
     sp_count = page.locator('.ant-form-item:has-text("安保人员数量") input[role="spinbutton"]').first
     if sp_count.count() > 0:
         sp_count.fill("10")
         page.wait_for_timeout(100)
 
-    # Generate security plan
+    # Generate
     sp_gen = page.locator('button:has-text("提交生成")').first
     check(sp_gen.count() > 0, "generate button visible")
     sp_gen.click()
@@ -388,20 +366,19 @@ with sync_playwright() as p:
     check(submit_btn.count() > 0, "submit review button visible")
     submit_btn.click()
     page.wait_for_timeout(500)
-
     check(page.locator('.ant-modal:has-text("确认提交审核")').count() > 0, "submit confirm modal")
     page.locator('.ant-modal button:has-text("确认提交")').first.click()
     page.wait_for_timeout(2000)
     page.wait_for_load_state("networkidle")
     check(True, "security plan submitted for review")
 
-    # After submission, form should be locked and button disabled
+    # After submission, form locked and button disabled
     page.wait_for_timeout(1000)
     submitted_btn = page.locator('button:has-text("已提交审核，等待负责人签署")').first
     check(submitted_btn.count() > 0, "button shows submitted state")
     check(submitted_btn.is_disabled(), "submit button disabled after submission")
 
-    # Verify sub-tabs still accessible after submission (forms disabled)
+    # Sub-tabs still accessible after submit
     risk_tab2 = page.locator('.ant-tabs-tab:has-text("风险评估表")').first
     risk_tab2.click()
     page.wait_for_timeout(1000)
