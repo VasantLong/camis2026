@@ -1257,10 +1257,7 @@ export default function ActivityDetailPage() {
                       {canOperateFiling && filingStatus && (
                         <div style={{ marginTop: 16 }}>
                           {canPack && (
-                            <Button
-                              type="primary"
-                              onClick={() => setFilingModal("pack")}
-                            >
+                            <Button type="primary" onClick={() => setFilingModal("pack")}>
                               打包备案材料
                             </Button>
                           )}
@@ -1279,6 +1276,8 @@ export default function ActivityDetailPage() {
                                     if (r.data.url) window.open(r.data.url, "_blank");
                                   }}>下载打包文件</Button>
                               )}
+                              <Button size="small" style={{ marginRight: 8 }}
+                                onClick={() => setFilingModal("pack")}>重新打包</Button>
                               <Button onClick={() => setFilingModal("handover")}>
                                 确认纸质交接
                               </Button>
