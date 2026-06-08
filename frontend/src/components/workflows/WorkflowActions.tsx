@@ -27,6 +27,7 @@ export default function WorkflowActions({ activityId, currentStatus }: Props) {
   const permissions = userPermissions ?? [];
   const qc = useQueryClient();
 
+  console.log("[WorkflowActions] status:", currentStatus, "permissions:", permissions, "actions:", getAvailableTransitions(currentStatus, permissions));
   const actions = getAvailableTransitions(currentStatus, permissions);
   if (actions.length === 0) return null;
 
