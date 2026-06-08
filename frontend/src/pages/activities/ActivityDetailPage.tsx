@@ -143,6 +143,7 @@ export default function ActivityDetailPage() {
   const [auditOpinion, setAuditOpinion] = useState("");
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [validationModalOpen, setValidationModalOpen] = useState(false);
+  const [validationContext, setValidationContext] = useState<"finalize" | "submit">("finalize");
   const [highlightFields, setHighlightFields] = useState<string[] | undefined>(undefined);
   const [planFinalizeOpen, setPlanFinalizeOpen] = useState(false);
   const [securitySubmitOpen, setSecuritySubmitOpen] = useState(false);
@@ -392,6 +393,7 @@ export default function ActivityDetailPage() {
                               onClick={() => {
                                 const errs = validateActivityPlan(planSchema?.snapshot_data);
                                 if (errs.length > 0) {
+                                  setValidationContext("finalize");
                                   setValidationErrors(errs);
                                   setValidationModalOpen(true);
                                 } else {
@@ -683,7 +685,7 @@ export default function ActivityDetailPage() {
                                           if (securityPlanSchema?.fields) allErrs.push(...validateAllFieldsFilled(securityPlanSchema?.snapshot_data, securityPlanSchema.fields));
                                           if (riskMaterial.schema?.fields) allErrs.push(...validateAllFieldsFilled(riskMaterial.schema?.snapshot_data, riskMaterial.schema.fields));
                                           if (respMaterial.schema?.fields) allErrs.push(...validateAllFieldsFilled(respMaterial.schema?.snapshot_data, respMaterial.schema.fields));
-                                          if (allErrs.length > 0) { setValidationErrors(allErrs); setValidationModalOpen(true); }
+                                          if (allErrs.length > 0) { setValidationContext("submit"); setValidationErrors(allErrs); setValidationModalOpen(true); }
                                           else { setSecuritySubmitOpen(true); }
                                         }}>
                                         提交审核
@@ -1239,7 +1241,7 @@ export default function ActivityDetailPage() {
         ]}
       />
       <Modal
-        title="以下字段需要完善后才能最终确定"
+        title={validationContext === "finalize" ? "以下字段需要完善后才能最终确定" : "以下字段需要完善后才能提交审核"}
         open={validationModalOpen}
         onCancel={() => setValidationModalOpen(false)}
         footer={
@@ -1253,7 +1255,15 @@ export default function ActivityDetailPage() {
       >
         <ul style={{ paddingLeft: 20, margin: 0 }}>
           {validationErrors.map((e, i) => (
-            <li key={i} style={{ marginBottom: 6 }}>
+            <li key={i} style={{ marginBottom: 6, cursor: e.field ? "pointer" : "default", color: e.field ? "#1677ff" : "inherit" }}
+              onClick={() => {
+                if (!e.field) return;
+                setHighlightFields([e.field]);
+                setValidationModalOpen(false);
+                setTimeout(() => {
+                  document.getElementById(e.field)?.scrollIntoView({ behavior: "smooth", block: "center" });
+                }, 150);
+              }}>
               <strong>{e.label}</strong>：{e.reason}
             </li>
           ))}
