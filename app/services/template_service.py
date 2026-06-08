@@ -655,9 +655,11 @@ class TemplateService:
         await self.db.commit()
 
         # Transition workflow
-        ws = WorkflowService(self.db, NotificationService(self.db))
-        User = __import__("app.models.user", fromlist=["User"]).User
-        await ws.transition(activity_id, "待备案申请", await self.db.get(User, user_id))
+        # From supplement phase, stay in current status — Officer will pack+handover to progress
+        if activity.status != "待补充备案材料":
+            ws = WorkflowService(self.db, NotificationService(self.db))
+            User = __import__("app.models.user", fromlist=["User"]).User
+            await ws.transition(activity_id, "待备案申请", await self.db.get(User, user_id))
 
     async def reject_security_plan(self, activity_id: UUID, user_id: UUID,
                                    reasons: list[str], comment: str | None = None) -> None:
