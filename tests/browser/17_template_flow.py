@@ -238,12 +238,12 @@ with sync_playwright() as p:
     # Select risk level on 安保方案 sub-tab (default active)
     page.locator('input[role="combobox"]').first.click()
     page.wait_for_timeout(300)
-    page.keyboard.type("大型")
+    page.keyboard.type("高风险")
     page.wait_for_timeout(200)
     page.keyboard.press("Enter")
     page.wait_for_timeout(1500)
     page.wait_for_load_state("networkidle")
-    check(True, "risk level set to 大型")
+    check(True, "risk level set to 高风险")
 
     # ── 3a. Security plan (fill first, on default sub-tab) ──
     print("\n--- 3a: security plan ---")
