@@ -94,12 +94,14 @@ class TemplateService:
             risk_level = getattr(entity, "risk_level", None) if entity else None
             schema["risk_level"] = risk_level
 
-        # autofill: provide Activity + ActivityPlan snapshot + defaults + cross-template data
+        # autofill: provide Activity + ActivityPlan snapshot + SecurityPlan snapshot + defaults
         ACTIVITY_FIELD_MAP = {
             "project_name": "name",
             "sponsor": "sponsor",
             "location_type": "location",
             "activity_type": "type",
+            "location": "location",
+            "estimated_time": "estimated_time",
         }
         PLAN_FIELD_MAP = {
             "activity_content": "activity_content",
@@ -107,6 +109,9 @@ class TemplateService:
             "activity_end": "end_time",
             "staff_count": "staff_count",
             "crowd_scale": "opening_crowd",
+        }
+        SECURITY_PLAN_FIELD_MAP = {
+            "security_staff_count": "security_staff_count",
         }
         # fixed defaults (sensitive values from .env via settings)
         from app.config import settings
@@ -119,7 +124,7 @@ class TemplateService:
             "confirm_location": settings.default_confirm_location or "",
         }
         all_field_names = {f["name"] for f in schema.get("fields", [])}
-        mappable = all_field_names & (set(ACTIVITY_FIELD_MAP) | set(PLAN_FIELD_MAP) | set(DEFAULT_FIELD_MAP))
+        mappable = all_field_names & (set(ACTIVITY_FIELD_MAP) | set(PLAN_FIELD_MAP) | set(SECURITY_PLAN_FIELD_MAP) | set(DEFAULT_FIELD_MAP))
         if mappable:
             autofill_data: dict[str, object] = {}
             activity = await self.db.get(Activity, activity_id)
@@ -132,16 +137,34 @@ class TemplateService:
                 plan_fd = await self.db.get(FilledDocument, plan.current_filled_document_id)
                 if plan_fd and plan_fd.data_snapshot:
                     plan_snapshot = plan_fd.data_snapshot
+            sec_snapshot: dict[str, object] = {}
+            if mappable & set(SECURITY_PLAN_FIELD_MAP):
+                sec_result = await self.db.execute(
+                    select(SecurityPlan).where(SecurityPlan.activity_id == activity_id)
+                )
+                sec = sec_result.scalar_one_or_none()
+                if sec and sec.current_filled_document_id:
+                    sec_fd = await self.db.get(FilledDocument, sec.current_filled_document_id)
+                    if sec_fd and sec_fd.data_snapshot:
+                        sec_snapshot = sec_fd.data_snapshot
+                elif sec and sec.draft_data:
+                    sec_snapshot = sec.draft_data
             for name in mappable:
                 if name in ACTIVITY_FIELD_MAP and activity:
                     attr = ACTIVITY_FIELD_MAP[name]
-                    autofill_data[name] = getattr(activity, attr, None) or ""
+                    val = getattr(activity, attr, None)
+                    if isinstance(val, datetime):
+                        val = val.strftime("%Y年%m月%d日")
+                    autofill_data[name] = val or ""
                 elif name in PLAN_FIELD_MAP:
                     plan_key = PLAN_FIELD_MAP[name]
                     val = plan_snapshot.get(plan_key, "") or ""
                     if plan_key == "opening_crowd" and not val:
                         val = plan_snapshot.get("regular_crowd", "") or ""
                     autofill_data[name] = val
+                elif name in SECURITY_PLAN_FIELD_MAP:
+                    sec_key = SECURITY_PLAN_FIELD_MAP[name]
+                    autofill_data[name] = sec_snapshot.get(sec_key, "") or ""
                 elif name in DEFAULT_FIELD_MAP:
                     autofill_data[name] = DEFAULT_FIELD_MAP[name]
             schema["autofill_data"] = autofill_data
