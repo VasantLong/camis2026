@@ -94,25 +94,32 @@ class TemplateService:
             risk_level = getattr(entity, "risk_level", None) if entity else None
             schema["risk_level"] = risk_level
 
-        # autofill: provide Activity + ActivityPlan snapshot data
-        # source A: Activity model
+        # autofill: provide Activity + ActivityPlan snapshot + defaults + cross-template data
         ACTIVITY_FIELD_MAP = {
             "project_name": "name",
             "sponsor": "sponsor",
             "location_type": "location",
             "activity_type": "type",
         }
-        # source B: ActivityPlan snapshot (if plan has been generated)
         PLAN_FIELD_MAP = {
             "activity_content": "activity_content",
             "activity_start": "start_time",
             "activity_end": "end_time",
             "staff_count": "staff_count",
-            "crowd_scale": "opening_crowd",   # 主要活动日人数（峰值），fallback below
+            "crowd_scale": "opening_crowd",
         }
-        # include any field that has a mapping, regardless of ui_type
+        # fixed defaults (sensitive values from .env via settings)
+        from app.config import settings
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        DEFAULT_FIELD_MAP: dict[str, str] = {
+            "reporting_unit": settings.default_reporting_unit or "",
+            "report_date": today,
+            "sponsor_unit": settings.default_reporting_unit or "",
+            "confirm_date": today,
+            "confirm_location": settings.default_confirm_location or "",
+        }
         all_field_names = {f["name"] for f in schema.get("fields", [])}
-        mappable = all_field_names & (set(ACTIVITY_FIELD_MAP) | set(PLAN_FIELD_MAP))
+        mappable = all_field_names & (set(ACTIVITY_FIELD_MAP) | set(PLAN_FIELD_MAP) | set(DEFAULT_FIELD_MAP))
         if mappable:
             autofill_data: dict[str, object] = {}
             activity = await self.db.get(Activity, activity_id)
@@ -125,6 +132,22 @@ class TemplateService:
                 plan_fd = await self.db.get(FilledDocument, plan.current_filled_document_id)
                 if plan_fd and plan_fd.data_snapshot:
                     plan_snapshot = plan_fd.data_snapshot
+            # cross-template: responsibility_letter venue_name ← risk_assessment activity_location
+            cross_data: dict[str, str] = {}
+            if template_type == "responsibility_letter" and "venue_name" in mappable:
+                ra_result = await self.db.execute(
+                    select(KeyMaterial).where(
+                        KeyMaterial.activity_id == activity_id,
+                        KeyMaterial.material_type == "risk_assessment",
+                    )
+                )
+                ra = ra_result.scalar_one_or_none()
+                if ra and ra.current_filled_document_id:
+                    ra_fd = await self.db.get(FilledDocument, ra.current_filled_document_id)
+                    if ra_fd and ra_fd.data_snapshot:
+                        loc = ra_fd.data_snapshot.get("activity_location", "")
+                        if loc:
+                            cross_data["venue_name"] = str(loc)
             for name in mappable:
                 if name in ACTIVITY_FIELD_MAP and activity:
                     attr = ACTIVITY_FIELD_MAP[name]
@@ -135,6 +158,10 @@ class TemplateService:
                     if plan_key == "opening_crowd" and not val:
                         val = plan_snapshot.get("regular_crowd", "") or ""
                     autofill_data[name] = val
+                elif name in DEFAULT_FIELD_MAP:
+                    autofill_data[name] = DEFAULT_FIELD_MAP[name]
+                if name in cross_data:
+                    autofill_data[name] = cross_data[name]  # cross-template overrides
             schema["autofill_data"] = autofill_data
 
         return schema

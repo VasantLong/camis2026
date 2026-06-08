@@ -62,5 +62,9 @@ class Settings(BaseSettings):
     # Playwright render service
     playwright_svc_url: str = "http://localhost:3000"
 
+    # Template defaults (sensitive values via .env)
+    default_reporting_unit: str = ""   # 填报单位，如"五大道公司"
+    default_confirm_location: str = ""  # 责任确认书确认地点
+
 
 settings = Settings()

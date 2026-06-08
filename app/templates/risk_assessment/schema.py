@@ -36,8 +36,8 @@ class RiskAssessmentForm(BaseModel):
 SCHEMA = {
     "display_name": "风险评估报备表",
     "fields": [
-        {"name": "reporting_unit", "ui_label": "填报单位（盖章）", "ui_type": "text", "required": True},
-        {"name": "report_date", "ui_label": "填报日期", "ui_type": "date", "required": True},
+        {"name": "reporting_unit", "ui_label": "填报单位（盖章）", "ui_type": "autofill", "autofill_from": "default", "required": True},
+        {"name": "report_date", "ui_label": "填报日期", "ui_type": "autofill", "autofill_from": "default", "required": True},
         {"name": "project_name", "ui_label": "项目名称", "ui_type": "autofill", "autofill_from": "activity.name", "required": True},
         {"name": "activity_type", "ui_label": "活动类型", "ui_type": "autofill", "autofill_from": "activity.type"},
         {"name": "sponsor", "ui_label": "主办方", "ui_type": "autofill", "autofill_from": "activity.sponsor", "required": True},

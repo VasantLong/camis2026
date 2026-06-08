@@ -8,7 +8,7 @@ class ResponsibilityLetterForm(BaseModel):
     venue_name: str = Field(default="", description="举办场所名称")
     security_leader_name: str = Field(default="", description="安全负责人姓名")
     security_leader_signature: str = Field(default="", description="安全负责人签字")
-    sponsor_seal: str = Field(default="", description="主办单位公章")
+    # sponsor_seal omitted — physical stamp applied offline after DOCX printing
     manager_signature: str = Field(default="", description="安保负责人审核签名")
     confirm_date: str = Field(default="", description="确认日期")
     confirm_location: str = Field(default="", description="确认地点")
@@ -29,16 +29,15 @@ DECLARATION_ITEMS = [
 SCHEMA = {
     "display_name": "安全消防责任确认书",
     "fields": [
-        {"name": "sponsor_unit", "ui_label": "活动主办单位", "ui_type": "text", "required": True},
-        {"name": "venue_name", "ui_label": "举办场所名称", "ui_type": "text", "required": True},
+        {"name": "sponsor_unit", "ui_label": "活动主办单位", "ui_type": "autofill", "autofill_from": "default", "required": True},
+        {"name": "venue_name", "ui_label": "举办场所名称", "ui_type": "autofill", "autofill_from": "cross.risk_assessment.activity_location", "required": True},
         {"name": "declarations", "ui_label": "安全消防责任确认", "ui_type": "declarations",
          "declaration_items": DECLARATION_ITEMS,
          "hint": "依据国务院《大型群众性活动安全管理条例》《安全生产法》《消防法》等法律法规。以下声明由主办单位公章及安全负责人签字确认，依法承担相应法律责任。"},
         {"name": "security_leader_name", "ui_label": "活动安全负责人", "ui_type": "text", "required": True},
         {"name": "security_leader_signature", "ui_label": "安全负责人签字", "ui_type": "signature", "required": True},
-        {"name": "sponsor_seal", "ui_label": "主办单位（公章）", "ui_type": "text", "required": True},
-        {"name": "confirm_date", "ui_label": "确认日期", "ui_type": "date", "required": True},
-        {"name": "confirm_location", "ui_label": "确认地点", "ui_type": "text", "required": True},
+        {"name": "confirm_date", "ui_label": "确认日期", "ui_type": "autofill", "autofill_from": "default", "required": True},
+        {"name": "confirm_location", "ui_label": "确认地点", "ui_type": "autofill", "autofill_from": "default", "required": True},
         # manager_signature is NOT in fields — injected at Manager signing time
     ],
 }
