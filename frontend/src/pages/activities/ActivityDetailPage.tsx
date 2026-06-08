@@ -21,7 +21,6 @@ import { filingsApi } from "@/api/filings";
 import { documentsApi } from "@/api/documents";
 import { activitiesApi } from "@/api/activities";
 import { materialsApi } from "@/api/materials";
-import { workflowsApi } from "@/api/workflows";
 import { templatesApi } from "@/api/templates";
 import { useAuthStore } from "@/stores/authStore";
 import { STATUS_COLOR_MAP } from "@/utils/constants";
@@ -303,45 +302,10 @@ export default function ActivityDetailPage() {
         />
       )}
 
-      {/* UC6: SecurityManager approval confirmation banner */}
-      {isManager && activity?.status === "审批通过" && (
-        <div style={{ marginBottom: 16, padding: 16, border: "1px solid #1677ff", borderRadius: 8, background: "#e6f7ff" }}>
-          <Typography.Title level={5} style={{ marginTop: 0 }}>批文确认</Typography.Title>
-          <Typography.Paragraph>
-            政府对接人已上传批文并审批通过。请确认审批结果，或驳回至安保方案设计。
-          </Typography.Paragraph>
-          <Space>
-            <Button
-              type="primary"
-              onClick={async () => {
-                try {
-                  await workflowsApi.transition(id!, { to_status: "审批通过-待举办", comment: "安保部已确认" });
-                  message.success("已确认，活动即将举办");
-                  queryClient.invalidateQueries({ queryKey: ["activities", id] });
-                } catch (e: any) {
-                  message.error(e?.response?.data?.detail || "确认失败");
-                }
-              }}
-            >
-              确认审批通过
-            </Button>
-            <Button
-              danger
-              onClick={async () => {
-                try {
-                  await workflowsApi.reject(id!, { reason: "安保部驳回审批结果，需整改" });
-                  message.success("已驳回至安保方案设计");
-                  queryClient.invalidateQueries({ queryKey: ["activities", id] });
-                  queryClient.invalidateQueries({ queryKey: ["activities", id, "security-plan"] });
-                } catch (e: any) {
-                  message.error(e?.response?.data?.detail || "驳回失败");
-                }
-              }}
-            >
-              驳回至安保方案设计
-            </Button>
-          </Space>
-        </div>
+      {/* UC6 removed — approval now auto-transitions to 审批通过-待举办 */}
+      {activity?.status === "审批通过" && (
+        <Alert type="success" showIcon title="已审批通过"
+          description="政府对接人已上传批文并审批通过。活动已获批准，即将进入举办阶段。" style={{ marginBottom: 16 }} />
       )}
 
       <Tabs

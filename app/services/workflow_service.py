@@ -17,7 +17,7 @@ TRANSITION_MATRIX: dict[str, set[str]] = {
     "待设计方案":     {"待安保方案设计"},
     "待安保方案设计":  {"待安保方案设计", "待备案申请"},
     "待备案申请":     {"备案材料已交接"},
-    "备案材料已交接":  {"审批通过", "待补充备案材料", "不通过/已终止"},
+    "备案材料已交接":  {"审批通过", "审批通过-待举办", "待补充备案材料", "不通过/已终止"},
     "待补充备案材料":  {"备案材料已交接"},
     "审批通过":       {"审批通过-待举办", "待安保方案设计"},
     "审批通过-待举办": {"举办中"},
@@ -97,6 +97,34 @@ class WorkflowService:
                 await self.notification.notify_role(role_name, msg,
                     reference_id=activity_id, reference_type="activity")
 
+        # On approval, notify all activity participants
+        if to_status == "审批通过-待举办":
+            activity = await self.db.get(Activity, activity_id)
+            if activity:
+                user_ids: set[UUID] = {activity.owner_id}
+                if activity.designer_id:
+                    user_ids.add(activity.designer_id)
+                # get SecurityPlan manager
+                from app.models.activity import SecurityPlan as SP
+                sp_result = await self.db.execute(
+                    select(SP).where(SP.activity_id == activity_id)
+                )
+                sp = sp_result.scalar_one_or_none()
+                if sp and sp.manager_id:
+                    user_ids.add(sp.manager_id)
+                # get all distinct operators from status log
+                log_result = await self.db.execute(
+                    select(ActivityStatusLog.operator_id).where(
+                        ActivityStatusLog.activity_id == activity_id
+                    ).distinct()
+                )
+                for (uid,) in log_result.all():
+                    user_ids.add(uid)
+                for uid in user_ids:
+                    await self.notification.send_reminder(uid,
+                        f"活动「{activity.name}」已审批通过，即将进入举办阶段",
+                        reference_id=activity_id, reference_type="activity")
+
         return log
 
     async def _update_security_plan(self, activity_id: UUID, from_status: str,
@@ -158,7 +186,7 @@ class WorkflowService:
                     km.sign_status = "unsigned"
                     logger.info("reset sign_status to unsigned for material=%s activity=%s", mt, activity_id)
 
-        elif to_status == "审批通过":
+        elif to_status in ("审批通过", "审批通过-待举办"):
             sp.audit_status = "已审核"
 
     async def reject(
