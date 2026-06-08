@@ -58,6 +58,8 @@ export default function ActivityDetailPage() {
     : false;
   const canOperateFiling =
     showFiling && (activity?.status === "待备案申请" || activity?.status === "待补充备案材料") && permissions.includes("pack_filing");
+  const isOfficerFilingPhase = activity?.status === "待备案申请" || activity?.status === "待补充备案材料";
+  const isGovLiaisonFilingPhase = activity?.status === "备案材料已交接";
 
   const { data: validation = [], isLoading: validationLoading } = useQuery({
     queryKey: ["activities", id, "filing", "validate"],
@@ -1158,43 +1160,29 @@ export default function ActivityDetailPage() {
                   ),
                   children: (
                     <div>
-                      {validationLoading ? (
-                        <Spin />
-                      ) : (
-                        <FilingValidatePanel data={validation} />
+                      {/* FilingValidatePanel: only in GovLiaison phase */}
+                      {isGovLiaisonFilingPhase && (
+                        validationLoading ? <Spin /> : <FilingValidatePanel data={validation} />
                       )}
-                      {/* materials with sign/audit */}
+                      {/* materials list */}
                       {materials.length > 0 && (
                         <div style={{ marginTop: 16 }}>
-                          <Typography.Text strong>关键材料</Typography.Text>
+                          <Typography.Text strong>备案材料</Typography.Text>
                           <List
                             size="small"
                             dataSource={materials}
                             renderItem={(m) => (
                               <List.Item
                                 actions={[
-                                  canSign && m.sign_status !== "signed" && (
-                                    <Button
-                                      size="small"
-                                      icon={<EditOutlined />}
+                                  isOfficerFilingPhase && canSign && m.sign_status !== "signed" && (
+                                    <Button size="small" icon={<EditOutlined />}
                                       onClick={() => signMutation.mutate(m.id)}
-                                      loading={signMutation.isPending}
-                                    >
-                                      签署
-                                    </Button>
+                                      loading={signMutation.isPending}>签署</Button>
                                   ),
-                                  canAudit && (
-                                    <Button
-                                      size="small"
+                                  isGovLiaisonFilingPhase && canAudit && (
+                                    <Button size="small"
                                       icon={m.is_qualified ? <CheckOutlined /> : <CloseOutlined />}
-                                      onClick={() => {
-                                        setAuditTarget({ id: m.id, name: m.name });
-                                        setAuditConclusion(m.is_qualified ? "qualified" : "unqualified");
-                                        setAuditOpinion("");
-                                      }}
-                                    >
-                                      审查
-                                    </Button>
+                                      onClick={() => { setAuditTarget({ id: m.id, name: m.name }); setAuditConclusion(m.is_qualified ? "qualified" : "unqualified"); setAuditOpinion(""); }}>审查</Button>
                                   ),
                                 ].filter(Boolean)}
                               >
@@ -1205,11 +1193,13 @@ export default function ActivityDetailPage() {
                                       <Tag color={m.sign_status === "signed" ? "green" : "default"}>
                                         {m.sign_status === "signed" ? "已签署" : "未签署"}
                                       </Tag>
-                                      <Tag color={m.is_qualified ? "green" : "red"}>
-                                        {m.is_qualified ? "合格" : "不合格"}
-                                      </Tag>
-                                      {m.audit_round > 0 && (
-                                        <Tag>审核 {m.audit_round} 轮</Tag>
+                                      {isGovLiaisonFilingPhase && (
+                                        <>
+                                          <Tag color={m.is_qualified ? "green" : "red"}>
+                                            {m.is_qualified ? "合格" : "不合格"}
+                                          </Tag>
+                                          {m.audit_round > 0 && <Tag>审核 {m.audit_round} 轮</Tag>}
+                                        </>
                                       )}
                                     </Space>
                                   }
@@ -1220,8 +1210,8 @@ export default function ActivityDetailPage() {
                         </div>
                       )}
 
-                      {/* audit history */}
-                      {auditHistory.length > 0 && (
+                      {/* audit history: only in GovLiaison+ phases */}
+                      {isGovLiaisonFilingPhase && auditHistory.length > 0 && (
                         <div style={{ marginTop: 16 }}>
                           <Typography.Text strong>审核记录</Typography.Text>
                           <List
