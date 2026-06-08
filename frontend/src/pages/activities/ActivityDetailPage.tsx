@@ -1246,10 +1246,6 @@ export default function ActivityDetailPage() {
                           </div>
                         );
                       })()}
-                      {/* FilingValidatePanel: only in GovLiaison phase */}
-                      {isGovLiaisonFilingPhase && isGovLiaison && (
-                        validationLoading ? <Spin /> : <FilingValidatePanel data={validation} />
-                      )}
                       {/* materials table */}
                       {materials.length > 0 && (
                         <Table
