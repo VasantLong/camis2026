@@ -19,6 +19,7 @@ export interface MaterialWithStatus {
   upload_time: string;
   material_type: string;
   minio_path: string;
+  pdf_path: string;
   current_version: number;
 }
 

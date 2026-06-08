@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Descriptions, Tabs, Button, Tag, Spin, Typography, Space, Modal, Input, message, Table, List, Select, Upload, Checkbox } from "antd";
-import { ArrowLeftOutlined, UploadOutlined } from "@ant-design/icons";
+import { Descriptions, Tabs, Button, Tag, Spin, Typography, Space, Modal, Input, message, Table, List, Select, Upload, Checkbox, Empty } from "antd";
+import { ArrowLeftOutlined, UploadOutlined, EyeOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useActivity, useActivityHistory, useActivityDocuments } from "@/hooks/useActivityQueries";
@@ -87,7 +87,7 @@ export default function ActivityDetailPage() {
   useEffect(() => {
     if (materials.length > 0) console.table(materials.map((m: any) => ({
       name: m.name, material_type: m.material_type, sign_status: m.sign_status,
-      minio_path: m.minio_path?.substring(0, 50) || "", version: m.current_version,
+      pdf_path: (m as any).pdf_path?.substring(0, 40) || "", version: m.current_version,
     })));
   }, [materials]);
 
@@ -1189,6 +1189,7 @@ export default function ActivityDetailPage() {
                           size="small"
                           style={{ marginTop: 16 }}
                           pagination={false}
+                          locale={{ emptyText: <Empty description="暂无备案材料" /> }}
                           columns={[
                             { title: "材料名称", dataIndex: "name", key: "name" },
                             { title: "签署状态", key: "sign", width: 100, render: (_: unknown, m: any) => (
@@ -1206,18 +1207,17 @@ export default function ActivityDetailPage() {
                             ] : []),
                             { title: "操作", key: "actions", width: 200, render: (_: unknown, m: any) => (
                               <Space size={4}>
-                                <Button size="small" type="link"
+                                <Button size="small" type="link" icon={<EyeOutlined />}
                                   onClick={async () => {
                                     try {
                                       const mAny = m as any;
-                                      console.log("[preview]", m.name, "material_type:", mAny.material_type, "minio_path:", mAny.minio_path, "version:", mAny.current_version, "full:", JSON.stringify(m));
-                                      if (mAny.minio_path) {
-                                        const r = await documentsApi.getPresignedByPath(mAny.minio_path);
-                                        console.log("[preview] presigned response:", r.data);
+                                      const path = mAny.pdf_path || mAny.minio_path;
+                                      if (path) {
+                                        const r = await documentsApi.getPresignedByPath(path);
                                         if (r.data.url) { window.open(r.data.url, "_blank"); return; }
                                       }
                                       message.warning("暂无预览文件");
-                                    } catch (e) { console.error("[preview] error:", e); message.error("预览失败"); }
+                                    } catch { message.error("预览失败"); }
                                   }}>预览</Button>
                                 {isOfficerFilingPhase && canSign && m.sign_status !== "signed" && (
                                   <Button size="small" onClick={() => signMutation.mutate(m.id)} loading={signMutation.isPending}>签署</Button>

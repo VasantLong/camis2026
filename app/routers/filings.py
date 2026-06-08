@@ -152,6 +152,7 @@ class MaterialWithStatus(BaseModel):
     upload_time: str
     material_type: str = ""
     minio_path: str = ""
+    pdf_path: str = ""
     current_version: int = 0
 
 

@@ -346,7 +346,7 @@ class FilingService:
             text("""
                 SELECT km.id, km.name, km.is_qualified, km.sign_status,
                        km.audit_round, km.opinion, km.upload_time, km.created_at,
-                       km.material_type, fd.minio_path, fd.version_number
+                       km.material_type, fd.minio_path, fd.pdf_path, fd.version_number
                 FROM key_materials km
                 JOIN security_plan_materials spm ON spm.material_id = km.id
                 JOIN security_plans sp ON sp.id = spm.security_plan_id
@@ -355,7 +355,7 @@ class FilingService:
                 UNION
                 SELECT km.id, km.name, km.is_qualified, km.sign_status,
                        km.audit_round, km.opinion, km.upload_time, km.created_at,
-                       km.material_type, fd.minio_path, fd.version_number
+                       km.material_type, fd.minio_path, fd.pdf_path, fd.version_number
                 FROM key_materials km
                 LEFT JOIN filled_documents fd ON fd.id = km.current_filled_document_id
                 WHERE km.activity_id = :aid
@@ -369,7 +369,8 @@ class FilingService:
                 "upload_time": r[6].isoformat() if r[6] else "",
                 "material_type": r[8] or "",
                 "minio_path": r[9] or "",
-                "current_version": r[10] or 0,
+                "pdf_path": r[10] or "",
+                "current_version": r[11] or 0,
             }
             for r in rows
         ]
