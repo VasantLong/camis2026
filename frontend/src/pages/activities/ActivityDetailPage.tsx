@@ -173,6 +173,7 @@ export default function ActivityDetailPage() {
 
   const queryClient = useQueryClient();
   const [auditTarget, setAuditTarget] = useState<{ id: string; name: string } | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [auditConclusion, setAuditConclusion] = useState<string>("qualified");
   const [auditOpinion, setAuditOpinion] = useState("");
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
@@ -1214,7 +1215,7 @@ export default function ActivityDetailPage() {
                                       const path = mAny.pdf_path || mAny.minio_path;
                                       if (path) {
                                         const r = await documentsApi.getPresignedByPath(path);
-                                        if (r.data.url) { window.open(r.data.url, "_blank"); return; }
+                                        if (r.data.url) { setPreviewUrl(r.data.url); return; }
                                       }
                                       message.warning("暂无预览文件");
                                     } catch { message.error("预览失败"); }
@@ -1327,6 +1328,22 @@ export default function ActivityDetailPage() {
                           value={auditOpinion}
                           onChange={(e) => setAuditOpinion(e.target.value)}
                         />
+                      </Modal>
+                      {/* PDF preview modal */}
+                      <Modal
+                        title="文档预览"
+                        open={!!previewUrl}
+                        onCancel={() => setPreviewUrl(null)}
+                        footer={null}
+                        width="90%"
+                        style={{ top: 20 }}
+                        destroyOnHidden
+                      >
+                        {previewUrl && (
+                          <iframe src={previewUrl}
+                            style={{ width: "100%", height: "75vh", border: "none" }}
+                            title="文档预览" />
+                        )}
                       </Modal>
                       <FilingPackModal
                         open={filingModal === "pack"}
