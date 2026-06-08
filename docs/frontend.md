@@ -539,6 +539,37 @@ flowchart LR
 - [ ] Docker 服务运行（PostgreSQL + MinIO + Redis）
 - [ ] FastAPI 监听 8000 端口
 
+## 测试种子数据
+
+`scripts/seed_test_activities.py` 创建 48 个预设活动，覆盖全部 12 种状态，配合 `bash scripts/db-reset.sh` 使用。
+
+### 活动主题
+
+全部以**五大道景区**为背景：民园广场、先农大院、庆王府等具体场所。涵盖文艺汇演、体育赛事、商贸活动、民俗活动等类型。
+
+### 多样化场景
+
+| 维度 | 场景数 | 差异 |
+|------|--------|------|
+| 活动方案 | 3 种循环 | 大型(A: 开幕式+演员+3000-5000人) / 中型(B: 开幕式+无演员+1000-3000人) / 小型(C: 无开幕式+无演员+1000以下) |
+| 安保方案 | 3 种循环 | 高风险(50人+医疗+消防+人流管控) / 中低风险(25人+消防) / 低风险(10人) |
+
+两个维度独立组合，共 9 种交叉场景。
+
+### 材料数据
+
+| 状态 | FilledDocument | KeyMaterial | 签名 |
+|------|---------------|-------------|------|
+| 待安保方案设计 | 活动方案 v1 (generated) | activity_plan | — |
+| 待备案申请 | 全部 5 种 (deferred, minio_path=NULL) | 全部 5 种，sign_status=unsigned | — |
+| 备案材料已交接 | 全部 5 种 (generated, 含签名) | 全部 5 种，sign_status=signed | 签名1-3.jpg (MinIO) |
+| 审批通过+ | 同上 + ApprovalRecord | 同上 | 同上 |
+
+### 上传资源
+
+- `docs/签名1-3.jpg` → MinIO `seed/signatures/sig1-3.jpg`（Manager 签名图）
+- `docs/材料1-3.jpg` → MinIO `seed/materials/mat1-3.jpg`（批文附件）
+
 ## 已知问题
 
 - [ ] 浏览器测试覆盖不完整（部分角色操作路径未验证）
