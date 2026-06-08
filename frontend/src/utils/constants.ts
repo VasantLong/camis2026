@@ -84,10 +84,6 @@ export function getAvailableTransitions(
     if (has("audit_material"))
       actions.push({ label: "驳回—不通过", mode: "transition", toStatus: "不通过/已终止", permission: "audit_material" });
   }
-  if (status === "待补充备案材料") {
-    if (has("manage_security"))
-      actions.push({ label: "重新递交", mode: "transition", toStatus: "备案材料已交接", permission: "manage_security" });
-  }
   if (status === "审批通过") {
     if (has("confirm_approval"))
       actions.push({ label: "确认通过", mode: "transition", toStatus: "审批通过-待举办", permission: "confirm_approval" });
