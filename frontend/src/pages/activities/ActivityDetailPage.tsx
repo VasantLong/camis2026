@@ -298,10 +298,12 @@ export default function ActivityDetailPage() {
         </Tag>
       </div>
 
-      <WorkflowActions
-        activityId={id!}
-        currentStatus={activity.status}
-      />
+      {!isGovLiaison && (
+        <WorkflowActions
+          activityId={id!}
+          currentStatus={activity.status}
+        />
+      )}
 
       {/* UC6: SecurityManager approval confirmation banner */}
       {isManager && activity?.status === "审批通过" && (
