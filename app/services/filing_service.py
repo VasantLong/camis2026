@@ -85,6 +85,7 @@ class FilingService:
             if row.opinion and "缺失" in row.opinion:
                 issues.append(f"意见: {row.opinion}")
             has_sig = getattr(row, "sign_status", "unsigned") == "signed"
+            logger.info("validate_materials: name=%s sign_status=%s has_sig=%s id=%s", row.name, getattr(row, "sign_status", "?"), has_sig, row.id)
             if not has_sig:
                 issues.append("材料未签署")
             validations.append(MaterialValidation(
