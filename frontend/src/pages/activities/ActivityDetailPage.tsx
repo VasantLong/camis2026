@@ -656,7 +656,7 @@ export default function ActivityDetailPage() {
                               location={filingLocation}
                               crowdScale={String(planSchema?.snapshot_data?.opening_crowd || planSchema?.snapshot_data?.regular_crowd || "")}
                               securityStaffCount={String(securityPlanSchema?.snapshot_data?.security_staff_count || "")}
-                              signatureUrl={signaturePreview} signaturePath={managerSignaturePath}
+                              signatureUrl={signaturePreview} signaturePath={managerSignaturePath || (securityPlanSchema?.snapshot_data as any)?.manager_signature || null}
                               onSigned={() => {
                                 setStep1Done(false);
                                 setSignaturePreview(null);
@@ -747,7 +747,7 @@ export default function ActivityDetailPage() {
                             location={filingLocation}
                             crowdScale={String(planSchema?.snapshot_data?.opening_crowd || planSchema?.snapshot_data?.regular_crowd || "")}
                             securityStaffCount={String(securityPlanSchema?.snapshot_data?.security_staff_count || "")}
-                            signatureUrl={signaturePreview} signaturePath={managerSignaturePath}
+                            signatureUrl={signaturePreview} signaturePath={managerSignaturePath || (securityPlanSchema?.snapshot_data as any)?.manager_signature || null}
                             onSigned={() => {
                               setSignaturePreview(null);
                               setManagerSignaturePath(null);
