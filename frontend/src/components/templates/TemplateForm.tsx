@@ -152,6 +152,7 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
 
   useEffect(() => {
     const vals: Record<string, unknown> = {};
+    console.log("[TemplateForm prefill] hasDraft:", hasDraft, "prefillData keys:", prefillData ? Object.keys(prefillData).filter(k => k.includes("security") || k.includes("staff")) : "none");
     // prefill from draft or snapshot
     if (prefillData) {
       for (const f of schema.fields) {
@@ -171,9 +172,11 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
     }
     // autofill from Activity/Plan data (for empty fields of any type)
     if (schema.autofill_data) {
+      console.log("[TemplateForm] autofill_data received:", JSON.stringify(schema.autofill_data));
       for (const f of schema.fields) {
         if (vals[f.name] === undefined) {
           const autoVal = schema.autofill_data[f.name];
+          console.log(`[TemplateForm] field=${f.name} ui_type=${f.ui_type} vals[${f.name}]=${vals[f.name]} autoVal=${autoVal}`);
           if (autoVal !== undefined && autoVal !== null && autoVal !== "") {
             if (f.ui_type === "date" && typeof autoVal === "string") {
               vals[f.name] = dayjs(autoVal);

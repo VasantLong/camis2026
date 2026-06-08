@@ -129,18 +129,25 @@ export default function ActivityDetailPage() {
   // Inject security_staff_count from security plan into risk assessment autofill
   const riskSchema = useMemo(() => {
     const raw = riskMaterial.schema;
+    console.log("[riskSchema] raw:", raw ? "exists" : "null",
+      "sec_draft:", securityPlanSchema?.draft_data?.security_staff_count,
+      "sec_snap:", securityPlanSchema?.snapshot_data?.security_staff_count,
+      "raw autofill:", (raw as any)?.autofill_data);
     if (!raw) return raw;
     const secStaffCount =
       securityPlanSchema?.draft_data?.security_staff_count
       ?? securityPlanSchema?.snapshot_data?.security_staff_count;
+    console.log("[riskSchema] secStaffCount:", secStaffCount);
     if (secStaffCount == null) return raw;
-    return {
+    const merged = {
       ...raw,
       autofill_data: {
         ...(raw.autofill_data || {}),
         security_count: secStaffCount,
       },
     };
+    console.log("[riskSchema] merged autofill_data:", merged.autofill_data);
+    return merged;
   }, [riskMaterial.schema, securityPlanSchema?.draft_data?.security_staff_count, securityPlanSchema?.snapshot_data?.security_staff_count]);
 
   const { data: riskVersions = [] } = useQuery({
