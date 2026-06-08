@@ -170,19 +170,22 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
         }
       }
     }
-    // autofill from Activity/Plan data (for empty fields of any type)
+    // autofill from Activity/Plan/SecurityPlan data
     if (schema.autofill_data) {
       console.log("[TemplateForm] autofill_data received:", JSON.stringify(schema.autofill_data));
       for (const f of schema.fields) {
-        if (vals[f.name] === undefined) {
-          const autoVal = schema.autofill_data[f.name];
-          console.log(`[TemplateForm] field=${f.name} ui_type=${f.ui_type} vals[${f.name}]=${vals[f.name]} autoVal=${autoVal}`);
-          if (autoVal !== undefined && autoVal !== null && autoVal !== "") {
-            if (f.ui_type === "date" && typeof autoVal === "string") {
-              vals[f.name] = dayjs(autoVal);
-            } else {
-              vals[f.name] = autoVal;
-            }
+        const autoVal = schema.autofill_data[f.name];
+        if (autoVal === undefined || autoVal === null || autoVal === "") continue;
+        // autofill fields always use the server-provided value
+        if (f.ui_type === "autofill") {
+          console.log(`[TemplateForm] autofill override ${f.name}=${autoVal} (was ${vals[f.name]})`);
+          vals[f.name] = autoVal;
+        } else if (vals[f.name] === undefined) {
+          console.log(`[TemplateForm] fill empty ${f.name}=${autoVal}`);
+          if (f.ui_type === "date" && typeof autoVal === "string") {
+            vals[f.name] = dayjs(autoVal);
+          } else {
+            vals[f.name] = autoVal;
           }
         }
       }
