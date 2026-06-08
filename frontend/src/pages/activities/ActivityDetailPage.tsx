@@ -1329,39 +1329,60 @@ export default function ActivityDetailPage() {
                       )}
 
                       {/* audit history */}
-                      {auditHistory.length > 0 && (
-                        <div style={{ marginTop: 16 }}>
-                          <Typography.Text strong style={{ display: "block", marginBottom: 8 }}>审核记录</Typography.Text>
-                          <Timeline
-                            items={auditHistory.map((h) => ({
-                              color: h.action === "sign" ? "blue" : h.conclusion === "qualified" ? "green" : "red",
-                              content: (
-                                <div>
-                                  <Typography.Text style={{ fontSize: 12, color: "#888" }}>
-                                    {new Date(h.created_at).toLocaleString("zh-CN")}
-                                  </Typography.Text>
-                                  <br />
-                                  <Typography.Text strong>{h.user_name}</Typography.Text>
-                                  <Tag color={h.action === "sign" ? "blue" : "orange"} style={{ marginLeft: 8 }}>
-                                    {h.action === "sign" ? "签署" : "审查"}
-                                  </Tag>
-                                  <Typography.Text> — {h.material_name}</Typography.Text>
-                                  {h.conclusion && (
-                                    <Tag color={h.conclusion === "qualified" ? "green" : "red"} style={{ marginLeft: 8 }}>
-                                      {h.conclusion === "qualified" ? "合格" : "不合格"}
-                                    </Tag>
-                                  )}
-                                  {h.opinion && (
-                                    <Typography.Paragraph type="secondary" style={{ marginBottom: 0, fontSize: 12 }}>
-                                      {h.opinion}
-                                    </Typography.Paragraph>
-                                  )}
-                                </div>
-                              ),
-                            }))}
-                          />
-                        </div>
-                      )}
+                      {auditHistory.length > 0 && (() => {
+                        const grouped = new Map<string, typeof auditHistory>();
+                        for (const h of auditHistory) {
+                          const key = h.created_at.slice(0, 16); // group by minute
+                          if (!grouped.has(key)) grouped.set(key, []);
+                          grouped.get(key)!.push(h);
+                        }
+                        return (
+                          <div style={{ marginTop: 16 }}>
+                            <Typography.Text strong style={{ display: "block", marginBottom: 8 }}>审核记录</Typography.Text>
+                            <Timeline
+                              items={[...grouped.entries()].map(([ts, items]) => {
+                                const h = items[0];
+                                const hasUnqual = items.some(i => i.conclusion === "unqualified");
+                                const hasQual = items.some(i => i.conclusion === "qualified");
+                                const color = h.action === "sign" ? "blue" : hasUnqual ? "red" : "green";
+                                return {
+                                  color,
+                                  content: (
+                                    <div>
+                                      <Typography.Text style={{ fontSize: 12, color: "#888" }}>
+                                        {new Date(h.created_at).toLocaleString("zh-CN")}
+                                      </Typography.Text>
+                                      <br />
+                                      <Typography.Text strong>{h.user_name}</Typography.Text>
+                                      <Tag color={h.action === "sign" ? "blue" : "orange"} style={{ marginLeft: 8 }}>
+                                        {h.action === "sign" ? "签署" : "审查"}
+                                      </Tag>
+                                      <Typography.Text> — {items.length} 项</Typography.Text>
+                                      <div style={{ marginTop: 4 }}>
+                                        {items.map((i) => (
+                                          <div key={i.id} style={{ marginBottom: 2, display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+                                            <Typography.Text style={{ fontSize: 12 }}>{i.material_name}</Typography.Text>
+                                            {i.conclusion && (
+                                              <Tag color={i.conclusion === "qualified" ? "green" : "red"} style={{ fontSize: 11, lineHeight: "18px" }}>
+                                                {i.conclusion === "qualified" ? "合格" : "不合格"}
+                                              </Tag>
+                                            )}
+                                            {i.opinion && (
+                                              <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+                                                — {i.opinion}
+                                              </Typography.Text>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ),
+                                };
+                              })}
+                            />
+                          </div>
+                        );
+                      })()}
 
                       {canOperateFiling && filingStatus && (
                         <div style={{ marginTop: 16 }}>
