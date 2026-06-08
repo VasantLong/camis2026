@@ -22,6 +22,7 @@ class FilingStatus(BaseModel):
     packed: bool = False
     handed_over: bool = False
     generated_at: str | None = None
+    pack_url: str | None = None
 
 
 @router.get("/{activity_id}/filing/status", response_model=FilingStatus)
