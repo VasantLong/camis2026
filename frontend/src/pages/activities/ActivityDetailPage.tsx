@@ -1179,7 +1179,7 @@ export default function ActivityDetailPage() {
                   children: (
                     <div>
                       {/* FilingValidatePanel: only in GovLiaison phase */}
-                      {isGovLiaisonFilingPhase && (
+                      {isGovLiaisonFilingPhase && isGovLiaison && (
                         validationLoading ? <Spin /> : <FilingValidatePanel data={validation} />
                       )}
                       {/* materials table */}
