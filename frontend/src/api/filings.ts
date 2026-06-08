@@ -21,4 +21,20 @@ export const filingsApi = {
     client.get<{ packed: boolean; handed_over: boolean; generated_at: string | null }>(
       `/activities/${activityId}/filing/status`
     ),
+
+  createApproval: (activityId: string, data: {
+    approval_status: string;
+    attachment_url?: string;
+    rectification_opinion?: string;
+  }) =>
+    client.post(`/activities/${activityId}/filing/approval`, data),
+
+  getApproval: (activityId: string) =>
+    client.get<{
+      id: string | null;
+      approval_status: string | null;
+      approval_date: string | null;
+      rectification_opinion: string | null;
+      attachment_url: string | null;
+    }>(`/activities/${activityId}/filing/approval`),
 };
