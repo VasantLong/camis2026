@@ -1324,7 +1324,7 @@ export default function ActivityDetailPage() {
                                     {materials.filter(m => m.audit_round > 0 && !m.is_qualified).map(m => (
                                       <div key={m.id} style={{ marginTop: 4 }}>
                                         <Tag color="red" style={{ cursor: "pointer" }}
-                                          onClick={() => setActiveTab("security_plan")}>{m.name}</Tag>
+                                          onClick={() => { setActiveTab("security-plan"); (document.activeElement as HTMLElement)?.blur(); }}>{m.name}</Tag>
                                         {m.opinion && (
                                           <Typography.Text type="secondary" style={{ fontSize: 12, marginLeft: 4 }}>
                                             — {m.opinion}
