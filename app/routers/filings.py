@@ -149,6 +149,9 @@ class MaterialWithStatus(BaseModel):
     audit_round: int
     opinion: str | None = None
     upload_time: str
+    material_type: str = ""
+    minio_path: str = ""
+    current_version: int = 0
 
 
 @router.get("/{activity_id}/materials", response_model=list[MaterialWithStatus])

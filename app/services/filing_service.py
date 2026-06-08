@@ -21,19 +21,19 @@ from app.services import minio_client
 # These tables are created by init-scripts/02-activity-tables.sql but ORM models
 # not yet defined. We'll use raw SQL for the join queries until models are added.
 JOIN_QUERY = """
-SELECT km.id, km.name, km.is_qualified, km.opinion
+SELECT km.id, km.name, km.is_qualified, km.opinion, km.sign_status
 FROM key_materials km
 JOIN security_plan_materials spm ON spm.material_id = km.id
 JOIN security_plans sp ON sp.id = spm.security_plan_id
 WHERE sp.activity_id = :activity_id
 UNION
-SELECT km.id, km.name, km.is_qualified, km.opinion
+SELECT km.id, km.name, km.is_qualified, km.opinion, km.sign_status
 FROM key_materials km
 JOIN filing_doc_materials fdm ON fdm.material_id = km.id
 JOIN filing_docs fd ON fd.id = fdm.filing_doc_id
 WHERE fd.activity_id = :activity_id
 UNION
-SELECT km.id, km.name, km.is_qualified, km.opinion
+SELECT km.id, km.name, km.is_qualified, km.opinion, km.sign_status
 FROM key_materials km
 WHERE km.activity_id = :activity_id
 """
@@ -83,11 +83,14 @@ class FilingService:
                 issues.append("材料未通过合规校验")
             if row.opinion and "缺失" in row.opinion:
                 issues.append(f"意见: {row.opinion}")
+            has_sig = getattr(row, "sign_status", "unsigned") == "signed"
+            if not has_sig:
+                issues.append("材料未签署")
             validations.append(MaterialValidation(
                 material_id=row.id,
                 name=row.name,
                 is_qualified=row.is_qualified,
-                has_signature=False,
+                has_signature=has_sig,
                 issues=issues,
             ))
         return validations
