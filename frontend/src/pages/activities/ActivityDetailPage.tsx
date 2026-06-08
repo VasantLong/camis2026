@@ -91,7 +91,7 @@ export default function ActivityDetailPage() {
   // ── template queries ──
   const canViewPlan = permissions.includes("submit_plan") || permissions.includes("view_owned_activity");
   const canViewSecurity = permissions.includes("manage_security") || permissions.includes("view_owned_activity");
-  const canEditPlan = permissions.includes("submit_plan");
+  const canEditPlan = permissions.includes("submit_plan") && activity?.status === "待设计方案";
   const canEditSecurity = permissions.includes("manage_security");
   const isManager = permissions.includes("review_security_plan");
   const isAdmin = permissions.includes("view_dashboard") && !canEditPlan && !canEditSecurity;
