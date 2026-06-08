@@ -295,7 +295,15 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
               if (typeof val === "string" && val) return [{ uid: "-1", name: "signature", status: "done" as const, url: val }];
               return [];
             }}
-            getValueFromEvent={(e) => (Array.isArray(e) ? e : e?.fileList || [])}
+            getValueFromEvent={(e) => {
+              const files = Array.isArray(e) ? e : e?.fileList || [];
+              return files.map((f: any) => ({
+                uid: f.uid || "-1",
+                name: f.name || "signature",
+                status: f.status || "done",
+                url: f.response?.minio_path || f.url || "",
+              }));
+            }}
           >
             <Upload
               accept="image/*"
@@ -306,9 +314,8 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
                   const res = await documentsApi.upload(activityId, file as File, ["signature"]);
                   const doc = res.data;
                   const previewUrl = URL.createObjectURL(file as File);
-                  form.setFieldValue(field.name, [{ uid: "-1", name: (file as File).name, status: "done", url: doc.minio_path }]);
                   setSigPreviews(prev => ({ ...prev, [field.name]: previewUrl }));
-                  onSuccess?.(doc);
+                  onSuccess?.(doc);  // antd Upload stores response, getValueFromEvent extracts minio_path
                   message.success(`已上传签名图片`);
                 } catch {
                   onError?.(new Error("上传失败"));
@@ -331,7 +338,7 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
           )}
           {!previewUrl && (() => {
             const storedVal = schema.draft_data?.[field.name] || schema.snapshot_data?.[field.name];
-            const hasUrl = (Array.isArray(storedVal) && storedVal.length > 0 && storedVal[0]?.url) || (typeof storedVal === "string" && !!storedVal);
+            const hasUrl = (Array.isArray(storedVal) && storedVal.length > 0 && (storedVal[0]?.url || storedVal[0]?.response?.minio_path)) || (typeof storedVal === "string" && !!storedVal);
             return hasUrl ? (
               <div style={{ marginTop: -4, marginBottom: 24, display: "flex", alignItems: "center", gap: 8 }}>
                 <Tag color="green" style={{ margin: 0 }}>已上传签名</Tag>
@@ -475,7 +482,7 @@ function serializeFormData(form: any, fields: FieldDef[]): Record<string, unknow
     } else if (f.ui_type === "signature") {
       let url = "";
       if (Array.isArray(v) && v.length > 0) {
-        url = v[0]?.url || "";
+        url = v[0]?.url || v[0]?.response?.minio_path || "";
       } else if (typeof v === "string" && v) {
         url = v;
       }
