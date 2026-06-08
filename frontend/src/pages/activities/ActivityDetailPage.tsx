@@ -126,6 +126,14 @@ export default function ActivityDetailPage() {
   const riskMaterial = useMaterialSchema(id!, "risk_assessment", !!canViewTemplates);
   const respMaterial = useMaterialSchema(id!, "responsibility_letter", !!canViewTemplates);
 
+  // Filing commitment location: risk assessment's specific address, fallback to activity.location
+  const filingLocation = useMemo(() => {
+    const raLoc = (riskMaterial.schema as any)?.snapshot_data?.activity_location
+      || (riskMaterial.schema as any)?.draft_data?.activity_location
+      || (riskMaterial.schema as any)?.autofill_data?.activity_location;
+    return raLoc || activity?.location || "";
+  }, [riskMaterial.schema, activity?.location]);
+
   // Inject security_staff_count from security plan into risk assessment autofill
   const riskSchema = useMemo(() => {
     const raw = riskMaterial.schema;
@@ -645,7 +653,7 @@ export default function ActivityDetailPage() {
                               activityName={activity?.name || ""}
                               sponsor={activity?.sponsor || ""}
                               estimatedTime={activity?.estimated_time ? dayjs(activity.estimated_time).format("YYYY年MM月DD日") : ""}
-                              location={activity?.location || ""}
+                              location={filingLocation}
                               crowdScale={String(planSchema?.snapshot_data?.opening_crowd || planSchema?.snapshot_data?.regular_crowd || "")}
                               securityStaffCount={String(securityPlanSchema?.snapshot_data?.security_staff_count || "")}
                               signatureUrl={signaturePreview}
@@ -736,7 +744,7 @@ export default function ActivityDetailPage() {
                             activityName={activity?.name || ""}
                             sponsor={activity?.sponsor || ""}
                             estimatedTime={activity?.estimated_time ? dayjs(activity.estimated_time).format("YYYY年MM月DD日") : ""}
-                            location={activity?.location || ""}
+                            location={filingLocation}
                             crowdScale={String(planSchema?.snapshot_data?.opening_crowd || planSchema?.snapshot_data?.regular_crowd || "")}
                             securityStaffCount={String(securityPlanSchema?.snapshot_data?.security_staff_count || "")}
                             signatureUrl={signaturePreview}
