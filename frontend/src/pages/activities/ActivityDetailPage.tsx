@@ -32,6 +32,14 @@ export default function ActivityDetailPage() {
   const { data: activity, isLoading } = useActivity(id!);
   const { data: history = [], isLoading: historyLoading } =
     useActivityHistory(id!);
+  const endMsg = (() => {
+    if (activity?.status !== "已结束") return null;
+    const h: any = history.find((h: any) => h.to_status === "已结束");
+    if (!h) return null;
+    const time = dayjs(h.created_at).format("YYYY-MM-DD HH:mm");
+    const who = h.operator_name || "系统";
+    return `活动于 ${time} 由 ${who} 标记结束${h.comment ? `（${h.comment}）` : ""}`;
+  })();
   const { data: documents = [], isLoading: docsLoading } =
     useActivityDocuments(id!);
   const [filingModal, setFilingModal] = useState<"pack" | "handover" | null>(
@@ -311,6 +319,7 @@ export default function ActivityDetailPage() {
             key: "detail",
             label: "基本信息",
             children: (
+              <>
               <Descriptions bordered column={2}>
                 <Descriptions.Item label="活动名称">
                   {activity.name}
@@ -365,7 +374,11 @@ export default function ActivityDetailPage() {
                   </Descriptions.Item>
                 )}
               </Descriptions>
-            ),
+              {endMsg && (
+                <Alert type="success" showIcon style={{ marginTop: 16 }} message={endMsg} />
+              )}
+              </>
+),
           },
           {
             key: "history",
@@ -535,9 +548,14 @@ export default function ActivityDetailPage() {
                             : "安保方案已提交审核，等待安保负责人签署确认。签署完成后可重新打包备案材料。"}
                           style={{ marginBottom: 16 }} />
                       )}
-                      {activity?.status && ["审批通过-待举办", "举办中", "已结束"].includes(activity.status) && (
+                      {activity?.status && activity.status !== "待设计方案" && (
                         <Alert type="info" showIcon title="方案已锁定"
-                          description="活动已进入举办阶段，方案不可编辑。可上传附件记录活动。" style={{ marginBottom: 16 }} />
+                          description={
+                            ["审批通过-待举办", "举办中", "已结束"].includes(activity.status)
+                              ? "活动已进入举办阶段，方案不可编辑。可上传附件记录活动。"
+                              : "方案已最终确定，不可编辑。如需修改请联系管理员。"
+                          }
+                          style={{ marginBottom: 16 }} />
                       )}
                       {securityPlan?.risk_level && (
                         <div style={{ marginBottom: 16 }}>
