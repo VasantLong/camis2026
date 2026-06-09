@@ -41,7 +41,7 @@ export default function LoginPage() {
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        background: "url(/background.png) center / cover no-repeat",
+        background: "linear-gradient(rgba(0,0,0,0.25), rgba(0,0,0,0.15)), url(/background.png) center / cover no-repeat",
         padding: 24,
       }}
     >
@@ -50,7 +50,9 @@ export default function LoginPage() {
           display: "flex",
           borderRadius: 12,
           overflow: "hidden",
-          boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
+          boxShadow: "0 8px 40px rgba(0,0,0,0.15)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
         }}
       >
         <div
@@ -73,7 +75,16 @@ export default function LoginPage() {
           />
         </div>
         <Card
-          style={{ width: 400, borderRadius: 0, border: "none", borderLeft: "1px solid #f0f0f0", display: "flex", alignItems: "center" }}
+          style={{
+            width: 400,
+            borderRadius: 0,
+            border: "none",
+            borderLeft: "1px solid rgba(255,255,255,0.3)",
+            display: "flex",
+            alignItems: "center",
+            background: "rgba(255,255,255,0.75)",
+            backdropFilter: "blur(8px)",
+          }}
           styles={{ body: { padding: "32px 32px 24px", width: "100%" } }}
         >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 20 }}>
