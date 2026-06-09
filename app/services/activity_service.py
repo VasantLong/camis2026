@@ -15,7 +15,7 @@ from app.schemas.activity import (
 )
 from app.services.workflow_service import WorkflowService
 
-CONFLICT_STATUSES = {"审批通过-待举办", "举办中", "备案材料已交接", "审批通过"}
+CONFLICT_STATUSES = {"审批通过-待举办", "举办中", "备案材料已交接"}
 
 
 class ActivityService:

@@ -31,7 +31,7 @@ class DashboardService:
 
         approved_result = await self.db.execute(
             select(func.count(Activity.id)).where(
-                Activity.status.in_(["审批通过-待举办", "审批通过"])
+                Activity.status.in_(["审批通过-待举办"])
             )
         )
         approved = approved_result.scalar() or 0

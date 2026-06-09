@@ -152,7 +152,7 @@ roles ──< role_permissions >── permissions
 |------|---------|---------|
 | Promoter | 自己创建的待设计方案 | `owner_id = 自己 AND status = 待设计方案` |
 | SecurityOfficer | 待安保方案设计 | `status = 待安保方案设计` |
-| SecurityManager | 安保相关流程 | `status IN (待安保方案设计, 待备案申请, 备案材料已交接, 审批通过, 待补充备案材料)` |
+| SecurityManager | 安保相关流程 | `status IN (待安保方案设计, 待备案申请, 备案材料已交接, 待补充备案材料)` |
 | GovLiaison | 待处理的审批活动 | `status = 备案材料已交接` |
 | SuperAdmin | 全部活动 | 无过滤 |
 | AdminStaff/AdminManager | 全部活动（只读） | 无过滤 |

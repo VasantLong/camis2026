@@ -21,7 +21,6 @@ export const ACTIVITY_STATUSES = [
   "待安保方案设计",
   "待备案申请",
   "备案材料已交接",
-  "审批通过",
   "审批通过-待举办",
   "举办中",
   "已结束",
@@ -36,7 +35,6 @@ export const STATUS_COLOR_MAP: Record<string, string> = {
   待安保方案设计: "cyan",
   待备案申请: "geekblue",
   备案材料已交接: "purple",
-  审批通过: "green",
   "审批通过-待举办": "gold",
   举办中: "volcano",
   已结束: "green",
@@ -78,7 +76,7 @@ export function getAvailableTransitions(
   }
   if (status === "备案材料已交接") {
     if (has("audit_material"))
-      actions.push({ label: "审批通过", mode: "transition", toStatus: "审批通过", permission: "audit_material" });
+      actions.push({ label: "审批通过", mode: "transition", toStatus: "审批通过-待举办", permission: "audit_material" });
     if (has("audit_material"))
       actions.push({ label: "需补充材料", mode: "transition", toStatus: "待补充备案材料", permission: "audit_material" });
     if (has("audit_material"))

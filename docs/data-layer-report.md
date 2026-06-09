@@ -191,7 +191,7 @@ PostgreSQL      →  READ COMMITTED 隔离级别
 | `force_cancel(activity_id, operator, reason)` | 强制取消（不可抗力） | `activities`, `implementation_records` |
 | `force_postpone(activity_id, operator, reason)` | 强制延期（不可抗力） | `activities`, `implementation_records` |
 
-所有状态变更必须经过此服务。状态转换矩阵定义了 12 项合法转换（如 `待设计方案→待安保方案设计`、`备案材料已交接→审批通过`、`待补充备案材料→备案材料已交接`）。终态（`已结束`/`已取消`/`已延期`/`不通过已终止`）禁止任何后续变更。
+所有状态变更必须经过此服务。状态转换矩阵定义了 11 项合法转换（如 `待设计方案→待安保方案设计`、`备案材料已交接→审批通过-待举办`、`待补充备案材料→备案材料已交接`）。终态（`已结束`/`已取消`/`已延期`/`不通过已终止`）禁止任何后续变更。
 
 #### DocumentService（文件存储）
 

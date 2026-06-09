@@ -32,7 +32,7 @@ PROMOTER_STATUSES = {"待设计方案"}
 SECURITY_OFFICER_STATUSES = {"待安保方案设计", "待备案申请", "待补充备案材料"}
 SECURITY_MANAGER_STATUSES = {
     "待安保方案设计", "待备案申请", "备案材料已交接",
-    "审批通过", "待补充备案材料",
+    "待补充备案材料",
 }
 GOV_LIAISON_STATUSES = {"备案材料已交接"}
 

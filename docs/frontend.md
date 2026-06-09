@@ -178,7 +178,6 @@ Manager 签署分两步：
 | 待备案申请 | SecurityOfficer | 5 项材料列表（签署状态+版本）、打包按钮、纸质交接确认 |
 | 待补充备案材料 | SecurityOfficer | 同上 + GovLiaison 补件意见横幅 |
 | 备案材料已交接 | GovLiaison | 材料列表+逐项审查(合格/不合格+意见)、审核记录、批文上传(可选)、审批决策(通过/补件/驳回) |
-| 审批通过 | SecurityManager | 页顶横幅：批文信息 + 确认审批结果/驳回至安保方案设计 |
 | 审批通过-待举办+ | 全部角色 | 材料列表只读 + 审核记录 |
 
 5 项备案材料统一来自 `key_materials` 表：活动方案、安保方案、风险评估报备表、安全消防责任确认书、活动备案承诺书。
@@ -471,7 +470,7 @@ flowchart LR
     Review --> Audit[逐条审查5项材料<br/>合格/不合格+意见]
     Audit --> |全部审查完毕| Upload[上传批文（可选）]
     Upload --> Decision{审批决定}
-    Decision --> |通过| Approved[审批通过<br/>→生成ApprovalRecord]
+    Decision --> |通过| Approved[审批通过-待举办<br/>→生成ApprovalRecord]
     Decision --> |补件| Revise[待补充备案材料<br/>→生成ApprovalRecord]
     Decision --> |驳回| Rejected[不通过/已终止<br/>→生成ApprovalRecord]
 ```
@@ -534,8 +533,7 @@ flowchart LR
 | 待备案申请     | 打包 + 纸质交接（备案 tab 中操作）    | `pack_filing`                         |
 | 待补充备案材料 | 重新打包 + 重新交接 → 备案材料已交接  | `pack_filing`                         |
 | 备案材料已交接 | 逐条审查材料 + 通过/补件/驳回         | `audit_material`                      |
-| 审批通过       | 确认审批结果、驳回至安保方案设计（页顶横幅） | `confirm_approval`, `reject_approval` |
-| 审批通过-待举办 | —（系统自动流转至举办中）             | —                                     |
+| 审批通过-待举办 | 系统自动流转至举办中                   | —                                     |
 | 任意非终态     | 强制取消、强制延期                    | `force_cancel`, `force_postpone`      |
 
 终态（举办中/已结束/不通过已终止/已取消/已延期）不显示操作按钮。
@@ -582,7 +580,7 @@ flowchart LR
 | 待安保方案设计 | 活动方案 v1 (generated) | activity_plan | — |
 | 待备案申请 | 全部 5 种 (deferred, minio_path=NULL) | 全部 5 种，sign_status=unsigned | — |
 | 备案材料已交接 | 全部 5 种 (generated, 含签名) | 全部 5 种，sign_status=signed | 签名1-3.jpg (MinIO) |
-| 审批通过+ | 同上 + ApprovalRecord | 同上 | 同上 |
+| 审批通过-待举办+ | 同上 + ApprovalRecord | 同上 | 同上 |
 
 ### 上传资源
 
@@ -603,8 +601,8 @@ flowchart LR
 
 | 指标 | 计算方式 | 意义 |
 |------|---------|------|
-| 审批通过率 | 审批通过+已举办+举办中+已结束 / 经历过"备案材料已交接"的活动 | 政府端通过比例 |
-| 平均审批周期 | 从"备案材料已交接"到"审批通过"的平均天数 | 政府审批效率 |
+| 审批通过率 | 审批通过-待举办+已举办+举办中+已结束 / 经历过"备案材料已交接"的活动 | 政府端通过比例 |
+| 平均审批周期 | 从"备案材料已交接"到"审批通过-待举办"的平均天数 | 政府审批效率 |
 | 补件率 | 进入过"待补充备案材料"的活动 / 经历过"备案材料已交接"的活动 | 材料质量问题频率 |
 
 ### 合规维度

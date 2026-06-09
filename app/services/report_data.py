@@ -63,7 +63,7 @@ class ReportDataService:
             Activity.id,
             Activity.created_at >= start,
             Activity.created_at < end,
-            Activity.status.in_({"审批通过-待举办", "审批通过"}),
+            Activity.status.in_({"审批通过-待举办"}),
         )
         concluded = approved + await self._count(
             Activity.id,

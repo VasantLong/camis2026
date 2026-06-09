@@ -17,9 +17,8 @@ TRANSITION_MATRIX: dict[str, set[str]] = {
     "待设计方案":     {"待安保方案设计"},
     "待安保方案设计":  {"待安保方案设计", "待备案申请"},
     "待备案申请":     {"备案材料已交接"},
-    "备案材料已交接":  {"审批通过", "审批通过-待举办", "待补充备案材料", "不通过/已终止"},
+    "备案材料已交接":  {"审批通过-待举办", "待补充备案材料", "不通过/已终止"},
     "待补充备案材料":  {"备案材料已交接"},
-    "审批通过":       {"审批通过-待举办", "待安保方案设计"},
     "审批通过-待举办": {"举办中"},
     "举办中":         {"已结束"},
 }
@@ -30,7 +29,6 @@ NOTIFICATION_RULES: dict[str, tuple[list[str], str]] = {
     "待安保方案设计":  (["SecurityOfficer"], "需进行安保方案设计"),
     "待备案申请":      (["SecurityOfficer"], "材料齐备，可开始备案申请"),
     "备案材料已交接":  (["GovLiaison"], "备案材料已流转至政府对接"),
-    "审批通过":        (["SecurityManager"], "批文已上传，待安保部确认审批结果"),
     "审批通过-待举办": (["AdminStaff"], "活动批文已下发，可合法举办"),
     "待补充备案材料":  (["SecurityOfficer"], "需补充备案材料"),
     "不通过/已终止":   (["AdminStaff", "SecurityOfficer"], "活动审批未通过"),
@@ -187,7 +185,7 @@ class WorkflowService:
                     km.sign_status = "unsigned"
                     logger.info("reset sign_status to unsigned for material=%s activity=%s", mt, activity_id)
 
-        elif to_status in ("审批通过", "审批通过-待举办"):
+        elif to_status == "审批通过-待举办":
             sp.audit_status = "已审核"
 
     async def reject(
@@ -199,11 +197,6 @@ class WorkflowService:
 
         if activity.status == "待安保方案设计":
             result = await self.transition(activity_id, "待安保方案设计", operator, reason)
-        elif activity.status == "审批通过":
-            result = await self.transition(activity_id, "待安保方案设计", operator, reason)
-            for role_name in REJECT_NOTIFY_ROLES:
-                await self.notification.notify_role(role_name, f"活动被驳回需重做: {reason}",
-                    reference_id=activity_id, reference_type="activity")
         else:
             raise ValueError(f"当前状态 {activity.status} 不支持驳回操作")
         return result

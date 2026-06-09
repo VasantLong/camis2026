@@ -95,7 +95,7 @@ class ActivityService:
 | -------- | ------------------------------------------------------------------------------------------- | ---- |
 | 必填字段 | name/type/location/sponsor/sponsor_contact/sponsor_phone/deadline 为空、deadline ≥ estimated_time | 400/422 |
 | 截止时间 | deadline 不能早于当前时间                                                                   | 400  |
-| 场地冲突 | 同 location + 同 estimated_time + status IN ('审批通过-待举办','备案材料已交接','审批通过') | 409  |
+| 场地冲突 | 同 location + 同 estimated_time + status IN ('审批通过-待举办','备案材料已交接') | 409  |
 
 ---
 
@@ -129,12 +129,10 @@ class ForceChangeRequest(BaseModel):
 | `待安保方案设计` | `待备案申请`      | SecurityOfficer | UC3 签署完成           |
 | `待安保方案设计` | `待安保方案设计`  | SecurityOfficer | UC3 负责人驳回（循环） |
 | `待备案申请`     | `备案材料已交接`  | SecurityOfficer | UC4 交接确认           |
-| `备案材料已交接` | `审批通过`        | GovLiaison      | UC5 政府通过           |
+| `备案材料已交接` | `审批通过-待举办` | GovLiaison      | UC5 政府通过           |
 | `备案材料已交接` | `待补充备案材料`  | GovLiaison      | UC5 需补充材料         |
 | `备案材料已交接` | `不通过/已终止`   | GovLiaison      | UC5 政府驳回           |
 | `待补充备案材料` | `备案材料已交接`  | SecurityOfficer | 补充后重新递交         |
-| `审批通过`       | `审批通过-待举办` | 系统自动        | UC5 审批通过后自动流转   |
-| `审批通过`       | `待安保方案设计`  | GovLiaison      | UC5 审批驳回逆向流转    |
 | 任意活跃状态     | `已取消`          | AdminStaff      | UC6 强制取消           |
 | 任意活跃状态     | `已延期`          | AdminStaff      | UC6 强制延期           |
 
@@ -183,7 +181,6 @@ class WorkflowService:
 | → `待安保方案设计`        | SecurityOfficer 角色    | "需进行安保方案设计"   |
 | → `待备案申请`            | SecurityOfficer 角色    | "材料齐备，可开始备案" |
 | → `待补充备案材料`        | SecurityOfficer 角色    | "需补充备案材料"       |
-| → `审批通过`              | SecurityManager 角色   | "批文已上传，待确认"   |
 | → `审批通过-待举办`       | AdminStaff 角色         | "活动可合法举办"       |
 | → `待安保方案设计` (驳回) | SecurityOfficer          | "安保方案被驳回需修改" |
 | → `已取消` / `已延期`     | 活动相关人              | 变更原因               |

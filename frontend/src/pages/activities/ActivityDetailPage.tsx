@@ -48,7 +48,7 @@ export default function ActivityDetailPage() {
   const permissions = userPermissions ?? [];
 
   const FILING_STATUSES = [
-    "待备案申请", "备案材料已交接", "审批通过", "审批通过-待举办",
+    "待备案申请", "备案材料已交接", "审批通过-待举办",
     "举办中", "已结束", "待补充备案材料", "不通过/已终止",
   ];
   const showFiling = activity?.status
@@ -301,12 +301,6 @@ export default function ActivityDetailPage() {
           activityId={id!}
           currentStatus={activity.status}
         />
-      )}
-
-      {/* UC6 removed — approval now auto-transitions to 审批通过-待举办 */}
-      {activity?.status === "审批通过" && (
-        <Alert type="success" showIcon title="已审批通过"
-          description="政府对接人已上传批文并审批通过。活动已获批准，即将进入举办阶段。" style={{ marginBottom: 16 }} />
       )}
 
       <Tabs
@@ -1199,7 +1193,7 @@ export default function ActivityDetailPage() {
                         const auditedCount = auditMaterials.filter(m => m.audit_round > 0).length;
                         const allAudited = auditMaterials.length > 0 && auditedCount === auditMaterials.length;
                         const allQualified = allAudited && auditMaterials.every(m => m.is_qualified);
-                        const targetStatus = approvalAction === "approve" ? "审批通过" : approvalAction === "revise" ? "待补充备案材料" : "不通过/已终止";
+                        const targetStatus = approvalAction === "approve" ? "审批通过-待举办" : approvalAction === "revise" ? "待补充备案材料" : "不通过/已终止";
                         return (
                           <div style={{ marginBottom: 16, padding: 16, border: "1px solid #1677ff", borderRadius: 8 }}>
                             <Typography.Title level={5}>政府对接 — 审批决策</Typography.Title>
@@ -1311,7 +1305,7 @@ export default function ActivityDetailPage() {
                                 } catch (e: any) { message.error(e?.response?.data?.detail || "操作失败"); }
                               }}
                               onCancel={() => setApprovalModalOpen(false)} okText="确认" cancelText="取消">
-                              {approvalAction === "approve" && "确认该活动审批通过？活动将进入「审批通过」状态。"}
+                              {approvalAction === "approve" && "确认该活动审批通过？活动将进入「审批通过-待举办」状态。"}
                               {approvalAction === "revise" && <><Typography.Paragraph type="secondary">请输入补件说明：</Typography.Paragraph>
                                 <Input.TextArea rows={3} value={approvalComment} onChange={(e) => setApprovalComment(e.target.value)} placeholder="说明需要补充的材料..." /></>}
                               {approvalAction === "reject" && <><Typography.Paragraph type="secondary">确认驳回该活动？活动将进入「不通过/已终止」状态。请填写驳回原因：</Typography.Paragraph>

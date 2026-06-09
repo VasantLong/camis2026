@@ -117,7 +117,7 @@
 - `- location: String` —— 举办地点
 - `- sponsor: String` —— 主办方
 - `- deadline: Date` —— 任务截止时间
-- `- status: String` —— 当前状态 (待设计/待安保/待备案/审批通过/取消/延期)
+- `- status: String` —— 当前状态 (待设计/待安保/待备案/审批通过-待举办/取消/延期)
 - `- applicationDate: Date` —— 申请时间
 
 **6. ActivityPlan (活动方案)**
@@ -563,7 +563,7 @@ Liaison->>System: 扫描并上传政府出具结果的电子版(PDF/图片)
 
 alt 政府审批通过 (主事件流)
     Liaison->>System: 标注审核状态为“通过”并保存
-    System->>System: 存储电子批文，更新项目状态为“审批通过”
+    System->>System: 存储电子批文，更新项目状态为”审批通过-待举办”
     System-->>Liaison: 提示保存成功，流程完结
 
 else 需补充材料 (备选事件流 4a)
@@ -1016,7 +1016,7 @@ sequenceDiagram autonumber
     DS->>DB: INSERT documents
 
     alt 审批通过
-        Liaison->>WS: transition(activity_id, “审批通过”)
+        Liaison->>WS: transition(activity_id, “审批通过-待举办”)
         WS->>DB: UPDATE status + 存储批文记录
         WS-->>Liaison: 保存成功
 
