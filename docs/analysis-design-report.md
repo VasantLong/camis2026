@@ -1587,24 +1587,47 @@ erDiagram
 
 ## 系统缺陷与优化方向
 
-### 已知缺陷
+### 已知缺陷与待改进项
 
-| 缺陷 | 说明 | 优先级 |
-|------|------|--------|
-| E2E 测试滞后 | v0.31.0 界面重构后浏览器测试脚本选择器失效，前端验证依赖人工测试 | 高 |
-| TemplateService 零测试 | 模板引擎作为系统最复杂的服务，缺乏后端集成测试覆盖 | 高 |
-| 旧权限残留 | `upload_approval`、`update_approval_status` 等废弃权限仍存在于数据库（详见 `docs/issues/legacy-permissions.md`） | 中 |
-| 审批状态概念混淆 | `ApprovalRecord.approval_status` 与 `Activity.status` 独立命名空间，前端曾因此出现 422 错误（详见 `docs/issues/approval-status-confusion.md`） | 中 |
-| 场地冲突 TOCTOU | 场地冲突检测（SELECT → INSERT）无数据库级唯一约束保护，极端并发场景可绕过 | 低 |
-| E2E 测试缺口 | 补件回路（UC5b）无浏览器测试、两步签署第二步未覆盖 | 中 |
+**数据模型**：
+
+| 项 | 说明 | 优先级 |
+|---|------|--------|
+| M:N join 表缺模型 | `security_plan_materials`、`filing_doc_materials` 仅有建表 DDL，无 SQLAlchemy ORM 模型，当前通过 raw SQL 操作 | 中 |
+| 旧权限残留 | `upload_approval`、`update_approval_status` 在 DB 中存在但无代码引用，仍分配给 GovLiaison 角色（详见 `docs/issues/legacy-permissions.md`） | 中 |
+| 审批状态命名混淆 | `ApprovalRecord.approval_status` 与 `Activity.status` 共用中文字符串值且语义重叠，前端曾因此出现 422 错误（详见 `docs/issues/approval-status-confusion.md`） | 中 |
+
+**测试体系**：
+
+| 项 | 说明 | 优先级 |
+|---|------|--------|
+| TemplateService 零测试 | 模板引擎是系统最复杂的服务（DOCX 渲染、版本管理、签署流程），缺乏后端集成测试 | 高 |
+| E2E 测试滞后 | v0.31.0 界面重构（自定义 Tab Bar 替代 antd Tabs）导致 13 个浏览器测试脚本中 3 个选择器失效，前端回归验证依赖人工测试 | 高 |
+| E2E 覆盖缺口 | 补件回路（UC5b）无浏览器测试；两步签署 TC4 仅覆盖第一步 | 中 |
+
+**安全与健壮性**：
+
+| 项 | 说明 | 优先级 |
+|---|------|--------|
+| 场地冲突 TOCTOU | 冲突检测（SELECT → INSERT）无 DB 级唯一约束保护，极端并发下两个 Promoter 同时在同一场地立项可能绕过 | 低 |
+| MinIO 孤儿对象 | 上传先写 MinIO 后写 DB，进程 crash 在 commit 前留孤儿文件——已有 `cleanup_orphans.py` 定期扫描清理 | 低 |
+| notifications FK | `notifications.user_id` FK 为 CASCADE，应改为 RESTRICT（通知是独立审计记录，不受 user 生命周期影响） | 低 |
+
+**用户体验**：
+
+| 项 | 说明 | 优先级 |
+|---|------|--------|
+| 移动端适配 | 仅登录页做了响应式处理，活动详情页等核心页面在小屏设备上布局拥挤 | 中 |
+| 驳回后防重复提交 | SecurityOfficer 被驳回后未生成新版本即可重新点击"提交审核"，可能形成无效循环（详见 `docs/issues/post-reject-improvements.md`） | 低 |
+| 消息中心完善 | 当前仅系统工作流通知；邮箱验证成功、密码变更等用户操作类通知尚未覆盖 | 低 |
 
 ### 优化方向
 
-- **测试体系完善**：补充 TemplateService 后端集成测试，修复 E2E 脚本 DOM 选择器，将 E2E 测试纳入 CI 流程
-- **权限数据清理**：通过 Alembic migration 移除 `upload_approval`、`update_approval_status` 废弃权限及相关角色关联
-- **审批字段重构**：将 `ApprovalRecord.approval_status` 与 `Activity.status` 彻底解耦，使用独立英文枚举值（`approved`/`revise`/`rejected`），前端变量名同步更新
-- **性能优化**：活动列表查询在高数据量场景下考虑引入 Redis 缓存；月报 PDF 生成可预计算常用月份的缓存
-- **移动端适配**：当前仅登录页做了移动端响应式处理，活动详情页等核心页面在小屏设备上体验有待改进
+- **测试体系完善**：补充 TemplateService 后端集成测试，修复 E2E 脚本 DOM 选择器（`.ant-tabs-tab` → 自定义 Button），将 E2E 测试纳入 CI 流水线
+- **数据模型补齐**：为 3 张 M:N join 表添加 SQLAlchemy 模型；通过 Alembic migration 移除废弃权限；审批字段改用独立英文枚举（`approved`/`revise`/`rejected`）与活动状态解耦
+- **安全加固**：评估在高并发场景下引入数据库级唯一约束或 advisory lock 替代应用层检测；notifications FK 修正为 RESTRICT
+- **用户体验提升**：核心页面移动端响应式布局；驳回后防重复提交；消息中心补充用户操作类通知
+- **性能优化**：活动列表查询在高数据量场景下引入 Redis 缓存；月报 PDF 生成预计算常用月份快照
 
 ---
 
