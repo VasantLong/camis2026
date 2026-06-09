@@ -581,8 +581,6 @@ graph TD
 | 角色 | 身份 | 核心任务 | 使用频率 | 同时处理量 |
 |------|------|---------|---------|-----------|
 | Promoter（宣策部） | 活动立项发起人 | 创建立项 → 编制方案 → 提交安保审核 | 持续进行 | 2-3 个活动 |
-> 表3-5 系统核心页面
-
 | SecurityOfficer（安保部） | 安保方案编制者 | 查阅方案 → 编制安保预案 → 签署材料 → 打包备案 | 活动提交后 | 按待办量 |
 | SecurityManager（安保部负责人） | 安保方案审批者 | 签署双表+确认方案（驳回罕见） | 编制完成后 | 按待办量 |
 | GovLiaison（政府对接） | 企业内政府窗口对接人 | 每日集中审查材料 → 上传批文 → 标注结果 | 每天集中一次 | 批量 |
@@ -593,6 +591,8 @@ graph TD
 关键行为特征：生产环境每人单一角色；Promoter 方案提交后不被驳回（单向流程）；驳回仅安全部内部循环（SecurityManager → SecurityOfficer）；Dashboard 用于向上汇报而非问题处理；强制变更为不可抗力紧急场景。这些特征直接决定了界面设计中角色视图分离和操作入口的条件显隐策略。
 
 **核心页面**：
+
+> 表3-5 系统核心页面
 
 | 页面 | 功能 | 关键组件 |
 |------|------|----------|
@@ -649,14 +649,14 @@ graph TD
 
 **权限中英对照**：
 
+> 表3-7 RBAC 权限中英对照
+
 | 权限标识（代码） | 中文含义 | 授予角色 |
 |-----------------|---------|---------|
 | `create_activity` | 创建活动 | Promoter |
 | `view_owned_activity` | 查看所属活动 | 全部角色 |
 | `submit_plan` | 提交方案 | Promoter |
 | `upload_document` | 上传文档 | Promoter, SecurityOfficer, GovLiaison |
-> 表3-7 RBAC 权限中英对照
-
 | `manage_security` | 管理安保方案 | SecurityOfficer, SecurityManager |
 | `reject_approval` | 驳回审批 | SecurityManager |
 | `pack_filing` | 打包备案 | SecurityOfficer |
@@ -679,10 +679,10 @@ graph TD
 
 服务层是系统的业务逻辑核心，11 个服务按职责分为三组：核心业务（WorkflowService、TemplateService、FilingService、ActivityService）、支撑服务（DocumentService、NotificationService、DashboardService、ReportDataService、ReportRenderer）、独立服务（AuthService、AdminService）。
 
-| 服务 | 关联数据库表 | 服务接口（关键方法） |
-|------|-------------|---------------------|
 > 表3-8 服务层设计总览
 
+| 服务 | 关联数据库表 | 服务接口（关键方法） |
+|------|-------------|---------------------|
 | WorkflowService | `activities`, `activity_status_log` | `transition()`, `reject()`, `force_cancel()`, `force_postpone()` |
 | TemplateService | `activity_plans`, `security_plans`, `filled_documents` | `get_schema()`, `generate()`, `sign_and_finalize()`, `sign_manager_commitment()`, `_render_docx()` |
 | FilingService | `key_materials`, `filing_docs`, `material_audits`, `approval_records` | `list_materials()`, `pack_materials()`, `confirm_handover()`, `audit_material()`, `create_approval_record()` |
