@@ -2,10 +2,10 @@ import pytest
 
 
 @pytest.mark.asyncio
-async def test_download_redirect(client, auth_token, test_activity):
+async def test_download_redirect(client, promoter_token, test_activity):
     upload_resp = await client.post(
         "/documents/upload",
-        headers={"Authorization": f"Bearer {auth_token}"},
+        headers={"Authorization": f"Bearer {promoter_token}"},
         data={"activity_id": test_activity},
         files={"file": ("data.pdf", b"%PDF-1.4 test content", "application/pdf")},
     )
@@ -13,7 +13,7 @@ async def test_download_redirect(client, auth_token, test_activity):
 
     resp = await client.get(
         f"/documents/{doc_id}",
-        headers={"Authorization": f"Bearer {auth_token}"},
+        headers={"Authorization": f"Bearer {promoter_token}"},
         follow_redirects=False,
     )
     assert resp.status_code == 302
@@ -21,10 +21,10 @@ async def test_download_redirect(client, auth_token, test_activity):
 
 
 @pytest.mark.asyncio
-async def test_download_not_found(client, auth_token):
+async def test_download_not_found(client, promoter_token):
     resp = await client.get(
         "/documents/00000000-0000-0000-0000-000000000000",
-        headers={"Authorization": f"Bearer {auth_token}"},
+        headers={"Authorization": f"Bearer {promoter_token}"},
     )
     assert resp.status_code == 404
 

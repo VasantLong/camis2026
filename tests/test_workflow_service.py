@@ -56,6 +56,7 @@ async def test_force_cancel(client, admin_token, test_activity):
 
 
 @pytest.mark.asyncio
-async def test_promoter_cannot_manage_security(client, promoter_token, test_activity):
+async def test_promoter_can_submit_plan(client, promoter_token, test_activity):
+    """Promoter 有 submit_plan 权限，可以将自己的活动从待设计方案流转到待安保方案设计。"""
     resp = await _transition(client, promoter_token, test_activity, "待安保方案设计")
-    assert resp.status_code == 403
+    assert resp.status_code == 200

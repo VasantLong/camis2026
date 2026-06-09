@@ -28,12 +28,13 @@ async def auth_token(client):
 
 @pytest_asyncio.fixture
 async def promoter_token(client):
-    """用户注册后赋予 Promoter 角色。"""
+    """用户注册后赋予 Promoter 角色，设置联系方式。"""
     suffix = uuid.uuid4().hex[:8]
     resp = await client.post("/auth/register", json={
         "email": f"promoter_{suffix}@test.com",
         "password": "test1234",
         "display_name": f"promoter_{suffix}",
+        "contact_phone": "13800138000",
     })
     token = resp.json()["access_token"]
     me = await client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})

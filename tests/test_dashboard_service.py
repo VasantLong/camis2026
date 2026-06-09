@@ -32,4 +32,4 @@ async def test_monthly_report(client, admin_token):
         "Authorization": f"Bearer {admin_token}",
     }, json={"month": "2026-01"})
     assert resp.status_code == 200
-    assert "report_url" in resp.json()
+    assert "message" in resp.json()

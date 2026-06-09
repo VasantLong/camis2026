@@ -2,10 +2,10 @@ import pytest
 
 
 @pytest.mark.asyncio
-async def test_upload_success(client, auth_token, test_activity):
+async def test_upload_success(client, promoter_token, test_activity):
     resp = await client.post(
         "/documents/upload",
-        headers={"Authorization": f"Bearer {auth_token}"},
+        headers={"Authorization": f"Bearer {promoter_token}"},
         data={"activity_id": test_activity, "tags": "doc,test"},
         files={"file": ("hello.pdf", b"%PDF-1.4 hello world", "application/pdf")},
     )
@@ -30,10 +30,10 @@ async def test_upload_unauthenticated(client, test_activity):
 
 
 @pytest.mark.asyncio
-async def test_upload_invalid_format(client, auth_token, test_activity):
+async def test_upload_invalid_format(client, promoter_token, test_activity):
     resp = await client.post(
         "/documents/upload",
-        headers={"Authorization": f"Bearer {auth_token}"},
+        headers={"Authorization": f"Bearer {promoter_token}"},
         data={"activity_id": test_activity},
         files={"file": ("virus.exe", b"x", "application/x-msdownload")},
     )
