@@ -14,6 +14,8 @@ import {
   Tooltip,
   Image,
   App,
+  Row,
+  Col,
 } from "antd";
 import { PlusOutlined, DeleteOutlined, UploadOutlined, QuestionCircleOutlined, CloseOutlined } from "@ant-design/icons";
 import type { SchemaResponse, FieldDef, GenerateResponse } from "@/types/template";
@@ -471,7 +473,16 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
   return (
     <>
       <Form form={form} layout="vertical" scrollToFirstError disabled={loading || submitting || disabled} onValuesChange={handleValuesChange}>
-        {visibleFields(schema.fields).map((f) => renderField(f, changedFields.has(f.name)))}
+        <Row gutter={16}>
+          {visibleFields(schema.fields).map((f) => {
+            const isNarrow = ["date", "number", "select"].includes(f.ui_type);
+            return (
+              <Col key={f.name} span={isNarrow ? 12 : 24}>
+                {renderField(f, changedFields.has(f.name))}
+              </Col>
+            );
+          })}
+        </Row>
         {!disabled && (
           <Form.Item>
             <Space>
