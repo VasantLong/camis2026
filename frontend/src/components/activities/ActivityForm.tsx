@@ -35,7 +35,7 @@ export default function ActivityForm({ onSubmit, loading, initialValues }: Props
             <Input placeholder="如：2026年春节文旅嘉年华" maxLength={255} />
           </Form.Item>
         </Col>
-        <Col span={12}>
+        <Col span={8}>
           <Form.Item
             name="type"
             label="活动类型"
@@ -44,7 +44,7 @@ export default function ActivityForm({ onSubmit, loading, initialValues }: Props
             <Select placeholder="选择活动类型" options={ACTIVITY_TYPES.map((t) => ({ value: t, label: t }))} />
           </Form.Item>
         </Col>
-        <Col span={12}>
+        <Col span={8}>
           <Form.Item
             name="estimated_time"
             label="预计举办时间"
@@ -60,7 +60,7 @@ export default function ActivityForm({ onSubmit, loading, initialValues }: Props
             />
           </Form.Item>
         </Col>
-        <Col span={12}>
+        <Col span={8}>
           <Form.Item
             name="location"
             label="活动地点"
@@ -69,7 +69,7 @@ export default function ActivityForm({ onSubmit, loading, initialValues }: Props
             <Select placeholder="选择地点类型" options={LOCATION_TYPES.map((t) => ({ value: t, label: t }))} />
           </Form.Item>
         </Col>
-        <Col span={12}>
+        <Col span={8}>
           <Form.Item
             name="sponsor"
             label="主办方"
@@ -81,7 +81,7 @@ export default function ActivityForm({ onSubmit, loading, initialValues }: Props
             <Input placeholder="如：市文旅局" maxLength={255} />
           </Form.Item>
         </Col>
-        <Col span={12}>
+        <Col span={8}>
           <Form.Item
             name="sponsor_contact"
             label="主办方联系人"
@@ -93,7 +93,7 @@ export default function ActivityForm({ onSubmit, loading, initialValues }: Props
             <Input placeholder="如：张三" maxLength={128} />
           </Form.Item>
         </Col>
-        <Col span={12}>
+        <Col span={8}>
           <Form.Item
             name="sponsor_phone"
             label="主办方联系方式"
@@ -105,7 +105,7 @@ export default function ActivityForm({ onSubmit, loading, initialValues }: Props
             <Input placeholder="如：13800138000" maxLength={64} />
           </Form.Item>
         </Col>
-        <Col span={12}>
+        <Col span={8}>
           <Form.Item
             name="deadline"
             label="截止日期"

@@ -475,9 +475,13 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
       <Form form={form} layout="vertical" scrollToFirstError disabled={loading || submitting || disabled} onValuesChange={handleValuesChange}>
         <Row gutter={16}>
           {visibleFields(schema.fields).map((f) => {
-            const isNarrow = ["date", "number", "select"].includes(f.ui_type);
+            const n = f.ui_type;
+            const span =
+              n === "textarea" ? 24 :
+              n === "text" || n === "repeater" || n === "signature" ? 24 :
+              8; // date, number, select → 3 per row
             return (
-              <Col key={f.name} span={isNarrow ? 12 : 24}>
+              <Col key={f.name} span={span}>
                 {renderField(f, changedFields.has(f.name))}
               </Col>
             );
