@@ -39,6 +39,7 @@ export interface ActivityListParams {
   keyword?: string;
   date_from?: string;
   date_to?: string;
+  sort?: string;
   page?: number;
   size?: number;
   tab?: string;

@@ -47,6 +47,7 @@ class ActivityListParams(BaseModel):
     keyword: str | None = None
     date_from: datetime | None = None
     date_to: datetime | None = None
+    sort: str = Field(default="created", description="created | latest_operation")
     page: int = Field(default=1, ge=1)
     size: int = Field(default=20, ge=1, le=100)
 

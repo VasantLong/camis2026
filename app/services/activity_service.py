@@ -139,8 +139,25 @@ class ActivityService:
         total = (await self.db.execute(count_query)).scalar() or 0
 
         offset = (params.page - 1) * params.size
+        if params.sort == "latest_operation":
+            from sqlalchemy import func as safunc
+            latest_subq = (
+                select(
+                    ActivityStatusLog.activity_id,
+                    safunc.max(ActivityStatusLog.created_at).label("latest_op")
+                )
+                .group_by(ActivityStatusLog.activity_id)
+                .subquery()
+            )
+            query = query.outerjoin(
+                latest_subq, latest_subq.c.activity_id == Activity.id
+            ).order_by(
+                safunc.coalesce(latest_subq.c.latest_op, Activity.created_at).desc()
+            )
+        else:
+            query = query.order_by(Activity.created_at.desc())
         rows = (await self.db.execute(
-            query.order_by(Activity.created_at.desc()).offset(offset).limit(params.size)
+            query.offset(offset).limit(params.size)
         )).scalars().all()
 
         for r in rows:

@@ -11,6 +11,7 @@ export default function ActivityFilters() {
   const keyword = searchParams.get("keyword") || undefined;
   const dateFrom = searchParams.get("date_from") || undefined;
   const dateTo = searchParams.get("date_to") || undefined;
+  const sort = searchParams.get("sort") || "created";
 
   const updateParam = (key: string, value: string | undefined) => {
     const next = new URLSearchParams(searchParams);
@@ -53,6 +54,17 @@ export default function ActivityFilters() {
             updateParam("keyword", (e.target as HTMLInputElement).value)
           }
           onBlur={(e) => updateParam("keyword", e.target.value || undefined)}
+        />
+      </Form.Item>
+      <Form.Item label="排序">
+        <Select
+          style={{ width: 160 }}
+          value={sort}
+          onChange={(v) => updateParam("sort", v)}
+          options={[
+            { label: "创建时间", value: "created" },
+            { label: "最近操作", value: "latest_operation" },
+          ]}
         />
       </Form.Item>
       <Form.Item label="日期范围">

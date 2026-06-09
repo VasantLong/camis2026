@@ -22,6 +22,7 @@ export default function ActivityListPage() {
     keyword: searchParams.get("keyword") || undefined,
     date_from: searchParams.get("date_from") || undefined,
     date_to: searchParams.get("date_to") || undefined,
+    sort: searchParams.get("sort") || "created",
     page: Number(searchParams.get("page") || "1"),
     size: Number(searchParams.get("size") || "20"),
     tab,
