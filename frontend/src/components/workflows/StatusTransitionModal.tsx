@@ -56,8 +56,16 @@ export default function StatusTransitionModal({
         <Tag color={STATUS_COLOR_MAP[toStatus] || "blue"}>{toStatus}</Tag>
       </p>
       <Form form={form} layout="vertical" onFinish={handleSubmit}>
-        <Form.Item name="comment" label="备注（可选）">
-          <Input.TextArea maxLength={2000} rows={3} />
+        <Form.Item
+          name="comment"
+          label={toStatus === "已结束" ? "结束原因" : "备注（可选）"}
+          rules={toStatus === "已结束" ? [{ required: true, message: "请填写结束原因" }] : undefined}
+        >
+          <Input.TextArea
+            maxLength={2000}
+            rows={3}
+            placeholder={toStatus === "已结束" ? "如：活动已于X月X日顺利举办完成" : undefined}
+          />
         </Form.Item>
       </Form>
     </Modal>
