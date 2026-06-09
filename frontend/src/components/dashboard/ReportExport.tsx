@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Card, DatePicker, Space, message } from "antd";
+import { Button, Card, DatePicker, Space, App } from "antd";
 import { DownloadOutlined, ExportOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { dashboardApi } from "@/api/dashboard";
@@ -8,6 +8,7 @@ const THIS_MONTH = dayjs().format("YYYY-MM");
 const LAST_MONTH = dayjs().subtract(1, "month").format("YYYY-MM");
 
 export default function ReportExport() {
+  const { message } = App.useApp();
   const [month, setMonth] = useState<string>(THIS_MONTH);
   const [generating, setGenerating] = useState(false);
   const [downloading, setDownloading] = useState(false);

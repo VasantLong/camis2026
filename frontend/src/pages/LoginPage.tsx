@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
-import { Form, Input, Button, Card, Typography, Alert, message } from "antd";
+import { Form, Input, Button, Card, Typography, Alert, App } from "antd";
 import { MailOutlined, LockOutlined } from "@ant-design/icons";
 import { authApi } from "@/api/auth";
 import { useAuthStore } from "@/stores/authStore";
@@ -18,6 +18,7 @@ function useIsMobile() {
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const isMobile = useIsMobile();
+  const { message } = App.useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
