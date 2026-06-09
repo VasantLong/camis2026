@@ -1,43 +1,55 @@
 # UI 改进
 
-分支: `feat/workflow-enhance`
+分支: `feat/workflow-enhance` → `feat/collapsible-sidebar`
 
-## 待实施
+## 已完成 (v0.31.0)
 
-### 1. 侧边栏展开/收起优化
+### 1. 侧边栏展开/收起优化 ✅
 
-当前侧边栏固定宽度，无折叠功能。需支持展开/收起切换，收起时仅显示图标，释放水平空间。antd 的 `Sider` 组件内置 `collapsible` 属性，优先使用。
+已实施：默认折叠（72px 图标模式），悬停展开显示完整菜单标签。antd `Sider` 原生 `collapsible` 属性 + `onMouseEnter/Leave`。
 
-### 2. 消息中心——登录注册相关消息
+### 2. 消息中心——登录注册相关消息 ✅
 
-当前消息中心仅包含工作流转换通知（通过 `notify_role` 批量推送）。需添加用户登录/注册相关消息：
+已实施：
+- 新用户注册欢迎消息：`AuthService.register_user()` 调用 `NotificationService.send_reminder()`
+- 角色审批通过/驳回通知：`AdminService.approve/reject_role_request()` 发送通知
 
-- 新用户注册成功后的欢迎消息
-- 首次登录提示
-- 邮箱/密码变更通知
-- 角色审批通过/驳回通知
+### 3. 登录后默认进入工作台 ✅
 
-消息类型扩展 `Notification.channel` 字段值（当前仅有 `system`），可新增 `auth` 渠道。
+已确认：现有逻辑已正确——`LoginPage` 取 `state.from || "/index"`，`ProtectedRoute` 传递 `state.from`。无需改动。
 
-### 3. 登录后默认进入工作台
+### 4. 表单样式与排列优化 ✅
 
-当前登录后重定向行为不一致（有时到 `/activities`，有时到 `/index`）。需统一为：所有角色（包括刚注册、无权限的新用户）登录后默认进入 `/index`（工作台）。
+已实施：`TemplateForm` 和 `ActivityForm` 均使用 `Row` + `Col` 布局。窄字段（date/number/select）`span={8}` 三列同行，宽字段（textarea）`span={24}` 独占一行。
 
-检查 `login_as` 函数和 `ProtectedRoute` 组件的重定向逻辑。
+## 已完成（额外）
 
-### 4. 表单样式与排列优化
+### 5. 深浅主题切换 ✅
 
-当前 `TemplateForm` 所有字段垂直排列，每个字段独占一行。需优化为：
+`useTheme` React Context + antd `ConfigProvider` theme algorithm + localStorage 持久化。Header 灯泡按钮切换太阳/月亮图标。
 
-- **小字段合并**：将两个窄字段（如日期、数字、选择器）放在同一行，使用 `Row` + `Col` 或 CSS Grid
-- **全宽字段**：textarea 类型保持独占一行
-- **响应式**：小屏幕自动折回单列
+### 6. 活动标题与 Tab 同行 ✅
 
-具体分组建议（活动方案）：
-- 第 1 行：开始时间 + 结束时间（2 个 date）
-- 第 2 行：是否有开幕式 + 开幕式开始 + 开幕式结束
-- 第 3 行：是否有演员嘉宾 + 演员数量 + 嘉宾数量
-- 第 4 行：工作人员数量 + 平日人数 + 联系方式
-- 独立行：活动主要内容、搭建方案（textarea 独占）
+自定义 Tab Bar：标题行显示返回按钮+活动名+状态标签+5 个 Tab 切换按钮（flex-wrap），下方 `<Tabs tabBarStyle={{ display: "none" }}>` 仅渲染内容。
 
-实施方式：在 `renderField` 中根据 `ui_type` 返回不同 `span`，外层包裹 `Row`。
+### 7. Tab 显隐按状态+角色 ✅
+
+- 基本信息/状态历史：始终可见
+- 活动方案：`canViewPlan`
+- 安保方案：`canViewSecurity` + status ≠ 待设计方案
+- 备案：`showFiling`（FILING_STATUSES）
+- 文档：非 GovLiaison 可见
+- GovLiaison：仅基本信息+历史+备案
+
+### 8. 其他优化 ✅
+
+- 活动方案锁定提示（所有非待设计方案状态显示"方案已锁定"）
+- 已结束活动展示结束时间+操作人+原因
+- 状态历史空态统一图标
+- 标记结束必填原因
+- 活动列表排序（创建时间/最近操作）
+- Logo 三处部署（侧边栏/登录页/favicon）
+- 侧边栏暖灰色背景 + Menu theme="dark"
+- 权限中文化显示
+- antd v6 兼容修复（message/Statistic）
+- 侧边栏高亮修复（URL 参数解析）
