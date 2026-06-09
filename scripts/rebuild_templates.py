@@ -107,6 +107,22 @@ def _reduce_cell_spacing(cell):
         pf.space_after = Pt(0)
 
 
+def _trim_empty_paragraphs(cell):
+    """Remove all empty paragraphs from a cell, leaving only paragraphs with content."""
+    # Keep paragraphs that have non-whitespace text in runs
+    to_remove = []
+    for p in cell.paragraphs:
+        text = ''.join(r.text for r in p.runs)
+        # Check both the paragraph text and run text for emptiness
+        is_empty = not text.strip()
+        # Also check XML-level emptiness (no child elements like w:r)
+        has_runs = len(p._element.findall('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}r')) > 0
+        if is_empty:
+            to_remove.append(p)
+    for p in to_remove:
+        p._element.getparent().remove(p._element)
+
+
 # ---------------------------------------------------------------------------
 # activity_plan — build new table from scratch
 # ---------------------------------------------------------------------------
@@ -210,52 +226,50 @@ def build_security_plan():
 
 
 # ---------------------------------------------------------------------------
-# risk_assessment — build from scratch, source-inspired layout
+# risk_assessment — edit converted source, preserve source formatting
 # ---------------------------------------------------------------------------
 def build_risk_assessment():
-    """Build risk assessment from scratch with clean table structure.
-    5 rows × 2 cols, compact spacing. Labels: 楷体 bold. Values: 仿宋.
-    """
-    from docx.shared import Pt as Pt2
+    """Edit converted source DOCX. Delete 4 rows after 项目, replace content,
+    preserve ALL source formatting (table style, borders, merged cells)."""
+    doc = Document(str(SRC_DIR / "风险评估报备表.docx"))
 
-    doc = Document()
-    style = doc.styles['Normal']
-    style.font.name = FONT_BODY
-    style.font.size = Pt2(10.5)
-    style.paragraph_format.space_before = Pt2(0)
-    style.paragraph_format.space_after = Pt2(0)
+    # --- Set fonts ---
+    for p in doc.paragraphs:
+        for r in p.runs:
+            if r.text.strip():
+                _set_font(r, FONT_BODY, 10.5)
 
-    # Title
-    title_p = doc.add_paragraph()
-    title_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    title_run = title_p.add_run("风险评估报备表")
-    _set_font(title_run, FONT_TITLE, 22, bold=True)
+    # --- Title ---
+    _replace_para_text(doc.paragraphs[0], "风险评估报备表",
+                       font=FONT_TITLE, size=22, bold=True,
+                       alignment=WD_ALIGN_PARAGRAPH.CENTER)
 
-    # Header lines
-    h1 = doc.add_paragraph()
-    h1_run = h1.add_run("填报单位（盖章）：{{ reporting_unit }}         时间：{{ report_date }}")
-    _set_font(h1_run, FONT_BODY, 10.5)
+    # --- Header lines ---
+    _replace_para_text(doc.paragraphs[1],
+                       "填报单位（盖章）：{{ reporting_unit }}         时间：{{ report_date }}")
+    _replace_para_text(doc.paragraphs[2],
+                       "联系人：{{ contact_person }}         联系电话：{{ contact_phone }}")
 
-    h2 = doc.add_paragraph()
-    h2_run = h2.add_run("联系人：{{ contact_person }}         联系电话：{{ contact_phone }}")
-    _set_font(h2_run, FONT_BODY, 10.5)
-
-    # Table — 5 rows × 2 cols
-    table = _add_bordered_table(doc, 5, 2)
+    # --- Edit table ---
+    table = doc.tables[0]
 
     # Row 0: 项目名称
-    _add_cell_text(table.cell(0, 0), "项目名称", FONT_LABEL, 10.5, bold=True)
-    _add_cell_text(table.cell(0, 1), "{{ project_name }}")
-    _reduce_cell_spacing(table.cell(0, 1))
+    _replace_cell_text(table.cell(0, 0), "项目名称", font=FONT_LABEL, size=10.5, bold=True)
+    _replace_cell_text(table.cell(0, 1), "{{ project_name }}", font=FONT_BODY, size=10.5)
 
     # Row 1: 项目
-    _add_cell_text(table.cell(1, 0), "项目", FONT_LABEL, 10.5, bold=True)
-    _add_cell_text(table.cell(1, 1), "重大活动    {{ activity_type }}")
-    _reduce_cell_spacing(table.cell(1, 1))
+    _replace_cell_text(table.cell(1, 0), "项目", font=FONT_LABEL, size=10.5, bold=True)
+    _replace_cell_text(table.cell(1, 1), "重大活动    {{ activity_type }}", font=FONT_BODY, size=10.5)
 
-    # Row 2: 项目简要情况
-    _add_cell_text(table.cell(2, 0), "项目简要情况", FONT_LABEL, 10.5, bold=True)
+    # Delete rows 2-5 (checkbox, 评估结论, 结果运用, 决策实施)
+    for _ in range(4):
+        _remove_row(table, 2)
+
+    # Now table has 5 rows. Old rows [0,1,6,7,8] → new rows [0,1,2,3,4]
+
+    # Row 2 (was 6): 项目简要情况 — span=2 merged, write to cell(2,1)
     detail = (
+        "项目简要情况：\n"
         "主办方：{{ sponsor }}\n"
         "承办方：{{ organizer }}\n"
         "活动参与方：{{ participants }}\n"
@@ -271,22 +285,27 @@ def build_risk_assessment():
         "    采录方式：{{ media_channel }}    媒体名称：{{ media_name }}（{{ media_type }}）"
         "{% endif %}"
     )
-    _replace_cell_text(table.cell(2, 1), detail)
+    _replace_cell_text(table.cell(2, 1), detail, font=FONT_BODY, size=10.5)
     _reduce_cell_spacing(table.cell(2, 1))
+    _trim_empty_paragraphs(table.cell(2, 1))
 
-    # Row 3: 主要风险因素
-    _add_cell_text(table.cell(3, 0), "主要风险因素", FONT_LABEL, 10.5, bold=True)
+    # Row 3 (was 7): 主要风险因素 — span=2 merged
     _replace_cell_text(table.cell(3, 1),
-                       "{% for rf in risk_factors %}{{ loop.index }}. {{ rf }}\n{% endfor %}")
+                       "主要风险因素：\n"
+                       "{% for rf in risk_factors %}{{ loop.index }}. {{ rf }}\n{% endfor %}",
+                       font=FONT_BODY, size=10.5)
     _reduce_cell_spacing(table.cell(3, 1))
+    _trim_empty_paragraphs(table.cell(3, 1))
 
-    # Row 4: 防范化解措施
-    _add_cell_text(table.cell(4, 0), "防范化解措施", FONT_LABEL, 10.5, bold=True)
+    # Row 4 (was 8): 防范化解措施 — span=2 merged
     _replace_cell_text(table.cell(4, 1),
-                       "{% for mm in mitigation_measures %}{{ loop.index }}. {{ mm }}\n{% endfor %}")
+                       "防范化解措施：\n"
+                       "{% for mm in mitigation_measures %}{{ loop.index }}. {{ mm }}\n{% endfor %}",
+                       font=FONT_BODY, size=10.5)
     _reduce_cell_spacing(table.cell(4, 1))
+    _trim_empty_paragraphs(table.cell(4, 1))
 
-    # Signature section
+    # --- Signature section ---
     for text in [
         "评估主体负责人签字：",
         "{{ assessor_signature }}",
@@ -301,6 +320,13 @@ def build_risk_assessment():
     output_path = TEMPLATES_ROOT / "risk_assessment" / "template.docx"
     doc.save(str(output_path))
     print(f"  ✅ risk_assessment → {output_path}")
+
+
+def _remove_row(table, idx):
+    """Remove a table row by index."""
+    row = table.rows[idx]
+    tr = row._tr
+    tr.getparent().remove(tr)
 
 
 # ---------------------------------------------------------------------------
