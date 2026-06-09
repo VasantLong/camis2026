@@ -76,113 +76,113 @@ graph TD
 ```mermaid
 classDiagram
     class User {
-        +id: UUID
-        +email: String
-        +display_name: String
-        +is_active: Boolean
-        +contact_phone: String
+        +UUID id
+        +String email
+        +String display_name
+        +Boolean is_active
+        +String contact_phone
     }
 
     class Role {
-        +id: UUID
-        +name: String
-        +description: String
+        +UUID id
+        +String name
+        +String description
     }
 
     class Permission {
-        +id: UUID
-        +name: String
-        +resource: String
-        +action: String
+        +UUID id
+        +String name
+        +String resource
+        +String action
     }
 
     class Activity {
-        +id: UUID
-        +name: String
-        +type: String
-        +estimated_time: DateTime
-        +location: String
-        +sponsor: String
-        +sponsor_contact: String
-        +sponsor_phone: String
-        +deadline: DateTime
-        +status: String
+        +UUID id
+        +String name
+        +String type
+        +DateTime estimated_time
+        +String location
+        +String sponsor
+        +String sponsor_contact
+        +String sponsor_phone
+        +DateTime deadline
+        +String status
     }
 
     class ActivityPlan {
-        +id: UUID
-        +created_at: DateTime
-        +updated_at: DateTime
+        +UUID id
+        +DateTime created_at
+        +DateTime updated_at
     }
 
     class SecurityPlan {
-        +id: UUID
-        +risk_level: String
-        +audit_status: String
-        +sign_time: DateTime
-        +last_reject_reason: String
-        +rejected_at: DateTime
-        +reject_count: Integer
+        +UUID id
+        +String risk_level
+        +String audit_status
+        +DateTime sign_time
+        +String last_reject_reason
+        +DateTime rejected_at
+        +Integer reject_count
     }
 
     class FilingDoc {
-        +id: UUID
-        +is_qualified: Boolean
-        +handover_status: String
-        +pack_url: String
-        +generated_at: DateTime
+        +UUID id
+        +Boolean is_qualified
+        +String handover_status
+        +String pack_url
+        +DateTime generated_at
     }
 
     class ApprovalRecord {
-        +id: UUID
-        +approval_status: String
-        +attachment_url: String
-        +approval_date: DateTime
-        +rectification_opinion: String
+        +UUID id
+        +String approval_status
+        +String attachment_url
+        +DateTime approval_date
+        +String rectification_opinion
     }
 
     class ImplementationRecord {
-        +id: UUID
-        +change_status: String
-        +change_reason: String
-        +archived_at: DateTime
+        +UUID id
+        +String change_status
+        +String change_reason
+        +DateTime archived_at
     }
 
     class KeyMaterial {
-        +id: UUID
-        +name: String
-        +material_type: String
-        +is_qualified: Boolean
-        +sign_status: String
-        +audit_round: Integer
-        +opinion: String
-        +upload_time: DateTime
+        +UUID id
+        +String name
+        +String material_type
+        +Boolean is_qualified
+        +String sign_status
+        +Integer audit_round
+        +String opinion
+        +DateTime upload_time
     }
 
     class MaterialAudit {
-        +id: UUID
-        +action: String
-        +conclusion: String
-        +opinion: String
-        +created_at: DateTime
+        +UUID id
+        +String action
+        +String conclusion
+        +String opinion
+        +DateTime created_at
     }
 
     class ActivityRule {
-        +id: UUID
-        +rule_type: String
-        +effective_time: DateTime
-        +effective_reason: String
-        +resolve_status: String
+        +UUID id
+        +String rule_type
+        +DateTime effective_time
+        +String effective_reason
+        +String resolve_status
     }
 
     class UserRole {
-        +user_id: UUID
-        +role_id: UUID
+        +UUID user_id
+        +UUID role_id
     }
 
     class RolePermission {
-        +role_id: UUID
-        +permission_id: UUID
+        +UUID role_id
+        +UUID permission_id
     }
 
     User "1" -- "*" UserRole
