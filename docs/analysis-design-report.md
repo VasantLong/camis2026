@@ -10,6 +10,8 @@
 
 系统涉及七类参与者，按职责划分为三个层级：
 
+> 表2-1 系统参与者角色
+
 | 层级 | 角色 | 职责 |
 |------|------|------|
 | 主办方 | Promoter（宣策部人员） | 立项、编制活动方案 |
@@ -45,6 +47,9 @@ graph TD
     UC4 -.-> |交接完成后| UC5
     UC5 -.-> |审批通过<br>系统自动流转| UC6
 ```
+> 图2-1 用例关系图（StarUML 正式用例图见上文占位符）
+
+> 表2-2 UC1 立项用例规约
 
 #### UC1 立项
 
@@ -63,6 +68,8 @@ graph TD
 | 项 | 内容 |
 |---|---|
 | 用例名称 | UC2 编制活动方案 |
+> 表2-3 UC2 编制活动方案用例规约
+
 | 用户目标 | 编制并最终确定活动方案 |
 | 参与者 | Promoter（宣策部人员，被指定的设计成员） |
 | 前置条件 | 活动已立项，状态为"待设计方案" |
@@ -75,6 +82,8 @@ graph TD
 | 项 | 内容 |
 |---|---|
 | 用例名称 | UC3 编制安保方案 |
+> 表2-4 UC3 编制安保方案用例规约
+
 | 用户目标 | 编制安保方案及备案材料，完成安保负责人签署 |
 | 参与者 | SecurityOfficer（编制）、SecurityManager（签署审核） |
 | 前置条件 | 活动方案已最终确定，状态为"待安保方案设计" |
@@ -87,6 +96,8 @@ graph TD
 | 项 | 内容 |
 |---|---|
 | 用例名称 | UC4 备案打包与交接 |
+> 表2-5 UC4 备案打包与交接用例规约
+
 | 用户目标 | 将已签署材料打包为 ZIP 归档，完成线下纸质交接 |
 | 参与者 | SecurityOfficer（安保部编制人员） |
 | 前置条件 | 全部 5 类关键材料（活动方案、安保方案、风险评估报备表、责任确认书、备案承诺书）均已签署 |
@@ -99,6 +110,8 @@ graph TD
 | 项 | 内容 |
 |---|---|
 | 用例名称 | UC5 审批安保方案 |
+> 表2-6 UC5 审批安保方案用例规约
+
 | 用户目标 | 逐条审查备案材料，做出审批决策并上传批文 |
 | 参与者 | GovLiaison（政府对接人员） |
 | 前置条件 | 线下收到纸质备案材料，活动状态为"备案材料已交接" |
@@ -111,6 +124,8 @@ graph TD
 | 项 | 内容 |
 |---|---|
 | 用例名称 | UC6 活动实施监控 |
+> 表2-7 UC6 活动实施监控用例规约
+
 | 用户目标 | 监控活动整体进展，标记活动结束，处理不可抗力异常 |
 | 参与者 | AdminStaff（行政部人员） |
 | 前置条件 | 系统数据库存有各阶段活动数据 |
@@ -262,6 +277,7 @@ classDiagram
     FilingDoc "1" o-- "1..*" KeyMaterial : 包含
     KeyMaterial "1" *-- "*" MaterialAudit : 审核/签署记录
 ```
+> 图2-2 领域类图
 
 **类间关系说明**：
 
@@ -342,8 +358,11 @@ stateDiagram-v2
     已取消 --> [*]
     已延期 --> [*]
 ```
+> 图2-3 活动主状态机图
 
 **各状态说明**：
+
+> 表2-8 活动状态说明
 
 | 状态 | 含义 | 进入条件 |
 |------|------|----------|
@@ -372,6 +391,9 @@ stateDiagram-v2
     待签署 --> 已签署 : 安保负责人签署 / 生成含签名DOCX
     已签署 --> 已审核 : 政府审批通过 / 标记审核完成
 ```
+> 图2-4 安保方案审核子状态机图
+
+> 表2-9 安保方案审核子状态说明
 
 | 子状态 | 触发事件 | 与主状态的对应 |
 |--------|----------|---------------|
@@ -414,6 +436,8 @@ SOA 的"服务"是逻辑概念（代码层的服务类），不是部署概念�
 | 架构风格 | 核心特征 | 本项目为何不采用 |
 |---------|---------|-----------------|
 | 三层架构 | 表示层/业务层/数据层物理分离，通过网络通信 | 项目内部是逻辑分层而非物理分层——所有代码运行在同一进程，四层仅作为代码组织手段 |
+> 表3-1 架构风格对比
+
 | MVC | Controller 既管路由又管业务逻辑，Model 含行为 | FastAPI 路由层只做参数提取和响应序列化，业务逻辑在独立 Service 层，实体为贫血模型 |
 | 微服务 | 每个服务独立部署、独立数据库、异步通信 | 11 个服务共享进程和数据库，服务间同步方法调用，无分布式基础设施 |
 | SOA 模块化单体 | 服务是首要分解单位，实体贫血，边界清晰 | ✅ 代码按业务能力聚类为 11 个 Service，实体无业务方法（ADR 0001），服务间通过接口契约协作，内部辅以四层分层组织 |
@@ -454,6 +478,7 @@ graph TD
     RDS --> FS
     RRS --> RDS
 ```
+> 图3-1 服务依赖关系图
 
 `WorkflowService` 为枢纽：状态变迁后调用 `NotificationService` 发送通知。`TemplateService` 依赖 MinIO（文件存储）和 `WorkflowService`（生成后自动状态变迁）。`AuthService` 和 `AdminService` 为独立服务，无跨服务依赖。
 
@@ -467,6 +492,8 @@ graph TD
 | 业务逻辑层 | 领域逻辑、状态机流转、DOCX 渲染、材料打包、通知分发 | `app/services/`（11 个 Service 类） |
 | 数据访问层 | ORM 模型定义、数据库会话管理、Alembic 迁移 | `app/models/`（11 个模型文件）+ `alembic/` |
 | 基础设施层 | PostgreSQL（元数据）、MinIO（文件对象）、Redis（缓存/会话）、Mailpit（开发邮件） | Docker Compose 容器编排 |
+
+> 表3-2 架构内层次职责
 
 ```
 接口层    app/routers/     ← 鉴权、参数校验、路由
@@ -491,6 +518,8 @@ graph TD
 | 后端框架 | Python FastAPI 0.115+ | 原生 async、自动 OpenAPI 文档、Pydantic 校验 |
 | ORM | SQLAlchemy 2.0 (async) | 成熟稳定、支持原生 async、迁移生态完善 |
 | 数据库 | PostgreSQL 17 | ACID 事务、JSONB 支持（draft_data/快照）、全文搜索 |
+> 表3-3 技术选型与理由
+
 | 对象存储 | MinIO | S3 兼容 API，生产可平滑替换为阿里云 OSS/腾讯云 COS |
 | 缓存 | Redis 7.4 | 会话存储、登录限流计数、JWT 黑名单 |
 | 前端 | React 19 + TypeScript 5.7 + Vite | 组件化、类型安全、按需构建 |
@@ -522,6 +551,7 @@ graph TD
     browser[Browser :5173] --> |Vite proxy| app
     app --> |S3 API| minio
 ```
+> 图3-2 部署拓扑图
 
 `playwright-svc` 为独立微服务容器（FastAPI + headless Chromium），接收主应用 HTTP 请求后渲染 PDF 返回。开发环境 Mailpit 捕获所有外发邮件。生产环境 SMTP 替换为企业邮件服务，凭据通过 `.env` 注入。
 
@@ -538,6 +568,8 @@ graph TD
 - 认证：Zustand `authStore` 管理 JWT 令牌与用户权限，`AuthInitializer` 在应用启动时静默刷新令牌
 - 路由守卫：`ProtectedRoute` 组件双重校验——先验证 `isAuthenticated`，再检查 `permissions.includes(requiredPermission)`
 - 数据请求：TanStack Query 管理服务端状态缓存，Axios 拦截器自动附加 Bearer 令牌并在 401 时触发刷新队列
+> 表3-4 用户角色画像
+
 
 **角色感知导航**：
 
@@ -548,6 +580,8 @@ graph TD
 | 角色 | 身份 | 核心任务 | 使用频率 | 同时处理量 |
 |------|------|---------|---------|-----------|
 | Promoter（宣策部） | 活动立项发起人 | 创建立项 → 编制方案 → 提交安保审核 | 持续进行 | 2-3 个活动 |
+> 表3-5 系统核心页面
+
 | SecurityOfficer（安保部） | 安保方案编制者 | 查阅方案 → 编制安保预案 → 签署材料 → 打包备案 | 活动提交后 | 按待办量 |
 | SecurityManager（安保部负责人） | 安保方案审批者 | 签署双表+确认方案（驳回罕见） | 编制完成后 | 按待办量 |
 | GovLiaison（政府对接） | 企业内政府窗口对接人 | 每日集中审查材料 → 上传批文 → 标注结果 | 每天集中一次 | 批量 |
@@ -596,6 +630,8 @@ graph TD
 
 **路由模块与端点**：
 
+> 表3-6 REST API 路由模块与端点
+
 | 路由模块 | 端点 | 方法 | 权限 |
 |---------|------|------|------|
 | `auth` | `/auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/me`, `/auth/roles`, `/auth/me/role-request` | POST/GET/PATCH | 公开 / 登录用户 |
@@ -618,6 +654,8 @@ graph TD
 | `view_owned_activity` | 查看所属活动 | 全部角色 |
 | `submit_plan` | 提交方案 | Promoter |
 | `upload_document` | 上传文档 | Promoter, SecurityOfficer, GovLiaison |
+> 表3-7 RBAC 权限中英对照
+
 | `manage_security` | 管理安保方案 | SecurityOfficer, SecurityManager |
 | `reject_approval` | 驳回审批 | SecurityManager |
 | `pack_filing` | 打包备案 | SecurityOfficer |
@@ -642,6 +680,8 @@ graph TD
 
 | 服务 | 关联数据库表 | 服务接口（关键方法） |
 |------|-------------|---------------------|
+> 表3-8 服务层设计总览
+
 | WorkflowService | `activities`, `activity_status_log` | `transition()`, `reject()`, `force_cancel()`, `force_postpone()` |
 | TemplateService | `activity_plans`, `security_plans`, `filled_documents` | `get_schema()`, `generate()`, `sign_and_finalize()`, `sign_manager_commitment()`, `_render_docx()` |
 | FilingService | `key_materials`, `filing_docs`, `material_audits`, `approval_records` | `list_materials()`, `pack_materials()`, `confirm_handover()`, `audit_material()`, `create_approval_record()` |
@@ -735,6 +775,7 @@ classDiagram
     ReportDataService --> ActivityService : 数据查询
     ReportRenderer --> ReportDataService : 数据输入
 ```
+> 图3-3 服务类图
 
 本节重点描述核心业务服务的领域模型与关键方法。
 
@@ -801,6 +842,7 @@ erDiagram
     users ||--o{ approval_records : "liaison"
     users ||--o{ implementation_records : "admin"
 ```
+> 图3-4 核心业务域 ER 图
 
 **核心业务域表结构**：
 
@@ -1098,6 +1140,8 @@ erDiagram
 
 **列级设计规范**：
 
+> 表3-29 列级设计规范
+
 | 规范 | 约定 | 说明 |
 |------|------|------|
 | 主键 | UUID v4 | 全局唯一，API 暴露不可预测（防枚举），适合 MinIO 路径嵌入 |
@@ -1112,6 +1156,8 @@ erDiagram
 数据库整体满足**第三范式（3NF）**——每个非主属性完全函数依赖于主键，不存在传递依赖。所有 M:N 关系通过 join 表正确拆出，无多值依赖。
 
 存在两处**经过设计权衡的故意反范式化**：
+
+> 表3-30 数据库反范式化（性能权衡）
 
 | 位置 | 冗余字段 | 违反的范式规则 | 原因 | 同步策略 |
 |------|---------|---------------|------|---------|
