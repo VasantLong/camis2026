@@ -283,13 +283,14 @@ export default function ActivityDetailPage() {
   }
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: "24px 24px 0 24px" }}>
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 16,
-          marginBottom: 24,
+          flexWrap: "wrap",
+          gap: 12,
+          marginBottom: 12,
         }}
       >
         <Button
@@ -302,18 +303,36 @@ export default function ActivityDetailPage() {
         <Tag color={STATUS_COLOR_MAP[activity.status] || "default"}>
           {activity.status}
         </Tag>
-      </div>
 
-      {!isGovLiaison && (
-        <WorkflowActions
-          activityId={id!}
-          currentStatus={activity.status}
-        />
-      )}
+        <div style={{ display: "flex", gap: 0, marginLeft: 8 }}>
+          {[
+            { key: "detail", label: "基本信息" },
+            { key: "history", label: "状态历史" },
+            { key: "plan", label: "活动方案" },
+            { key: "security-plan", label: "安保方案" },
+            { key: "filing", label: "备案" },
+          ].map((tab) => (
+            <Button
+              key={tab.key}
+              type={activeTab === tab.key ? "link" : "text"}
+              onClick={() => setActiveTab(tab.key)}
+              style={{
+                color: activeTab === tab.key ? "#1677ff" : undefined,
+                borderBottom: activeTab === tab.key ? "2px solid #1677ff" : "2px solid transparent",
+                borderRadius: 0,
+                padding: "4px 16px",
+              }}
+            >
+              {tab.label}
+            </Button>
+          ))}
+        </div>
+      </div>
 
       <Tabs
         activeKey={activeTab}
         onChange={setActiveTab}
+        tabBarStyle={{ display: "none" }}
         items={[
           {
             key: "detail",
@@ -1577,6 +1596,14 @@ export default function ActivityDetailPage() {
             : []),
         ]}
       />
+
+      {!isGovLiaison && (
+        <WorkflowActions
+          activityId={id!}
+          currentStatus={activity.status}
+        />
+      )}
+
       <Modal
         title="同步更新风险评估表"
         open={crossSyncOpen}
