@@ -371,10 +371,11 @@ stateDiagram-v2
 | 已取消 | 因不可抗力强制取消 | AdminStaff 强制变更 |
 | 已延期 | 因不可抗力强制延期 | AdminStaff 强制变更 |
 
-**安保方案审核子状态机**（`SecurityPlan.audit_status`）：
+**安保方案审核子状态机**（`SecurityPlan.audit_status`）——独立于活动主状态机的子状态机，追踪安保方案从编制到政府审核完成的内部流转。1 个活动有 1 个 SecurityPlan，其 `audit_status` 经历 5 个阶段：
 
 ```mermaid
 stateDiagram-v2
+    direction LR
     [*] --> 待编制
 
     待编制 --> 待审核 : 提交审核 / 通知安保负责人
@@ -384,12 +385,15 @@ stateDiagram-v2
     已签署 --> 已审核 : 政府审批通过 / 标记审核完成
 ```
 
-| 子状态 | 触发 |
-|--------|------|
-| 待编制 | 活动进入「待安保方案设计」，SecurityPlan 创建 |
-| 待审核 | SecurityOfficer 完成编制，提交审核 |
-| 待签署 | SecurityManager 审核通过 |
-| 已签署 | SecurityManager 签署确认 |
+| 子状态 | 触发事件 | 与主状态的对应 |
+|--------|----------|---------------|
+| 待编制 | 活动进入「待安保方案设计」，SecurityPlan 创建 | 待安保方案设计 |
+| 待审核 | SecurityOfficer 完成三表编制，点击"提交审核" | 待安保方案设计（驳回后回到此状态） |
+| 待签署 | SecurityManager 审核通过，等待签署 | 待安保方案设计 |
+| 已签署 | SecurityManager 完成两步签署，流转至待备案申请 | 待备案申请 → 备案材料已交接 |
+| 已审核 | GovLiaison 审批通过 | 审批通过-待举办 |
+
+子状态机与主状态机的交互：主状态从"待安保方案设计"变迁至"待备案申请"的前提是 `audit_status` 到达"已签署"；主状态变迁至"审批通过-待举办"时，`audit_status` 同步置为"已审核"。
 | 已审核 | 政府审批通过 |
 
 **关键设计要点**：
