@@ -1382,38 +1382,114 @@ erDiagram
 
 ### 4.1 功能实现
 
-本节展示系统核心功能的运行界面，对应 §2.1.2 中 UC1-UC6 各用例的实际操作流程。界面设计规范见 §3.2.1。
+本节按 UC1-UC6 顺序展示系统核心功能的实现要点、代码位置与运行界面。界面设计规范见 §3.2.1，服务间交互流程见 §3.2.3 顺序图。
 
-**UC1 立项 — 创建立项界面**：
+#### UC1 立项
 
-> **此处插入界面截图（图4-1 创建立项界面）**。Promoter 填写活动名称、类型、预计时间、地点、主办方信息、截止时间，系统实时校验场地冲突（同场地同时段已存在活跃活动时弹出阻断提示）。
+实现要点：
+- `ActivityService.create()` 校验必填字段与场地冲突检测（`app/services/activity_service.py`），冲突时返回 409
+- 前端 `ActivityForm` 组件含截止时间校验与设计人选择（`frontend/src/components/activities/ActivityForm.tsx`）
+- 保存后写入 `activity_status_log`，初始状态"待设计方案"，通知 designer
 
-**UC2 编制活动方案 — 活动方案 Tab**：
+> **此处插入界面截图（图4-1 创建立项界面）**。
 
-> **此处插入界面截图（图4-2 活动方案最终确定）**。Promoter 在活动方案 Tab 填写 schema 驱动表单（§3.2.1），可多次生成版本，点击"最终确定方案"后锁定编辑，状态流转至待安保方案设计。
+#### UC2 编制活动方案
 
-**UC3 编制安保方案 — 三子 Tab 与签署**：
+实现要点：
+- `TemplateService.get_schema()` 返回字段定义 + autofill 预填数据（`app/services/template_service.py`）
+- 前端 `TemplateForm` 根据 schema 动态渲染表单，支持 `show_time` DateTimePicker（`frontend/src/components/templates/TemplateForm.tsx`）
+- `POST /plan/generate` 调用 `docxtpl` 渲染 DOCX → 异步 LibreOffice 转 PDF
+- `POST /plan/finalize` → `WorkflowService.transition("待安保方案设计")`，方案锁定不可编辑
 
-> **此处插入界面截图（图4-3 安保方案三子 Tab）**。安保方案 Tab 内含三个子 Tab（安保方案 / 风险评估报备表 / 责任确认书）。风险等级为高风险时显示全部条件字段（医疗保障方案、消防方案、人群控制方案）。
+> **此处插入界面截图（图4-2 活动方案编辑与版本管理）**。
 
-> **此处插入界面截图（图4-4 Manager 两步签署）**。第一步：Manager 上传签名后确认签署，系统生成含签名的安保方案+双表 DOCX。第二步：备案承诺书签署区出现（全字段 autofill），Manager 复用已上传签名完成签署，状态流转至待备案申请。
+#### UC3 编制安保方案与签署
 
-**UC4 备案打包与交接 — 备案 Tab（Officer 视角）**：
+实现要点：
+- `get_schema()` 按 `risk_level` 返回条件字段（`CONDITIONAL_FIELDS` 定义在 `app/templates/security_plan/schema.py`）
+- SecurityOfficer 提交时采用延迟生成策略：`minio_path=NULL`，仅保存 `data_snapshot`（`DEFERRED_TYPES` 在 `template_service.py`）
+- Manager 两步签署：`sign_and_finalize()` 生成安保方案+双表 DOCX → `sign_manager_commitment()` 生成承诺书 DOCX（全字段 autofill，复用已上传签名）
+- 签名图片嵌入 DOCX：`_render_docx()` 检测签名字段 → MinIO 拉取 → `InlineImage(width=Mm(30))`
+- 驳回后 `audit_status` 回"待编制"，必须先创建新版本方可重新提交
 
-> **此处插入界面截图（图4-5 备案打包与交接）**。5 项材料签署状态列表，全部签署后"打包备案材料"按钮可用，打包完成显示"下载打包文件"（ZIP 常驻可下载）和"确认纸质交接"，交接后状态流转至备案材料已交接。
+> **此处插入界面截图（图4-3 安保方案三子 Tab 编辑）**。
+> **此处插入界面截图（图4-4 Manager 两步签署）**。
 
-**UC5 政府审查 — 备案 Tab（GovLiaison 视角）**：
+#### UC4 备案打包与交接
 
-> **此处插入界面截图（图4-6 政府审查与审批决策）**。材料列表 + 逐条合格/不合格标记 + 意见输入 + 批量操作。全部审查完毕后，审批决策区提供"审批通过"（需上传批文）、"要求补充材料"（进入补件回路）、"驳回"三个选项。审批通过后系统自动流转至审批通过-待举办。
+实现要点：
+- `FilingService.pack_materials()` 聚合 5 项已签署材料的 DOCX → ZIP（`app/services/filing_service.py`），文件名含活动名+时间戳
+- 重新打包时 `minio_client.delete_file()` 先清理旧 ZIP
+- `confirm_handover()` 调用 `WorkflowService.transition("备案材料已交接")`，通知 GovLiaison
+- ZIP 下载通过 MinIO presigned URL，前端 `window.open()` 触发，所有角色可见
 
-**UC6 活动实施监控 — 工作台与月报**：
+> **此处插入界面截图（图4-5 备案打包与交接）**。
 
-> **此处插入界面截图（图4-7 月报导出渲染）**。选择月份后系统异步生成 PDF 月报，通过通知铃铛推送下载链接。月报 PDF 包含活动统计图表、审批概况、异常活动清单。
+#### UC5 政府审查与审批
 
-**系统管理**：
+实现要点：
+- `audit_material()` 逐条标记合格/不合格（`app/services/filing_service.py`），`material_audits` 留痕，支持批量操作
+- `create_approval_record()` 生成 `ApprovalRecord`：审批通过 → `transition("审批通过-待举办")` + 通知所有经手人；补件 → "待补充备案材料"进入修正回路；驳回 → "不通过/已终止"终态
+- 审批通过必须上传政府批文
 
-> **此处插入界面截图（图4-8 超级管理员用户管理界面）**。用户列表（含角色、状态），支持角色编辑、启用/禁用、归档操作。右侧角色申请审批面板，管理员可批准或拒绝用户的角色申请。
+> **此处插入界面截图（图4-6 政府审查与审批决策）**。
+> **此处插入界面截图（图4-7 补件回路 — 材料修正与重新递交）**。
+
+#### UC6 活动实施监控
+
+实现要点：
+- `DashboardService` 多维度聚合查询：总活动数、审批通过率、状态分布（`app/services/dashboard_service.py`）
+- "标记结束" → `transition("已结束")`，必填结束原因
+- `force_cancel()` / `force_postpone()` 写入 `implementation_records` 归档
+- 月报 PDF：`POST /dashboard/reports/{month}` → `ReportRenderer`（Playwright 微服务）异步渲染 → MinIO 上传 → 通知推送下载链接
+
+> **此处插入界面截图（图4-8 工作台 Dashboard 与月报导出）**。
+
+#### 系统管理
+
+实现要点：
+- `AdminService` 用户管理：列表、角色编辑、启用/禁用、归档（`app/services/admin_service.py`）
+- 角色申请审批：用户提交 → AdminManager 审批 → `user_roles` 表更新
+- 14 项 RBAC 权限通过 `require_permission` 装饰器在路由层校验，覆盖全部 23 个 API 端点
+
+> **此处插入界面截图（图4-9 超级管理员用户管理界面）**。
 
 ### 4.2 系统测试
 
-> 将在后续补充。
+测试分为后端单元测试与浏览器端到端（E2E）测试两个层次。
+
+**后端单元测试**：
+
+| 测试文件 | 覆盖服务 |
+|---------|---------|
+| `tests/test_activity_service.py` | ActivityService CRUD + 冲突检测 |
+| `tests/test_workflow_service.py` | WorkflowService 状态机 + 通知规则 |
+| `tests/test_filing_service.py` | FilingService 打包与审查 |
+| `tests/test_dashboard_service.py` | DashboardService 聚合查询 |
+| `tests/test_auth.py` | AuthService 认证流程 |
+| `tests/test_upload.py` | DocumentService 文件上传 |
+| `tests/test_download.py` | 文件下载与 presigned URL |
+
+**浏览器端到端测试**：
+
+基于 Playwright CDP 模式（连接本地 Edge 浏览器），13 个测试脚本覆盖从用户生命周期到活动全流程的场景：
+
+| 脚本 | 覆盖场景 | 关键验证点 |
+|------|---------|-----------|
+| `01_user_lifecycle.py` | 用户注册/登录/角色申请 | JWT 认证流程 |
+| `02_activity_crud.py` | 活动 CRUD | 列表筛选、创建校验 |
+| `03_workflow.py` | 状态流转 | WorkflowActions 按钮权限 |
+| `04_permissions.py` | RBAC 权限校验 | 不同角色可见性 |
+| `05_gov_liaison.py` | 政府审查 | 审批通过/补件/驳回 |
+| `06_dashboard.py` | 工作台面板 | 统计图表渲染 |
+| `08_filing.py` | 备案打包与交接 | 材料签署/打包/下载 |
+| `11_admin_role_approval.py` | 角色申请审批 | AdminManager 操作 |
+| `14_superadmin_users.py` | 用户管理 | SuperAdmin 用户 CRUD |
+| `16_activity_tabs.py` | 活动详情页 Tab | 多 Tab 角色视图分离 |
+| `17_template_flow.py` | 模板全流程 TC1-TC6 | 从方案到审批的完整链路 |
+
+`17_template_flow.py` 的 TC1-TC6 覆盖核心业务流程：TC1 活动方案编制 → TC2 版本与 diff → TC3 安保方案与双表编制 → TC4 Manager 签署 → TC5 备案打包与交接 → TC6 GovLiaison 审查与审批。
+
+测试环境：Docker Compose 启动 PostgreSQL + MinIO + Redis + Mailpit，Playwright 通过 `connect_over_cdp("http://127.0.0.1:9222")` 连接本地 Edge 浏览器。
+
+> 已知测试缺口：补件回路（UC5b）的完整浏览器测试尚未覆盖；两步签署中 TC4 仅覆盖第一步（三文件签署），第二步承诺书签署测试待补充。详见 `docs/browser-tests.md`。
