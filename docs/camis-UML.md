@@ -63,36 +63,17 @@
 
 ​ 参与者：对接政府审批人员 (GovLiaison)
 ​ 前置条件：已线下收到安保部递交的纸质备案材料，活动状态为”备案材料已交接”。
-​ 后置条件：政府电子批文存入系统，所有关键材料审核完毕，审核状态已更新。
+​ 后置条件：政府电子批文存入系统，所有关键材料审核完毕。审批通过后系统自动将活动状态流转至"审批通过-待举办"，并通知所有经手人。
 ​ 主事件流：
 ​ 对接人员登录 MIS 系统，进入对应活动项目 → 备案 tab。
 ​ 对接人员逐条审查关键材料（消防验收证明、安全责任书等），对每条材料标记”合格”或”不合格”，填写审查意见。
 ​ 全部合格后，对接人员扫描并上传政府批文电子版（PDF/图片）。
-​ 用户在系统中标注审批结果（”通过”），系统更新活动状态为”审批通过”。
+​ 用户在系统中标注审批结果（”通过”），系统自动将活动状态流转至"审批通过-待举办"。
 ​ 备选事件流：
 ​ 4a. 政府要求补充材料： 部分材料不合格。对接人员标记不合格材料并填写整改意见。系统状态变更为”待补充备案材料”，通知安保部修正后重新打包提交（支持多轮审查）。
 ​ 4b. 政府直接驳回： 对接人员取得驳回通知书，上传该通知书，标注”不通过”。活动进入”不通过/已终止”终态。
 
-## UC 6：登记审批结果
-
-​ 参与者：安保部人员
-​ 前置条件：对接人员已上传批文并标记状态。
-​ 后置条件：活动状态闭环（流转至实施阶段或退回重做）。
-​ 主事件流（审批通过）：
-​ 安保人员收到系统下发的“批文已上传”提示。
-​ 安保人员查阅电子批文，确认政府审批意见为“同意”。
-​ 用户在系统中点击“确认通过”。
-​ 系统将活动状态更新为“审批通过-待举办”。
-​ 系统自动向“行政部人员”发送通知（活动可合法举办），安保部后续准备线下实施。
-​ 备选事件流（审批驳回）：
-​ 2a. 政府审批驳回（逆向流转）：
-​ 安保人员查阅电子批文发现政府未予批准。
-​ 用户在系统中点击“驳回/需整改”。
-​ 用户提取政府批文中的整改意见，填写“方案需修改部分”的说明文字。
-​ 系统将活动状态退回至“待安保方案设计”（回滚至 UC3）。
-​ 系统向“行政部人员”及“安保部负责人”发送预警提示（方案被驳回风险），要求重新出具方案。
-
-## UC 7：活动实施情况面板
+## UC 6：活动实施情况面板
 
 ​ 参与者：行政部人员
 ​ 前置条件：系统数据库中存有各阶段的活动数据。
@@ -597,34 +578,6 @@ else 政府驳回 (备选事件流 4b)
 end
 ```
 
-UC6顺序图
-
-```
-sequenceDiagram autonumber actor Security as 安保部人员 participant System as 系统 actor Admin as 行政部人员 actor Manager as 安保部负责人
-%% 前置触发：收到政府对接人员上传后的系统通知
-System-->>Security: 自动推送“批文已上传，待确认审批结果”提示
-
-alt 政府审批通过 (主事件流)
-    Security->>System: 查阅电子批文，确认同意并点击“确认通过”
-    System->>System: 更新活动状态为“审批通过-待举办”
-    System-->>Security: 页面提示状态闭环成功
-
-    %% 异步通知相关人员
-    System-)Admin: 自动发送通知：活动批文已下发，可合法举办
-
-else 政府审批驳回 (备选事件流 2a)
-    Security->>System: 查阅发现未批准，点击“驳回/需整改”
-    Security->>System: 提取批文意见，填写“方案需修改部分”说明
-
-    System->>System: 状态逆向流转，回滚至“待安保方案设计”
-    System-->>Security: 页面提示已成功退回
-
-    %% 异步发送预警与重做通知
-    System-)Admin: 发送预警提示：方案存在被驳回风险
-    System-)Manager: 发送预警提示：要求接收意见并重新出具安保方案
-end
-```
-
 # 面向服务架构（SO）设计
 
 > 以下为 ADR 0001/0002 决策后的更新版类图。实体只保留属性，业务方法剥离到服务层。四个 Actor 类合并为 User + Role + Permission。
@@ -877,7 +830,7 @@ classDiagram
 
 ---
 
-UC7顺序图
+UC6顺序图
 
 ```
 sequenceDiagram autonumber actor Admin as 行政部人员 participant System as 统合MIS系统
@@ -1080,37 +1033,7 @@ sequenceDiagram autonumber
     end
 ```
 
-## UC6 SO顺序图 — 登记审批结果
-
-```mermaid
-sequenceDiagram autonumber
-    actor Security as 安保部人员
-    participant WS as WorkflowService
-    participant NS as NotificationService
-    actor Admin as 行政部人员
-    actor Manager as 安保部负责人
-
-    NS--)Security: 推送”批文已上传，待确认审批结果”
-
-    alt 确认通过
-        Security->>WS: confirm_approval(activity_id)
-        WS->>DB: UPDATE status=”审批通过-待举办”
-        WS->>NS: notify_role(“AdminStaff”, “活动批文已下发，可合法举办”)
-        NS--)Admin: 活动可合法举办通知
-        WS-->>Security: 状态闭环成功
-
-    else 驳回/需整改
-        Security->>WS: reject(activity_id, rectification_opinion)
-        WS->>DB: UPDATE status=”待安保方案设计” (逆向流转)
-        WS->>NS: send_reminder(admin_id, “方案被驳回风险”)
-        WS->>NS: send_reminder(manager_id, “需重新出具安保方案”)
-        NS--)Admin: 预警：方案被驳回
-        NS--)Manager: 预警：需重做安保方案
-        WS-->>Security: 已退回至待安保方案设计
-    end
-```
-
-## UC7 SO顺序图 — 活动实施情况面板
+## UC6 SO顺序图 — 活动实施情况面板
 
 ```mermaid
 sequenceDiagram autonumber

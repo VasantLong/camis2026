@@ -185,7 +185,7 @@ GET /activities?status=审批通过-待举办&page=1&size=20
 {
   "reason": "安保人员配置不足，需增加2人"
 }
-// → status 不变 (UC3内部循环) 或 status 回滚至 "待安保方案设计" (UC6逆向流转)
+// → status 不变 (UC3内部循环) 或 status 回滚至 "待安保方案设计" (审批驳回逆向流转)
 ```
 
 #### `POST /activities/{id}/force-cancel` — 强制取消

@@ -37,9 +37,9 @@
 | ------------ | ---------------------------------------------------------- | ------------------- |
 | 活动项目管理 | UC1 立项                                                   | ActivityService     |
 | 文档管理     | UC2 上传方案、UC3 上传安保材料、UC4 打包备案、UC5 上传批文 | DocumentService     |
-| 审批工作流   | UC3 签署确认、UC5 标注审批结果、UC6 确认/驳回              | WorkflowService     |
+| 审批工作流   | UC3 签署确认、UC5 标注审批结果（审批通过后系统自动流转）    | WorkflowService     |
 | 通知         | UC1 发待办、UC2 逾期预警、UC3 推送审批、UC5 补件通知       | NotificationService |
-| 活动监控面板 | UC7 面板、报表导出                                         | DashboardService    |
+| 活动监控面板 | UC6 面板、报表导出                                         | DashboardService    |
 
 **服务识别策略：业务能力聚类**
 
