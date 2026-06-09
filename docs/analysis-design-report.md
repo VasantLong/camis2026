@@ -707,4 +707,78 @@ graph TD
 
 #### 3.2.4 数据层设计
 
-> 将在后续补充。
+数据层采用**三层存储**架构：PostgreSQL 17（业务元数据）、MinIO（文件对象）、Redis 7.4（缓存与会话）。三层职责严格分离——PostgreSQL 不存文件内容，MinIO 不存业务逻辑，Redis 不做持久主存储。
+
+**数据库表清单**（24 张表，4 个分组）：
+
+*核心业务域（Activity 聚合根，CASCADE 删除子实体）*：
+
+| 表 | 说明 | 关键约束 |
+|---|------|----------|
+| `activities` | 活动聚合根，FK owner_id, designer_id → users | — |
+| `activity_plans` | 活动方案，含 draft_data（JSONB）+ current_filled_document_id | UNIQUE(activity_id) |
+| `security_plans` | 安保方案，含 risk_level, audit_status, sign_time, draft_data | UNIQUE(activity_id) |
+| `filing_docs` | 备案材料包，含 pack_url（ZIP 路径）, handover_status | UNIQUE(activity_id) |
+| `filled_documents` | 模板生成版本记录，minio_path 可为 NULL（延迟生成） | UNIQUE(activity_id, template_type, version_number) |
+| `approval_records` | 政府审批记录，FK liaison_id → users | — |
+| `implementation_records` | 活动实施记录，FK admin_id → users | — |
+| `activity_status_log` | 追加式状态变更审计日志，CASCADE activity | — |
+| `activity_rules` | 业务规则（场地冲突等），独立实体 | — |
+
+*文件与材料*：
+
+| 表 | 说明 | 关键约束 |
+|---|------|----------|
+| `documents` | 通用文件元数据，GIN 索引 tags 列 | FK activity_id SET NULL |
+| `key_materials` | 关键备案材料超类型，5 种 material_type | UNIQUE(activity_id, material_type) |
+| `material_audits` | 材料审核/签署记录，action ∈ {sign, audit} | CASCADE key_material |
+
+*RBAC 权限体系*：
+
+| 表 | 说明 | 关键约束 |
+|---|------|----------|
+| `users` | 统一身份，含 is_active, is_archived | email UNIQUE |
+| `roles` | 7 角色 | name UNIQUE |
+| `permissions` | 14 权限 | — |
+| `user_roles` | M:N 用户-角色关联 | PK (user_id, role_id) |
+| `role_permissions` | M:N 角色-权限关联 | PK (role_id, permission_id) |
+| `role_requests` | 角色申请审批 | 部分 UNIQUE (user_id WHERE status='pending') |
+
+*基础设施*：
+
+| 表 | 说明 |
+|---|------|
+| `notifications` | 系统通知，部分索引 unread，FK user_id |
+| `refresh_tokens` | JWT refresh 令牌，token_hash UNIQUE |
+| `login_attempts` | 登录尝试记录（暴力破解防护） |
+
+**ER 图（核心业务域）**：
+
+```mermaid
+erDiagram
+    activities ||--o{ activity_plans : "1:0..*"
+    activities ||--o{ security_plans : "1:0..1"
+    activities ||--o{ filing_docs : "1:0..1"
+    activities ||--o{ approval_records : "1:0..*"
+    activities ||--o{ implementation_records : "1:0..1"
+    activities ||--o{ activity_status_log : "1:0..*"
+    activities ||--o{ filled_documents : "1:0..*"
+    activities ||--o{ documents : "1:0..*"
+    activities ||--o{ key_materials : "1:0..5"
+    key_materials ||--o{ material_audits : "1:0..*"
+
+    users ||--o{ activities : "owner"
+    users ||--o{ security_plans : "manager"
+    users ||--o{ approval_records : "liaison"
+    users ||--o{ implementation_records : "admin"
+```
+
+**核心设计模式**：
+
+- **聚合根 (Activity)**：所有子实体通过 `activity_id` FK 关联，ON DELETE CASCADE 级联删除。一个活动删除时，其方案、安保方案、备案包、审批记录、状态日志全部级联清除
+- **KeyMaterial 超类型**：`material_type` 区分 5 种材料（activity_plan, security_plan, risk_assessment, responsibility_letter, filing_commitment），`UNIQUE(activity_id, material_type)` 保证每种每活动唯一。`activity_plans` 和 `security_plans` 通过 `material_id` FK 共享审计字段（is_qualified, sign_status, audit_round, opinion）
+- **FilledDocument 版本管理**：`UNIQUE(activity_id, template_type, version_number)` 保证同活动同模板同版本唯一。`minio_path` 可为 NULL（安保方案+双表延迟生成——SecurityOfficer 提交时仅保存 data_snapshot，Manager 签署时一次性生成 DOCX）。`template_hash` 记录模板文件 SHA-256 用于审计追溯
+- **JSONB 灵活字段**：`draft_data`（草稿）、`data_snapshot`（生成快照）使用 PostgreSQL JSONB 类型，支持 schema-driven 动态表单字段的无 schema 变更存储
+- **追加式审计**：`activity_status_log` 只 INSERT 不 UPDATE，每条记录含 from_status、to_status、operator_id、comment，完整追踪活动生命周期
+- **事务与一致性**：所有服务操作在同一 PostgreSQL 事务内完成。`transition()` 方法使用 `UPDATE WHERE status = old_status` 原子操作防止并发冲突，无需分布式锁
+- **索引策略**：`activities.status` B-tree 索引（高频状态筛选）、`filled_documents(activity_id, template_type)` 复合索引（版本查询）、`notifications(user_id, is_read)` 部分索引（未读计数）
