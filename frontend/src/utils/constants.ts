@@ -16,6 +16,24 @@ export const ROLE_DESC_MAP: Record<string, string> = {
   GovLiaison: "上传批文、标注审批结果",
 };
 
+export const PERMISSION_LABEL_MAP: Record<string, string> = {
+  create_activity: "创建活动",
+  view_owned_activity: "查看所属活动",
+  submit_plan: "提交方案",
+  upload_document: "上传文档",
+  manage_security: "管理安保方案",
+  reject_approval: "驳回审批",
+  pack_filing: "打包备案",
+  sign_document: "签署文档",
+  audit_material: "审查材料",
+  force_cancel: "强制取消",
+  force_postpone: "强制延期",
+  view_dashboard: "查看面板",
+  export_report: "导出报表",
+  manage_users: "管理用户",
+  review_security_plan: "审核安保方案",
+};
+
 export const ACTIVITY_STATUSES = [
   "待设计方案",
   "待安保方案设计",

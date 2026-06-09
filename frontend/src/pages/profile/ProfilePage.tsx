@@ -17,7 +17,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { authApi } from "@/api/auth";
 import { roleRequestApi } from "@/api/roleRequest";
 import { useAuthStore } from "@/stores/authStore";
-import { ROLE_LABEL_MAP } from "@/utils/constants";
+import { ROLE_LABEL_MAP, PERMISSION_LABEL_MAP } from "@/utils/constants";
 
 export default function ProfilePage() {
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
@@ -288,7 +288,7 @@ export default function ProfilePage() {
                         <>
                           {ps.map((p) => (
                             <Tag key={p} style={{ marginBottom: 2 }}>
-                              {p}
+                              {PERMISSION_LABEL_MAP[p] || p}
                             </Tag>
                           ))}
                         </>
