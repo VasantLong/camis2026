@@ -666,7 +666,89 @@ graph TD
 | AuthService | `users`, `refresh_tokens`, `login_attempts` | `register()`, `login()`, `refresh_token()`, `logout()` |
 | AdminService | `users`, `role_requests` | `list_users()`, `update_user_role()`, `approve_role_request()` |
 
-所有服务通过构造函数注入 `AsyncSession`，方法内管理事务边界。本节重点描述核心业务服务的领域模型与关键方法。
+所有服务通过构造函数注入 `AsyncSession`，方法内管理事务边界。以下为面向服务架构下的服务类图——服务为实体类的控制者，实体为纯数据载体（§2.2），服务间通过同步方法调用协作。
+
+```mermaid
+classDiagram
+    class WorkflowService {
+        +StatusLogEntry transition(activity_id, to_status, operator, comment)
+        +StatusLogEntry reject(activity_id, operator, reason)
+        +StatusLogEntry force_cancel(activity_id, operator, reason)
+        +StatusLogEntry force_postpone(activity_id, operator, reason)
+    }
+
+    class TemplateService {
+        +dict get_schema(template_type, activity_id)
+        +dict generate(template_type, activity_id, data, user_id)
+        +dict sign_and_finalize(activity_id, user_id)
+        +dict sign_manager_commitment(activity_id, user_id)
+        +bytes _render_docx(template_type, data, risk_level)
+    }
+
+    class FilingService {
+        +list list_materials(activity_id)
+        +FilingPackResult pack_materials(activity_id)
+        +dict confirm_handover(activity_id, operator)
+        +dict audit_material(activity_id, material_id, user_id, conclusion, opinion)
+        +dict create_approval_record(activity_id, liaison_id, approval_status, attachment_url, opinion)
+    }
+
+    class ActivityService {
+        +ActivityResponse create(owner_id, data)
+        +ActivityResponse get(activity_id)
+        +tuple list(params)
+        +list get_status_history(activity_id)
+    }
+
+    class DocumentService {
+        +DocumentResponse upload(activity_id, uploader_id, file, tags)
+        +str get_presigned_url(doc_id)
+        +list list_by_activity(activity_id)
+    }
+
+    class NotificationService {
+        +None send_reminder(user_id, message, channel)
+        +None notify_role(role_name, message)
+        +None check_overdue(activity_id)
+    }
+
+    class DashboardService {
+        +PanelData get_panel_data()
+        +ActivityDetail get_activity_detail(activity_id)
+    }
+
+    class ReportDataService {
+        +dict query_monthly_data(month)
+    }
+
+    class ReportRenderer {
+        +bytes POST_render(month, data_key, token)
+    }
+
+    class AuthService {
+        +TokenResponse register(data)
+        +TokenResponse login(email, password)
+        +TokenResponse refresh_token(refresh_token)
+        +None logout(user_id)
+    }
+
+    class AdminService {
+        +list list_users()
+        +None update_user_role(user_id, role_id)
+        +None approve_role_request(request_id, reviewer_id, comment)
+    }
+
+    WorkflowService --> NotificationService : 通知
+    TemplateService --> WorkflowService : 状态流转
+    FilingService --> WorkflowService : 状态流转
+    FilingService --> DocumentService : 文件存储
+    TemplateService --> DocumentService : 文件存储
+    DashboardService --> ActivityService : 数据聚合
+    ReportDataService --> ActivityService : 数据查询
+    ReportRenderer --> ReportDataService : 数据输入
+```
+
+本节重点描述核心业务服务的领域模型与关键方法。
 
 **WorkflowService — 状态机引擎**：
 
