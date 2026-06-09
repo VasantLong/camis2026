@@ -582,13 +582,9 @@ export default function ActivityDetailPage() {
                             : "安保方案已提交审核，等待安保负责人签署确认。签署完成后可重新打包备案材料。"}
                           style={{ marginBottom: 16 }} />
                       )}
-                      {activity?.status && !canEditSecurity && !["待设计方案"].includes(activity.status) && (
+                      {activity?.status && !["待设计方案", "待安保方案设计", "待备案申请", "待补充备案材料"].includes(activity.status) && (
                         <Alert type="info" showIcon title="安保方案已锁定"
-                          description={
-                            ["审批通过-待举办", "举办中", "已结束", "不通过/已终止"].includes(activity.status)
-                              ? "活动已进入后续阶段，安保方案不可编辑。"
-                              : "安保方案已提交审核或签署完成，不可编辑。如需修改请联系管理员。"
-                          }
+                          description="活动已进入后续阶段，安保方案不可编辑。"
                           style={{ marginBottom: 16 }} />
                       )}
                       {securityPlan?.risk_level && (
