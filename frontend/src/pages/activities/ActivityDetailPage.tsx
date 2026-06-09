@@ -1241,7 +1241,7 @@ export default function ActivityDetailPage() {
                         const auditedCount = auditMaterials.filter(m => m.audit_round > 0).length;
                         const allAudited = auditMaterials.length > 0 && auditedCount === auditMaterials.length;
                         const allQualified = allAudited && auditMaterials.every(m => m.is_qualified);
-                        const targetStatus = approvalAction === "approve" ? "审批通过-待举办" : approvalAction === "revise" ? "待补充备案材料" : "不通过/已终止";
+                        const targetStatus = approvalAction === "approve" ? "审批通过" : approvalAction === "revise" ? "待补充备案材料" : "不通过/已终止";
                         return (
                           <div style={{ marginBottom: 16, padding: 16, border: "1px solid #1677ff", borderRadius: 8 }}>
                             <Typography.Title level={5}>政府对接 — 审批决策</Typography.Title>
