@@ -1515,15 +1515,69 @@ erDiagram
 
 **后端测试执行结果**（29/29 全部通过）：
 
-| 类别 | 测试文件 | 通过 | 覆盖要点 |
-|------|---------|------|---------|
-| 认证 | `test_auth.py` | 6/6 | 注册、登录、token 验证、重复注册、错误密码 |
-| 活动 | `test_activity_service.py` | 6/6 | CRUD、过期截止日校验、列表分页、状态历史、权限拦截 |
-| 工作流 | `test_workflow_service.py` | 5/5 | 合法/非法流转、驳回自循环、强制取消+归档、权限 |
-| 文件 | `test_filing_service.py` | 3/3 | 材料校验、打包拦截、交接确认+状态变更 |
-| 仪表盘 | `test_dashboard_service.py` | 3/3 | 面板结构、活动详情聚合、月报异步生成 |
-| 上传 | `test_upload.py` | 3/3 | 上传成功+元数据、未认证拦截、格式校验 |
-| 下载 | `test_download.py` | 3/3 | 302 重定向、文件不存在、文档列表 |
+**`test_auth.py`（6 个测试）** — 用户认证全流程：
+
+| 测试用例 | 角色/用户 | 操作 | 验证点 |
+|---------|---------|------|--------|
+| `test_register_and_login` | 匿名用户 | 注册新用户 → 登录 | 注册返回 200 + token，登录返回 200 + access_token |
+| `test_me_with_token` | 已注册用户 | 携带 token 访问 `/auth/me` | 200 + 返回邮箱含 @test.com |
+| `test_me_without_token` | 匿名用户 | 无 token 访问 `/auth/me` | 401 |
+| `test_me_invalid_token` | 匿名用户 | 伪造 token 访问 `/auth/me` | 401 |
+| `test_duplicate_register` | 匿名用户 | 用已注册邮箱再次注册 | 第一次 200，第二次 409 |
+| `test_login_wrong_password` | 已注册用户 | 用错误密码登录 | 401 |
+
+**`test_activity_service.py`（6 个测试）** — 活动 CRUD 与权限：
+
+| 测试用例 | 角色 | 操作 | 验证点 |
+|---------|------|------|--------|
+| `test_create_activity` | Promoter | POST `/activities` 创建活动 | 201 + status="待设计方案" + name 正确 |
+| `test_create_activity_past_deadline` | Promoter | 截止日期早于当前时间创建 | 400 |
+| `test_list_activities` | Promoter | GET `/activities` 分页查询 | 200 + 返回 items/total 结构 |
+| `test_get_activity_detail` | Promoter | GET `/activities/{id}` | 200 + id 匹配 |
+| `test_get_status_history` | Promoter | GET `/activities/{id}/history` | 200 + 历史长度 1 + 初始状态为"待设计方案" |
+| `test_no_role_user_forbidden` | 无角色用户 | POST `/activities` 创建活动 | 403（无 create_activity 权限） |
+
+**`test_workflow_service.py`（5 个测试）** — 状态机流转：
+
+| 测试用例 | 角色 | 操作 | 验证点 |
+|---------|------|------|--------|
+| `test_valid_transition` | SecurityOfficer | PUT `/status` 待设计方案→待安保方案设计 | 200 + from/to_status 正确 |
+| `test_invalid_transition` | SecurityOfficer | PUT `/status` 跳过不可达状态 | 422 |
+| `test_reject_loop` | SecurityOfficer | PUT `/status` 待安保方案设计→待安保方案设计（驳回自循环） | 200 + from=to=待安保方案设计 |
+| `test_force_cancel` | AdminStaff | PUT `/status` → 已取消 | 200 + implementation_records 已写入 |
+| `test_promoter_can_submit_plan` | Promoter | PUT `/status` 待设计方案→待安保方案设计 | 200（submit_plan 权限允许此流转） |
+
+**`test_filing_service.py`（3 个测试）** — 备案材料管理：
+
+| 测试用例 | 角色 | 操作 | 验证点 |
+|---------|------|------|--------|
+| `test_validate_empty_materials` | SecurityOfficer | GET 材料校验 | 200 + 返回空列表 |
+| `test_pack_no_materials` | SecurityOfficer | POST 打包（无材料） | 422 |
+| `test_handover` | SecurityOfficer | POST 交接确认 → Promoter 查详情 | 200 + handover_status="已交接" + 活动状态已变更为"备案材料已交接" |
+
+**`test_dashboard_service.py`（3 个测试）** — 数据聚合与报表：
+
+| 测试用例 | 角色 | 操作 | 验证点 |
+|---------|------|------|--------|
+| `test_panel_data` | AdminStaff | GET 面板数据 | 200 + 含 total/by_status/compliance_rate/recent_anomalies |
+| `test_activity_detail` | AdminStaff | GET 活动详情聚合 | 200 + activity.id 匹配 + status_history 非空 |
+| `test_monthly_report` | AdminStaff | POST 月报导出 | 200 + 返回异步生成确认消息 |
+
+**`test_upload.py`（3 个测试）** — 文件上传：
+
+| 测试用例 | 角色 | 操作 | 验证点 |
+|---------|------|------|--------|
+| `test_upload_success` | Promoter | POST 上传 PDF 文件 | 200 + filename/size/content_type/tags/minio_path 正确 |
+| `test_upload_unauthenticated` | 匿名用户 | POST 上传（无 token） | 401 |
+| `test_upload_invalid_format` | Promoter | POST 上传 .exe 文件 | 400（格式校验拦截） |
+
+**`test_download.py`（3 个测试）** — 文件下载：
+
+| 测试用例 | 角色 | 操作 | 验证点 |
+|---------|------|------|--------|
+| `test_download_redirect` | Promoter | 上传后 GET `/documents/{id}` | 302 + Location 头为 presigned URL |
+| `test_download_not_found` | Promoter | GET 不存在的文档 ID | 404 |
+| `test_list_activity_documents` | Promoter | 上传 2 个文件后 GET `/activities/{id}/documents` | 200 + 列表长度 ≥ 2 |
 
 测试环境：`httpx.ASGITransport` 直连 FastAPI，真实 PostgreSQL + MinIO + Redis。测试数据通过 `pytest_asyncio` fixture 按角色创建独立用户并分配 RBAC 权限，每个测试脚本自含数据准备不依赖其他脚本的执行顺序。
 
