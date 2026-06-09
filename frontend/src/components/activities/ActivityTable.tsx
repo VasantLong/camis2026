@@ -21,6 +21,7 @@ export default function ActivityTable({ data, total, loading }: Props) {
       title: "活动名称",
       dataIndex: "name",
       key: "name",
+      fixed: "left" as const,
       render: (text: string, record: ActivityResponse) => (
         <a onClick={() => navigate(`/activities/${record.id}`)}>{text}</a>
       ),
@@ -29,13 +30,14 @@ export default function ActivityTable({ data, total, loading }: Props) {
       title: "类型",
       dataIndex: "type",
       key: "type",
-      width: 120,
+      width: 100,
+      responsive: ["lg" as const],
     },
     {
       title: "状态",
       dataIndex: "status",
       key: "status",
-      width: 150,
+      width: 140,
       render: (status: string) => (
         <Tag color={STATUS_COLOR_MAP[status] || "default"}>{status}</Tag>
       ),
@@ -44,36 +46,41 @@ export default function ActivityTable({ data, total, loading }: Props) {
       title: "地点",
       dataIndex: "location",
       key: "location",
-      width: 180,
+      width: 160,
       ellipsis: true,
+      responsive: ["md" as const],
     },
     {
       title: "主办方",
       dataIndex: "sponsor",
       key: "sponsor",
-      width: 160,
+      width: 140,
       ellipsis: true,
+      responsive: ["md" as const],
     },
     {
       title: "预计时间",
       dataIndex: "estimated_time",
       key: "estimated_time",
-      width: 170,
+      width: 160,
       render: (t: string) => dayjs(t).format("YYYY-MM-DD HH:mm"),
+      responsive: ["lg" as const],
     },
     {
       title: "截止日期",
       dataIndex: "deadline",
       key: "deadline",
-      width: 130,
+      width: 120,
       render: (t: string) => dayjs(t).format("YYYY-MM-DD"),
+      responsive: ["xl" as const],
     },
     {
       title: "创建时间",
       dataIndex: "created_at",
       key: "created_at",
-      width: 170,
+      width: 160,
       render: (t: string) => dayjs(t).format("YYYY-MM-DD HH:mm"),
+      responsive: ["xl" as const],
     },
   ];
 
@@ -81,6 +88,7 @@ export default function ActivityTable({ data, total, loading }: Props) {
     <Table
       rowKey="id"
       columns={columns}
+      scroll={{ x: "max-content" }}
       dataSource={data}
       loading={loading}
       pagination={{

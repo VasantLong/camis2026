@@ -1,12 +1,23 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { Form, Input, Button, Card, Typography, Alert, message } from "antd";
 import { MailOutlined, LockOutlined } from "@ant-design/icons";
 import { authApi } from "@/api/auth";
 import { useAuthStore } from "@/stores/authStore";
 
+function useIsMobile() {
+  const [mobile, setMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const onResize = () => setMobile(window.innerWidth < 768);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  return mobile;
+}
+
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
+  const isMobile = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -55,31 +66,33 @@ export default function LoginPage() {
           WebkitBackdropFilter: "blur(20px)",
         }}
       >
-        <div
-          style={{
-            width: 280,
-            display: "flex",
-            overflow: "hidden",
-          }}
-        >
-          <img
-            src="/logo-vertical.png"
-            alt="CAMIS"
+        {!isMobile && (
+          <div
             style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              borderTopLeftRadius: 12,
-              borderBottomLeftRadius: 12,
+              width: 280,
+              display: "flex",
+              overflow: "hidden",
             }}
-          />
-        </div>
+          >
+            <img
+              src="/logo-vertical.png"
+              alt="CAMIS"
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                borderTopLeftRadius: 12,
+                borderBottomLeftRadius: 12,
+              }}
+            />
+          </div>
+        )}
         <Card
           style={{
-            width: 400,
+            width: isMobile ? "100%" : 400,
             borderRadius: 0,
             border: "none",
-            borderLeft: "1px solid rgba(255,255,255,0.3)",
+            borderLeft: isMobile ? "none" : "1px solid rgba(255,255,255,0.3)",
             display: "flex",
             alignItems: "center",
             background: "rgba(255,255,255,0.75)",
