@@ -41,7 +41,7 @@ export default function LoginPage() {
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        background: "#f5f5f5",
+        background: "url(/background.png) center / cover no-repeat",
         padding: 24,
       }}
     >
