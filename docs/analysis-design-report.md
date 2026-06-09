@@ -792,6 +792,8 @@ classDiagram
 
 **UC1 立项**：
 
+Promoter 提交创建立项请求后，`ActivityService.create()` 校验必填字段与场地冲突，通过后写入活动记录与状态日志，调用 `NotificationService.send_reminder()` 向指定设计人员发送待办提醒。
+
 ```mermaid
 sequenceDiagram autonumber
     actor P as Promoter
@@ -815,6 +817,8 @@ sequenceDiagram autonumber
 
 
 **UC2 编制活动方案**：
+
+Promoter 进入活动方案 Tab 后，`TemplateService.get_schema()` 返回字段定义与自动填入数据，前端据此渲染动态表单。用户可多次保存草稿（`PUT /draft`）或提交生成 DOCX 版本（`POST /generate`），每次生成调用 `docxtpl` 引擎渲染模板并上传至 MinIO。点击"最终确定方案"后，`POST /finalize` 调用 `WorkflowService.transition("待安保方案设计")`，对方案进行锁定并通知安保部。
 
 ```mermaid
 sequenceDiagram autonumber
@@ -846,6 +850,8 @@ sequenceDiagram autonumber
 
 
 **UC3 编制安保方案与签署**：
+
+SecurityOfficer 进入安保方案 Tab 后，`get_schema()` 按风险等级返回条件字段。提交生成时采用延迟策略（`minio_path=NULL`），仅保存数据快照。点击"提交审核"后通知 SecurityManager 签署。签署分两步：第一步 `sign_and_finalize()` 批量生成安保方案+双表 DOCX 并注入 Manager 签名图片；第二步 `sign_manager_commitment()` 生成备案承诺书 DOCX（全字段 autofill，复用已上传签名）。签署完成后调用 `transition("待备案申请")` 流转状态。
 
 ```mermaid
 sequenceDiagram autonumber
@@ -886,6 +892,8 @@ sequenceDiagram autonumber
 
 **UC4 备案打包与交接**：
 
+SecurityOfficer 点击"打包备案材料"后，`FilingService.pack_materials()` 校验 5 项材料的 `sign_status`，全部签署后聚合各 DOCX 文件生成 ZIP 并上传 MinIO。`confirm_handover()` 确认线下纸质交接，调用 `WorkflowService.transition("备案材料已交接")` 流转状态并通知 GovLiaison 开始审查。
+
 ```mermaid
 sequenceDiagram autonumber
     actor O as SecurityOfficer
@@ -916,6 +924,8 @@ sequenceDiagram autonumber
 
 **UC5 政府审查与审批**：
 
+GovLiaison 逐条审查备案材料，`audit_material()` 标记合格/不合格并写入 `material_audits` 留痕。全部材料审查完毕后，`create_approval_record()` 生成 `ApprovalRecord`——审批通过时上传政府批文并调用 `transition("审批通过-待举办")` 自动流转，同时通知所有经手过活动的人员；补件时流转至"待补充备案材料"进入修正回路；驳回时流转至"不通过/已终止"终态。
+
 ```mermaid
 sequenceDiagram autonumber
     actor G as GovLiaison
@@ -942,6 +952,8 @@ sequenceDiagram autonumber
 
 
 **UC6 活动实施监控**：
+
+AdminStaff 进入工作台后，`DashboardService.get_panel_data()` 多维度聚合查询活动统计数据。活动举办完成后，点击"标记结束"调用 `transition("已结束")` 写入状态日志（含必填结束原因），通知所有经手人。月报导出时 `ReportRenderer`（Playwright 微服务）异步渲染 PDF 后上传 MinIO，通过通知推送下载链接。不可抗力场景下可调用 `force_cancel()` 或 `force_postpone()` 强制终止/延期。
 
 ```mermaid
 sequenceDiagram autonumber
