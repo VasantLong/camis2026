@@ -627,13 +627,19 @@ graph TD
 
 **界面设计代表图**（其余操作界面截图见 §4.1 功能实现）：
 
-> **此处插入界面截图（图3-5 角色感知导航）**。左侧为 Promoter 侧边栏（我的活动、新建立项），右侧为 GovLiaison 侧边栏（待审查材料、审批记录）。不同角色看到不同的菜单入口，体现权限驱动的界面设计。
+![Promoter 侧边栏](ui/promoter工作台.png)
+![GovLiaison 侧边栏](ui/security任务页.png)
+> 图3-5 角色感知导航 — 不同角色看到不同的菜单入口，体现权限驱动的界面设计。
 
-> **此处插入界面截图（图3-6 活动详情页多 Tab 布局）**。顶部展示活动基本信息和当前状态，下方五个 Tab（详情/文档/活动方案/安保方案/备案）按角色和状态分段渲染各自操作界面。
+![活动详情页](ui/活动界面基本信息.png)
+> 图3-6 活动详情页多 Tab 布局。
 
-> **此处插入界面截图（图3-7 Schema 驱动动态表单）**。左为活动方案表单（Promoter 编辑），右为安保方案表单（SecurityOfficer 编辑，高风险模式显示全部条件字段）。字段类型包括文本、日期（含时刻）、下拉选择、多行文本、动态列表、签名上传。
+![活动方案表单](ui/活动界面编制活动方案.png)
+![安保方案表单](ui/活动界面编制安保方案1.png)
+> 图3-7 Schema 驱动动态表单。
 
-> **此处插入界面截图（图3-8 工作台 Dashboard）**。顶部统计卡片（总活动数、审批通过率、本月新增）、状态分布进度条、异常活动列表、月报导出入口。
+![工作台](ui/adminstaff工作台.png)
+> 图3-8 工作台 Dashboard。
 
 #### 3.2.2 接口层设计
 
@@ -1391,7 +1397,8 @@ erDiagram
 - 前端 `ActivityForm` 组件含截止时间校验与设计人选择（`frontend/src/components/activities/ActivityForm.tsx`）
 - 保存后写入 `activity_status_log`，初始状态"待设计方案"，通知 designer
 
-> **此处插入界面截图（图4-1 创建立项界面）**。
+![创建立项](ui/promoter新建立项.png)
+> 图4-1 创建立项界面。
 
 #### UC2 编制活动方案
 
@@ -1401,7 +1408,8 @@ erDiagram
 - `POST /plan/generate` 调用 `docxtpl` 渲染 DOCX → 异步 LibreOffice 转 PDF
 - `POST /plan/finalize` → `WorkflowService.transition("待安保方案设计")`，方案锁定不可编辑
 
-> **此处插入界面截图（图4-2 活动方案编辑与版本管理）**。
+![活动方案编制](ui/活动方案编制活动方案.png)
+> 图4-2 活动方案编辑与版本管理。
 
 #### UC3 编制安保方案与签署
 
@@ -1412,8 +1420,12 @@ erDiagram
 - 签名图片嵌入 DOCX：`_render_docx()` 检测签名字段 → MinIO 拉取 → `InlineImage(width=Mm(30))`
 - 驳回后 `audit_status` 回"待编制"，必须先创建新版本方可重新提交
 
-> **此处插入界面截图（图4-3 安保方案三子 Tab 编辑）**。
-> **此处插入界面截图（图4-4 Manager 两步签署）**。
+![安保方案](ui/活动界面编制安保方案2.png)
+![风险评估](ui/活动界面编制安保方案3.png)
+> 图4-3 安保方案三子 Tab 编辑。
+![签署第一步](ui/security签署确认1.png)
+![签署第二步](ui/security签署确认2.png)
+> 图4-4 Manager 两步签署。
 
 #### UC4 备案打包与交接
 
@@ -1423,7 +1435,9 @@ erDiagram
 - `confirm_handover()` 调用 `WorkflowService.transition("备案材料已交接")`，通知 GovLiaison
 - ZIP 下载通过 MinIO presigned URL，前端 `window.open()` 触发，所有角色可见
 
-> **此处插入界面截图（图4-5 备案打包与交接）**。
+![打包](ui/活动界面打包备案材料.png)
+![已打包](ui/活动界面备案已打包.png)
+> 图4-5 备案打包与交接。
 
 #### UC5 政府审查与审批
 
@@ -1432,8 +1446,12 @@ erDiagram
 - `create_approval_record()` 生成 `ApprovalRecord`：审批通过 → `transition("审批通过-待举办")` + 通知所有经手人；补件 → "待补充备案材料"进入修正回路；驳回 → "不通过/已终止"终态
 - 审批通过必须上传政府批文
 
-> **此处插入界面截图（图4-6 政府审查与审批决策）**。
-> **此处插入界面截图（图4-7 补件回路 — 材料修正与重新递交）**。
+![审查面板](ui/liaison上传政府审查.png)
+![审批通过](ui/liaison备案通过.png)
+> 图4-6 政府审查与审批决策。
+![补件通知](ui/liaison备案补件.png)
+![补件完成](ui/liaison备案补件点击完成.png)
+> 图4-7 补件回路。
 
 #### UC6 活动实施监控
 
@@ -1443,7 +1461,9 @@ erDiagram
 - `force_cancel()` / `force_postpone()` 写入 `implementation_records` 归档
 - 月报 PDF：`POST /dashboard/reports/{month}` → `ReportRenderer`（Playwright 微服务）异步渲染 → MinIO 上传 → 通知推送下载链接
 
-> **此处插入界面截图（图4-8 工作台 Dashboard 与月报导出）**。
+![活动面板](ui/admin活动面板.png)
+![月报预览](ui/admin月报在线预览.png)
+> 图4-8 工作台 Dashboard 与月报导出。
 
 #### 系统管理
 
@@ -1452,7 +1472,8 @@ erDiagram
 - 角色申请审批：用户提交 → AdminManager 审批 → `user_roles` 表更新
 - 14 项 RBAC 权限通过 `require_permission` 装饰器在路由层校验，覆盖全部 23 个 API 端点
 
-> **此处插入界面截图（图4-9 超级管理员用户管理界面）**。
+![用户管理](ui/superadmin用户管理1.png)
+> 图4-9 超级管理员用户管理界面。
 
 ### 4.2 系统测试
 
