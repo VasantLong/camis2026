@@ -11,12 +11,13 @@ from app.models.rbac import Role
 from app.models.user import User
 from app.schemas.role_request import RoleRequestCreate, RoleRequestResponse
 from app.services.auth_service import AuthService
+from app.services.notification_service import NotificationService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 def _service(db=Depends(get_db)) -> AuthService:
-    return AuthService(db)
+    return AuthService(db, NotificationService(db))
 
 
 class RegisterRequest(BaseModel):

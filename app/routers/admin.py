@@ -19,12 +19,13 @@ from app.schemas.user_admin import (
     UserStatusUpdate,
 )
 from app.services.admin_service import AdminService
+from app.services.notification_service import NotificationService
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 def _service(db=Depends(get_db)) -> AdminService:
-    return AdminService(db)
+    return AdminService(db, NotificationService(db))
 
 
 # ── Role Requests ──

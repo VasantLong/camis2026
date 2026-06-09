@@ -7,6 +7,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.notification_service import NotificationService
 from app.auth import (
     create_access_token,
     create_email_change_token,
@@ -25,8 +26,9 @@ logger = logging.getLogger("camis.auth_service")
 
 
 class AuthService:
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, notification: NotificationService | None = None):
         self.db = db
+        self.notification = notification
 
     # ── Registration & Login ──
 
@@ -46,6 +48,10 @@ class AuthService:
         self.db.add(user)
         await self.db.commit()
         await self.db.refresh(user)
+        if self.notification:
+            await self.notification.send_reminder(
+                user.id, "欢迎使用 CAMIS！请等待管理员分配角色后即可开始操作。"
+            )
         return user
 
     async def authenticate_user(self, email: str, password: str) -> User:

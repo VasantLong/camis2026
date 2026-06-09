@@ -10,11 +10,13 @@ from app.models.activity import ActivityStatusLog
 from app.models.material import MaterialAudit
 from app.models.rbac import Permission, Role, RolePermission, RoleRequest, UserRole
 from app.models.user import User
+from app.services.notification_service import NotificationService
 
 
 class AdminService:
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, notification: NotificationService | None = None):
         self.db = db
+        self.notification = notification
 
     # ── Role Requests ──
 
@@ -48,6 +50,10 @@ class AdminService:
 
         role_result = await self.db.execute(select(Role.name).where(Role.id == rr.role_id))
         role_name = role_result.scalar_one()
+        if self.notification:
+            await self.notification.send_reminder(
+                rr.user_id, f"你的角色申请（{role_name}）已通过审批"
+            )
         return self._format_role_request(rr, role_name)
 
     async def reject_role_request(self, request_id: UUID, reviewer_id: UUID, comment: str) -> dict:
@@ -61,6 +67,12 @@ class AdminService:
 
         role_result = await self.db.execute(select(Role.name).where(Role.id == rr.role_id))
         role_name = role_result.scalar_one()
+        if self.notification:
+            reason_suffix = f"原因：{comment}" if comment else ""
+            await self.notification.send_reminder(
+                rr.user_id,
+                f"你的角色申请（{role_name}）未通过审批。{reason_suffix}".strip()
+            )
         return self._format_role_request(rr, role_name)
 
     # ── User CRUD ──
