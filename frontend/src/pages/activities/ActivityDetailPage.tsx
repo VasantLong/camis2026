@@ -305,13 +305,23 @@ export default function ActivityDetailPage() {
         </Tag>
 
         <div style={{ display: "flex", gap: 0, marginLeft: 8 }}>
-          {[
-            { key: "detail", label: "基本信息" },
-            { key: "history", label: "状态历史" },
-            { key: "plan", label: "活动方案" },
-            { key: "security-plan", label: "安保方案" },
-            { key: "filing", label: "备案" },
-          ].map((tab) => (
+          {(() => {
+            const tabs: { key: string; label: string }[] = [];
+            tabs.push({ key: "detail", label: "基本信息" });
+            tabs.push({ key: "history", label: "状态历史" });
+            if (canViewPlan) {
+              tabs.push({ key: "plan", label: "活动方案" });
+            }
+            if (canViewSecurity && activity?.status && activity.status !== "待设计方案") {
+              tabs.push({ key: "security-plan", label: "安保方案" });
+            }
+            if (showFiling) {
+              tabs.push({ key: "filing", label: "备案" });
+            }
+            if (!isGovLiaison) {
+              tabs.push({ key: "documents", label: "文档" });
+            }
+            return tabs.map((tab) => (
             <Button
               key={tab.key}
               type={activeTab === tab.key ? "link" : "text"}
@@ -325,7 +335,8 @@ export default function ActivityDetailPage() {
             >
               {tab.label}
             </Button>
-          ))}
+          ));
+          })()}
         </div>
       </div>
 
