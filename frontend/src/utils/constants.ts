@@ -32,6 +32,8 @@ export const PERMISSION_LABEL_MAP: Record<string, string> = {
   export_report: "导出报表",
   manage_users: "管理用户",
   review_security_plan: "审核安保方案",
+  upload_approval: "上传批文(已废弃)",
+  update_approval_status: "更新审批状态(已废弃)",
 };
 
 export const ACTIVITY_STATUSES = [
