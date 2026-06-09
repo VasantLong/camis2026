@@ -404,6 +404,8 @@ export default function ActivityDetailPage() {
             label: "状态历史",
             children: historyLoading ? (
               <Spin />
+            ) : history.length === 0 ? (
+              <Empty description="暂无状态变更记录" />
             ) : (
               <StatusTimeline history={history} />
             ),
