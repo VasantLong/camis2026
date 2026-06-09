@@ -179,7 +179,7 @@ export default function MonthlyReportPage() {
             <Statistic
               title="异常活动"
               value={data.anomalies.length}
-              valueStyle={data.anomalies.length > 0 ? { color: "#cf1322" } : undefined}
+              styles={data.anomalies.length > 0 ? { content: { color: "#cf1322" } } : undefined}
             />
           </Card>
         </Col>
