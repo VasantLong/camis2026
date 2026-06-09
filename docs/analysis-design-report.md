@@ -734,174 +734,290 @@ erDiagram
 
 **核心业务域表结构**：
 
-| 表 | 属性名 | 数据类型 | 长度 | 约束条件 | 备注 |
-|---|--------|---------|------|---------|------|
-| `activities` | id | UUID | — | PK | 聚合根标识 |
-| | name | VARCHAR | 255 | NOT NULL | 活动名称 |
-| | type | VARCHAR | 128 | NOT NULL | 活动类型 |
-| | estimated_time | TIMESTAMPTZ | — | NOT NULL | 预计举办时间，到达后自动转举办中 |
-| | location | VARCHAR | 512 | NOT NULL | 活动地点 |
-| | sponsor | VARCHAR | 255 | NOT NULL | 主办单位 |
-| | sponsor_contact | VARCHAR | 128 | NOT NULL | 主办方联系人 |
-| | sponsor_phone | VARCHAR | 64 | NOT NULL | 主办方联系电话 |
-| | deadline | TIMESTAMPTZ | — | NOT NULL | 方案编制截止时间 |
-| | status | VARCHAR | 64 | NOT NULL | 当前状态（11 种之一） |
-| | owner_id | UUID | — | FK → users | 活动创建者 |
-| | designer_id | UUID | — | FK → users, NULLABLE | 指定方案设计人 |
-| | created_at | TIMESTAMPTZ | — | NOT NULL, DEFAULT now() | 创建时间 |
-| | updated_at | TIMESTAMPTZ | — | NOT NULL, DEFAULT now() | 更新时间 |
-| `activity_plans` | id | UUID | — | PK | — |
-| | activity_id | UUID | — | FK → activities, CASCADE, UNIQUE | 所属活动 |
-| | material_id | UUID | — | FK → key_materials, SET NULL | 关联备案材料 |
-| | designer_id | UUID | — | FK → users | 方案设计人 |
-| | draft_data | JSONB | — | — | 草稿数据（schema 驱动表单） |
-| | current_filled_document_id | UUID | — | FK → filled_documents, SET NULL | 当前版本 |
-| | created_at | TIMESTAMPTZ | — | NOT NULL | — |
-| | updated_at | TIMESTAMPTZ | — | NOT NULL | — |
-| `security_plans` | id | UUID | — | PK | — |
-| | activity_id | UUID | — | FK → activities, CASCADE, UNIQUE | 所属活动 |
-| | material_id | UUID | — | FK → key_materials, SET NULL | 关联备案材料 |
-| | risk_level | VARCHAR | 32 | — | 高风险 / 中低风险 / 低风险 |
-| | audit_status | VARCHAR | 32 | NOT NULL | 待编制 / 待审核 / 待签署 / 已签署 / 已审核 |
-| | manager_id | UUID | — | FK → users, NULLABLE | 安保负责人 |
-| | sign_time | TIMESTAMPTZ | — | — | 签署时间 |
-| | last_reject_reason | VARCHAR | 1024 | — | 最近驳回原因 |
-| | rejected_at | TIMESTAMPTZ | — | — | 最近驳回时间 |
-| | reject_count | INTEGER | — | DEFAULT 0 | 驳回次数 |
-| | draft_data | JSONB | — | — | 草稿数据 |
-| | current_filled_document_id | UUID | — | FK → filled_documents, SET NULL | 当前版本 |
-| | created_at | TIMESTAMPTZ | — | NOT NULL | — |
-| | updated_at | TIMESTAMPTZ | — | NOT NULL | — |
-| `filing_docs` | id | UUID | — | PK | — |
-| | activity_id | UUID | — | FK → activities, CASCADE, UNIQUE | 1 个活动 1 个备案包 |
-| | is_qualified | BOOLEAN | — | DEFAULT false | 材料合规状态 |
-| | handover_status | VARCHAR | 32 | — | 交接状态 |
-| | pack_url | VARCHAR | 2048 | — | ZIP 包 MinIO 路径 |
-| | generated_at | TIMESTAMPTZ | — | — | 打包时间 |
-| `filled_documents` | id | UUID | — | PK | — |
-| | activity_id | UUID | — | FK → activities, CASCADE | 所属活动 |
-| | template_type | VARCHAR | 64 | NOT NULL, UNIQUE 组合 | 模板类型（5 种之一） |
-| | version_number | INTEGER | — | NOT NULL, UNIQUE 组合 | 版本号 |
-| | data_snapshot | JSONB | — | NOT NULL | 生成时的数据快照 |
-| | minio_path | VARCHAR | 2048 | NULLABLE | DOCX 文件路径（延迟生成时为空） |
-| | pdf_path | VARCHAR | 2048 | NULLABLE | PDF 文件路径 |
-| | template_hash | VARCHAR | 64 | — | 模板文件 SHA-256（审计追溯） |
-| | generated_by | UUID | — | FK → users | 生成人 |
-| | created_at | TIMESTAMPTZ | — | NOT NULL | 生成时间 |
-| `approval_records` | id | UUID | — | PK | — |
-| | activity_id | UUID | — | FK → activities, CASCADE | 所属活动 |
-| | liaison_id | UUID | — | FK → users, NOT NULL | 政府对接人 |
-| | approval_status | VARCHAR | 32 | NOT NULL | 审批通过 / 待补充备案材料 / 不通过已终止 |
-| | attachment_url | VARCHAR | 2048 | — | 批文附件 MinIO 路径 |
-| | approval_date | TIMESTAMPTZ | — | — | 审批日期 |
-| | rectification_opinion | TEXT | — | — | 补件/驳回整改意见 |
-| `implementation_records` | id | UUID | — | PK | — |
-| | activity_id | UUID | — | FK → activities, CASCADE | 所属活动 |
-| | admin_id | UUID | — | FK → users, NOT NULL | 操作行政人员 |
-| | change_status | VARCHAR | 32 | NOT NULL | 已取消 / 已延期 |
-| | change_reason | TEXT | — | NOT NULL | 变更原因 |
-| | archived_at | TIMESTAMPTZ | — | NOT NULL | 归档时间 |
-| `activity_status_log` | id | UUID | — | PK | — |
-| | activity_id | UUID | — | FK → activities, CASCADE | 所属活动 |
-| | from_status | VARCHAR | 64 | NULLABLE | 变更前状态 |
-| | to_status | VARCHAR | 64 | NOT NULL | 变更后状态 |
-| | operator_id | UUID | — | FK → users, NOT NULL | 操作人 |
-| | comment | TEXT | — | — | 操作备注 |
-| | created_at | TIMESTAMPTZ | — | NOT NULL | 追加式，不更新 |
+
+
+> 活动表（聚合根）
+
+| 属性名 | 数据类型 | 长度 | 约束条件 | 备注 |
+|--------|---------|------|---------|------|
+| id | UUID | — | PK | 聚合根标识 |
+| name | VARCHAR | 255 | NOT NULL | 活动名称 |
+| type | VARCHAR | 128 | NOT NULL | 活动类型 |
+| estimated_time | TIMESTAMPTZ | — | NOT NULL | 预计举办时间，到达后自动转举办中 |
+| location | VARCHAR | 512 | NOT NULL | 活动地点 |
+| sponsor | VARCHAR | 255 | NOT NULL | 主办单位 |
+| sponsor_contact | VARCHAR | 128 | NOT NULL | 主办方联系人 |
+| sponsor_phone | VARCHAR | 64 | NOT NULL | 主办方联系电话 |
+| deadline | TIMESTAMPTZ | — | NOT NULL | 方案编制截止时间 |
+| status | VARCHAR | 64 | NOT NULL | 当前状态（11 种之一） |
+| owner_id | UUID | — | FK → users | 活动创建者 |
+| designer_id | UUID | — | FK → users, NULLABLE | 指定方案设计人 |
+| created_at | TIMESTAMPTZ | — | NOT NULL, DEFAULT now() | 创建时间 |
+| updated_at | TIMESTAMPTZ | — | NOT NULL, DEFAULT now() | 更新时间 |
+
+
+> 活动方案表
+
+| 属性名 | 数据类型 | 长度 | 约束条件 | 备注 |
+|--------|---------|------|---------|------|
+| id | UUID | — | PK | — |
+| activity_id | UUID | — | FK → activities, CASCADE, UNIQUE | 所属活动 |
+| material_id | UUID | — | FK → key_materials, SET NULL | 关联备案材料 |
+| designer_id | UUID | — | FK → users | 方案设计人 |
+| draft_data | JSONB | — | — | 草稿数据（schema 驱动表单） |
+| current_filled_document_id | UUID | — | FK → filled_documents, SET NULL | 当前版本 |
+| created_at | TIMESTAMPTZ | — | NOT NULL | — |
+| updated_at | TIMESTAMPTZ | — | NOT NULL | — |
+
+
+> 安保方案表
+
+| 属性名 | 数据类型 | 长度 | 约束条件 | 备注 |
+|--------|---------|------|---------|------|
+| id | UUID | — | PK | — |
+| activity_id | UUID | — | FK → activities, CASCADE, UNIQUE | 所属活动 |
+| material_id | UUID | — | FK → key_materials, SET NULL | 关联备案材料 |
+| risk_level | VARCHAR | 32 | — | 高风险 / 中低风险 / 低风险 |
+| audit_status | VARCHAR | 32 | NOT NULL | 待编制 / 待审核 / 待签署 / 已签署 / 已审核 |
+| manager_id | UUID | — | FK → users, NULLABLE | 安保负责人 |
+| sign_time | TIMESTAMPTZ | — | — | 签署时间 |
+| last_reject_reason | VARCHAR | 1024 | — | 最近驳回原因 |
+| rejected_at | TIMESTAMPTZ | — | — | 最近驳回时间 |
+| reject_count | INTEGER | — | DEFAULT 0 | 驳回次数 |
+| draft_data | JSONB | — | — | 草稿数据 |
+| current_filled_document_id | UUID | — | FK → filled_documents, SET NULL | 当前版本 |
+| created_at | TIMESTAMPTZ | — | NOT NULL | — |
+| updated_at | TIMESTAMPTZ | — | NOT NULL | — |
+
+
+> 备案材料包表
+
+| 属性名 | 数据类型 | 长度 | 约束条件 | 备注 |
+|--------|---------|------|---------|------|
+| id | UUID | — | PK | — |
+| activity_id | UUID | — | FK → activities, CASCADE, UNIQUE | 1 个活动 1 个备案包 |
+| is_qualified | BOOLEAN | — | DEFAULT false | 材料合规状态 |
+| handover_status | VARCHAR | 32 | — | 交接状态 |
+| pack_url | VARCHAR | 2048 | — | ZIP 包 MinIO 路径 |
+| generated_at | TIMESTAMPTZ | — | — | 打包时间 |
+
+
+> 模板生成版本记录表
+
+| 属性名 | 数据类型 | 长度 | 约束条件 | 备注 |
+|--------|---------|------|---------|------|
+| id | UUID | — | PK | — |
+| activity_id | UUID | — | FK → activities, CASCADE | 所属活动 |
+| template_type | VARCHAR | 64 | NOT NULL, UNIQUE 组合 | 模板类型（5 种之一） |
+| version_number | INTEGER | — | NOT NULL, UNIQUE 组合 | 版本号 |
+| data_snapshot | JSONB | — | NOT NULL | 生成时的数据快照 |
+| minio_path | VARCHAR | 2048 | NULLABLE | DOCX 文件路径（延迟生成时为空） |
+| pdf_path | VARCHAR | 2048 | NULLABLE | PDF 文件路径 |
+| template_hash | VARCHAR | 64 | — | 模板文件 SHA-256（审计追溯） |
+| generated_by | UUID | — | FK → users | 生成人 |
+| created_at | TIMESTAMPTZ | — | NOT NULL | 生成时间 |
+
+
+> 政府审批记录表
+
+| 属性名 | 数据类型 | 长度 | 约束条件 | 备注 |
+|--------|---------|------|---------|------|
+| id | UUID | — | PK | — |
+| activity_id | UUID | — | FK → activities, CASCADE | 所属活动 |
+| liaison_id | UUID | — | FK → users, NOT NULL | 政府对接人 |
+| approval_status | VARCHAR | 32 | NOT NULL | 审批通过 / 待补充备案材料 / 不通过已终止 |
+| attachment_url | VARCHAR | 2048 | — | 批文附件 MinIO 路径 |
+| approval_date | TIMESTAMPTZ | — | — | 审批日期 |
+| rectification_opinion | TEXT | — | — | 补件/驳回整改意见 |
+
+
+> 活动实施记录表
+
+| 属性名 | 数据类型 | 长度 | 约束条件 | 备注 |
+|--------|---------|------|---------|------|
+| id | UUID | — | PK | — |
+| activity_id | UUID | — | FK → activities, CASCADE | 所属活动 |
+| admin_id | UUID | — | FK → users, NOT NULL | 操作行政人员 |
+| change_status | VARCHAR | 32 | NOT NULL | 已取消 / 已延期 |
+| change_reason | TEXT | — | NOT NULL | 变更原因 |
+| archived_at | TIMESTAMPTZ | — | NOT NULL | 归档时间 |
+
 
 **文件与材料表结构**：
 
-| 表 | 属性名 | 数据类型 | 长度 | 约束条件 | 备注 |
-|---|--------|---------|------|---------|------|
-| `documents` | id | UUID | — | PK | — |
-| | activity_id | UUID | — | FK → activities, SET NULL | 关联活动 |
-| | uploader_id | UUID | — | FK → users | 上传者 |
-| | filename | VARCHAR | 1024 | NOT NULL | 原始文件名 |
-| | minio_path | VARCHAR | 2048 | UNIQUE | MinIO 对象路径 |
-| | file_size | BIGINT | — | — | 文件大小（bytes） |
-| | content_type | VARCHAR | 255 | — | MIME 类型 |
-| | tags | JSONB | — | GIN 索引 | 标签数组 |
-| | created_at | TIMESTAMPTZ | — | NOT NULL | — |
-| `key_materials` | id | UUID | — | PK | — |
-| | activity_id | UUID | — | FK → activities, UNIQUE 组合 | 所属活动 |
-| | material_type | VARCHAR | 64 | NOT NULL, UNIQUE 组合 | 5 种：activity_plan / security_plan / risk_assessment / responsibility_letter / filing_commitment |
-| | name | VARCHAR | 255 | NOT NULL | 材料名称 |
-| | is_qualified | BOOLEAN | — | DEFAULT false | 合规状态（material_audits 快照冗余） |
-| | sign_status | VARCHAR | 32 | DEFAULT 'unsigned' | unsigned / signed |
-| | audit_round | INTEGER | — | DEFAULT 0 | 审查轮次 |
-| | opinion | TEXT | — | — | 审查意见（material_audits 快照冗余） |
-| | draft_data | JSONB | — | — | 草稿数据 |
-| | current_filled_document_id | UUID | — | FK → filled_documents, SET NULL | 当前版本 |
-| | upload_time | TIMESTAMPTZ | — | — | 上传时间 |
-| `material_audits` | id | UUID | — | PK | — |
-| | material_id | UUID | — | FK → key_materials, CASCADE | 关联材料 |
-| | user_id | UUID | — | FK → users | 操作人 |
-| | action | VARCHAR | 32 | NOT NULL | sign / audit |
-| | conclusion | VARCHAR | 32 | — | 合格 / 不合格 |
-| | opinion | TEXT | — | — | 审查意见 |
-| | created_at | TIMESTAMPTZ | — | NOT NULL | — |
+
+
+> 状态变更审计日志表
+
+| 属性名 | 数据类型 | 长度 | 约束条件 | 备注 |
+|--------|---------|------|---------|------|
+| id | UUID | — | PK | — |
+| activity_id | UUID | — | FK → activities, CASCADE | 所属活动 |
+| from_status | VARCHAR | 64 | NULLABLE | 变更前状态 |
+| to_status | VARCHAR | 64 | NOT NULL | 变更后状态 |
+| operator_id | UUID | — | FK → users, NOT NULL | 操作人 |
+| comment | TEXT | — | — | 操作备注 |
+| created_at | TIMESTAMPTZ | — | NOT NULL | 追加式，不更新 |
+
+
+> 通用文件元数据表
+
+| 属性名 | 数据类型 | 长度 | 约束条件 | 备注 |
+|--------|---------|------|---------|------|
+| id | UUID | — | PK | — |
+| activity_id | UUID | — | FK → activities, SET NULL | 关联活动 |
+| uploader_id | UUID | — | FK → users | 上传者 |
+| filename | VARCHAR | 1024 | NOT NULL | 原始文件名 |
+| minio_path | VARCHAR | 2048 | UNIQUE | MinIO 对象路径 |
+| file_size | BIGINT | — | — | 文件大小（bytes） |
+| content_type | VARCHAR | 255 | — | MIME 类型 |
+| tags | JSONB | — | GIN 索引 | 标签数组 |
+| created_at | TIMESTAMPTZ | — | NOT NULL | — |
+
+
+> 关键备案材料表（超类型）
+
+| 属性名 | 数据类型 | 长度 | 约束条件 | 备注 |
+|--------|---------|------|---------|------|
+| id | UUID | — | PK | — |
+| activity_id | UUID | — | FK → activities, UNIQUE 组合 | 所属活动 |
+| material_type | VARCHAR | 64 | NOT NULL, UNIQUE 组合 | 5 种：activity_plan / security_plan / risk_assessment / responsibility_letter / filing_commitment |
+| name | VARCHAR | 255 | NOT NULL | 材料名称 |
+| is_qualified | BOOLEAN | — | DEFAULT false | 合规状态（material_audits 快照冗余） |
+| sign_status | VARCHAR | 32 | DEFAULT 'unsigned' | unsigned / signed |
+| audit_round | INTEGER | — | DEFAULT 0 | 审查轮次 |
+| opinion | TEXT | — | — | 审查意见（material_audits 快照冗余） |
+| draft_data | JSONB | — | — | 草稿数据 |
+| current_filled_document_id | UUID | — | FK → filled_documents, SET NULL | 当前版本 |
+| upload_time | TIMESTAMPTZ | — | — | 上传时间 |
+
 
 **RBAC 权限体系表结构**：
 
-| 表 | 属性名 | 数据类型 | 长度 | 约束条件 | 备注 |
-|---|--------|---------|------|---------|------|
-| `users` | id | UUID | — | PK | — |
-| | email | VARCHAR | 255 | UNIQUE, NOT NULL | 登录邮箱 |
-| | display_name | VARCHAR | 128 | NOT NULL | 显示名称 |
-| | password_hash | VARCHAR | 255 | NOT NULL | bcrypt 哈希 |
-| | is_active | BOOLEAN | — | DEFAULT true | 是否启用 |
-| | is_archived | BOOLEAN | — | DEFAULT false | 是否归档 |
-| | archive_reason | VARCHAR | 1024 | — | 归档原因 |
-| | archived_at | TIMESTAMPTZ | — | — | 归档时间 |
-| | contact_phone | VARCHAR | 64 | — | 联系电话 |
-| | created_at | TIMESTAMPTZ | — | NOT NULL | — |
-| | updated_at | TIMESTAMPTZ | — | NOT NULL | — |
-| `roles` | id | UUID | — | PK | — |
-| | name | VARCHAR | 64 | UNIQUE, NOT NULL | 7 种角色 |
-| | description | VARCHAR | 255 | — | 角色说明 |
-| | created_at | TIMESTAMPTZ | — | NOT NULL | — |
-| | updated_at | TIMESTAMPTZ | — | NOT NULL | — |
-| `permissions` | id | UUID | — | PK | — |
-| | name | VARCHAR | 64 | UNIQUE, NOT NULL | 权限标识 |
-| | resource | VARCHAR | 64 | — | 资源名 |
-| | action | VARCHAR | 64 | — | 操作名 |
-| `user_roles` | user_id | UUID | — | PK (组合), FK → users | 用户-角色关联 |
-| | role_id | UUID | — | PK (组合), FK → roles | — |
-| `role_permissions` | role_id | UUID | — | PK (组合), FK → roles | 角色-权限关联 |
-| | permission_id | UUID | — | PK (组合), FK → permissions | — |
-| `role_requests` | id | UUID | — | PK | — |
-| | user_id | UUID | — | FK → users | 申请人 |
-| | role_id | UUID | — | FK → roles | 申请角色 |
-| | reviewer_id | UUID | — | FK → users, NULLABLE | 审批人 |
-| | status | VARCHAR | 32 | NOT NULL | pending / approved / rejected |
-| | comment | VARCHAR | 1024 | — | 申请/审批备注 |
-| | reviewed_at | TIMESTAMPTZ | — | — | 审批时间 |
-| | created_at | TIMESTAMPTZ | — | NOT NULL | — |
+
+
+> 材料审核/签署记录表
+
+| 属性名 | 数据类型 | 长度 | 约束条件 | 备注 |
+|--------|---------|------|---------|------|
+| id | UUID | — | PK | — |
+| material_id | UUID | — | FK → key_materials, CASCADE | 关联材料 |
+| user_id | UUID | — | FK → users | 操作人 |
+| action | VARCHAR | 32 | NOT NULL | sign / audit |
+| conclusion | VARCHAR | 32 | — | 合格 / 不合格 |
+| opinion | TEXT | — | — | 审查意见 |
+| created_at | TIMESTAMPTZ | — | NOT NULL | — |
+
+
+> 用户表
+
+| 属性名 | 数据类型 | 长度 | 约束条件 | 备注 |
+|--------|---------|------|---------|------|
+| id | UUID | — | PK | — |
+| email | VARCHAR | 255 | UNIQUE, NOT NULL | 登录邮箱 |
+| display_name | VARCHAR | 128 | NOT NULL | 显示名称 |
+| password_hash | VARCHAR | 255 | NOT NULL | bcrypt 哈希 |
+| is_active | BOOLEAN | — | DEFAULT true | 是否启用 |
+| is_archived | BOOLEAN | — | DEFAULT false | 是否归档 |
+| archive_reason | VARCHAR | 1024 | — | 归档原因 |
+| archived_at | TIMESTAMPTZ | — | — | 归档时间 |
+| contact_phone | VARCHAR | 64 | — | 联系电话 |
+| created_at | TIMESTAMPTZ | — | NOT NULL | — |
+| updated_at | TIMESTAMPTZ | — | NOT NULL | — |
+
+
+> 角色表
+
+| 属性名 | 数据类型 | 长度 | 约束条件 | 备注 |
+|--------|---------|------|---------|------|
+| id | UUID | — | PK | — |
+| name | VARCHAR | 64 | UNIQUE, NOT NULL | 7 种角色 |
+| description | VARCHAR | 255 | — | 角色说明 |
+| created_at | TIMESTAMPTZ | — | NOT NULL | — |
+| updated_at | TIMESTAMPTZ | — | NOT NULL | — |
+
+
+> 权限表
+
+| 属性名 | 数据类型 | 长度 | 约束条件 | 备注 |
+|--------|---------|------|---------|------|
+| id | UUID | — | PK | — |
+| name | VARCHAR | 64 | UNIQUE, NOT NULL | 权限标识 |
+| resource | VARCHAR | 64 | — | 资源名 |
+| action | VARCHAR | 64 | — | 操作名 |
+
+
+> 用户-角色关联表
+
+| 属性名 | 数据类型 | 长度 | 约束条件 | 备注 |
+|--------|---------|------|---------|------|
+| user_id | UUID | — | PK (组合), FK → users | 用户-角色关联 |
+| role_id | UUID | — | PK (组合), FK → roles | — |
+
+
+> 角色-权限关联表
+
+| 属性名 | 数据类型 | 长度 | 约束条件 | 备注 |
+|--------|---------|------|---------|------|
+| role_id | UUID | — | PK (组合), FK → roles | 角色-权限关联 |
+| permission_id | UUID | — | PK (组合), FK → permissions | — |
+
 
 **基础设施表结构**：
 
-| 表 | 属性名 | 数据类型 | 长度 | 约束条件 | 备注 |
-|---|--------|---------|------|---------|------|
-| `notifications` | id | UUID | — | PK | — |
-| | user_id | UUID | — | FK → users | 接收用户 |
-| | message | TEXT | — | NOT NULL | 通知内容 |
-| | channel | VARCHAR | 32 | DEFAULT 'system' | 通知渠道 |
-| | is_read | BOOLEAN | — | DEFAULT false, 部分索引 | 已读状态 |
-| | reference_id | UUID | — | — | 关联实体 ID |
-| | reference_type | VARCHAR | 64 | — | 关联实体类型 |
-| | created_at | TIMESTAMPTZ | — | NOT NULL | — |
-| `refresh_tokens` | id | UUID | — | PK | — |
-| | user_id | UUID | — | FK → users, CASCADE | 关联用户 |
-| | token_hash | VARCHAR | 255 | UNIQUE, NOT NULL | JWT refresh token 哈希 |
-| | expires_at | TIMESTAMPTZ | — | NOT NULL | 过期时间 |
-| | revoked | BOOLEAN | — | DEFAULT false | 是否已撤销 |
-| | created_at | TIMESTAMPTZ | — | NOT NULL | — |
-| `login_attempts` | id | UUID | — | PK | 无 ORM 模型，raw SQL 操作 |
-| | login_id | VARCHAR | 255 | — | 登录标识（邮箱） |
-| | ip_address | VARCHAR | 45 | — | 客户端 IP |
-| | success | BOOLEAN | — | NOT NULL | 是否成功 |
-| | created_at | TIMESTAMPTZ | — | NOT NULL | — |
 
+
+> 角色申请表
+
+| 属性名 | 数据类型 | 长度 | 约束条件 | 备注 |
+|--------|---------|------|---------|------|
+| id | UUID | — | PK | — |
+| user_id | UUID | — | FK → users | 申请人 |
+| role_id | UUID | — | FK → roles | 申请角色 |
+| reviewer_id | UUID | — | FK → users, NULLABLE | 审批人 |
+| status | VARCHAR | 32 | NOT NULL | pending / approved / rejected |
+| comment | VARCHAR | 1024 | — | 申请/审批备注 |
+| reviewed_at | TIMESTAMPTZ | — | — | 审批时间 |
+| created_at | TIMESTAMPTZ | — | NOT NULL | — |
+
+
+> 系统通知表
+
+| 属性名 | 数据类型 | 长度 | 约束条件 | 备注 |
+|--------|---------|------|---------|------|
+| id | UUID | — | PK | — |
+| user_id | UUID | — | FK → users | 接收用户 |
+| message | TEXT | — | NOT NULL | 通知内容 |
+| channel | VARCHAR | 32 | DEFAULT 'system' | 通知渠道 |
+| is_read | BOOLEAN | — | DEFAULT false, 部分索引 | 已读状态 |
+| reference_id | UUID | — | — | 关联实体 ID |
+| reference_type | VARCHAR | 64 | — | 关联实体类型 |
+| created_at | TIMESTAMPTZ | — | NOT NULL | — |
+
+
+> JWT刷新令牌表
+
+| 属性名 | 数据类型 | 长度 | 约束条件 | 备注 |
+|--------|---------|------|---------|------|
+| id | UUID | — | PK | — |
+| user_id | UUID | — | FK → users, CASCADE | 关联用户 |
+| token_hash | VARCHAR | 255 | UNIQUE, NOT NULL | JWT refresh token 哈希 |
+| expires_at | TIMESTAMPTZ | — | NOT NULL | 过期时间 |
+| revoked | BOOLEAN | — | DEFAULT false | 是否已撤销 |
+| created_at | TIMESTAMPTZ | — | NOT NULL | — |
+
+
+
+
+> 登录尝试记录表
+
+| 属性名 | 数据类型 | 长度 | 约束条件 | 备注 |
+|--------|---------|------|---------|------|
+| id | UUID | — | PK | 无 ORM 模型，raw SQL 操作 |
+| login_id | VARCHAR | 255 | — | 登录标识（邮箱） |
+| ip_address | VARCHAR | 45 | — | 客户端 IP |
+| success | BOOLEAN | — | NOT NULL | 是否成功 |
+| created_at | TIMESTAMPTZ | — | NOT NULL | — |
 **核心设计模式**：
 
 - **聚合根 (Activity)**：所有子实体通过 `activity_id` FK 关联，ON DELETE CASCADE 级联删除。活动通过终态锁定而非硬删除，保留完整审计轨迹
