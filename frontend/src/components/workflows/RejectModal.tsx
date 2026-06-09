@@ -5,7 +5,6 @@ import { workflowsApi } from "@/api/workflows";
 interface Props {
   open: boolean;
   activityId: string;
-  isReverseFlow: boolean;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -13,7 +12,6 @@ interface Props {
 export default function RejectModal({
   open,
   activityId,
-  isReverseFlow,
   onClose,
   onSuccess,
 }: Props) {
@@ -37,7 +35,7 @@ export default function RejectModal({
 
   return (
     <Modal
-      title={isReverseFlow ? "驳回（逆向流转）" : "驳回"}
+      title="驳回"
       open={open}
       onCancel={onClose}
       onOk={() => form.submit()}
@@ -45,11 +43,6 @@ export default function RejectModal({
       okText="确认驳回"
       okButtonProps={{ danger: true }}
     >
-      {isReverseFlow && (
-        <p style={{ marginBottom: 16 }}>
-          审批通过后驳回将退回至「待安保方案设计」状态，需安保部重新出具方案。
-        </p>
-      )}
       <Form form={form} layout="vertical" onFinish={handleSubmit}>
         <Form.Item
           name="reason"

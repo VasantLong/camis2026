@@ -60,7 +60,6 @@ roles ──< role_permissions >── permissions
 | `view_owned_activity` | activities | view_owned | 查看活动列表和详情 |
 | `manage_security` | activities | manage_security | 状态流转 |
 | `review_security_plan` | activities | review_security_plan | 审核安保方案（通过/打回） |
-| `confirm_approval` | activities | confirm_approval | 确认政府审批结果 |
 | `reject_approval` | activities | reject_approval | 驳回审批结果 |
 | `upload_document` | documents | upload | 上传文件 |
 | `pack_filing` | filing | pack | 校验材料、打包、纸质交接 |
@@ -140,7 +139,7 @@ roles ──< role_permissions >── permissions
 | `GET` | `/dashboard/activities/{id}` | `view_dashboard` | AdminStaff |
 | `POST` | `/dashboard/reports/monthly` | `export_report` | AdminStaff |
 
-> ¹ `PUT /activities/{id}/status` 在目标状态为"审批通过-待举办"时，额外要求 `confirm_approval` 权限。
+> ¹ `PUT /activities/{id}/status` 同时接受 `manage_security`、`audit_material`、`submit_plan`、`view_dashboard` 权限。
 
 ---
 

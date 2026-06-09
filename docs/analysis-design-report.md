@@ -638,12 +638,11 @@ graph TD
 | `view_dashboard` | 查看面板 | AdminStaff, AdminManager |
 | `export_report` | 导出报表 | AdminStaff, AdminManager |
 | `manage_users` | 管理用户 | AdminManager, SuperAdmin |
-| `confirm_approval` | 确认审批 | SecurityManager（已废弃，UC6 已移除） |
 
 **关键设计决策**：
 
 - **资源嵌套**：模板和备案端点嵌套在 `/activities/{id}/` 下，隐含"活动范围"语义，同时通过 `activity_id` URL 参数天然防止跨活动越权
-- **权限粒度**：`PUT /activities/{id}/status` 同时接受 `manage_security`、`audit_material`、`submit_plan`、`view_dashboard` 多种权限，目标状态为"审批通过-待举办"时额外要求 `confirm_approval`
+- **权限粒度**：`PUT /activities/{id}/status` 为通用状态转移端点，同时接受 `manage_security`、`audit_material`、`submit_plan`、`view_dashboard` 四种权限，按目标状态自动校验调用者权限
 - **文件下载**：不直接返回文件流，而是返回 MinIO 预签名 URL（30 分钟有效），前端 `window.open()` 触发浏览器下载
 - **Schema 端点**：`GET /schema` 返回模板字段定义 + autofill 预填数据 + 草稿/快照，前端据此动态渲染表单
 

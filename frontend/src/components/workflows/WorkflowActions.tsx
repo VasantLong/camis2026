@@ -71,7 +71,6 @@ export default function WorkflowActions({ activityId, currentStatus }: Props) {
       <RejectModal
         open={modal?.type === "reject"}
         activityId={activityId}
-        isReverseFlow={false}
         onClose={() => setModal(null)}
         onSuccess={onSuccess}
       />

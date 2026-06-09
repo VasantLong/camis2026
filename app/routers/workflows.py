@@ -39,10 +39,6 @@ async def update_status(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="缺少工作流操作权限"
         )
-    if body.to_status == "审批通过-待举办" and "confirm_approval" not in perms:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="缺少权限: confirm_approval"
-        )
     try:
         return await svc.transition(activity_id, body.to_status, current_user, body.comment)
     except LookupError as e:

@@ -86,7 +86,7 @@
 | `GET`  | `/dashboard/reports/{month}/view` | `export_report` |
 | `GET`  | `/activities/counts` | 登录用户 |
 
-> ¹ `PUT /activities/{id}/status` 同时接受 `manage_security`、`audit_material`、`submit_plan` 权限。目标状态为"审批通过-待举办"时额外要求 `confirm_approval`。
+> ¹ `PUT /activities/{id}/status` 同时接受 `manage_security`、`audit_material`、`submit_plan`、`view_dashboard` 权限。
 > 活动可见性按角色自动过滤状态（见 `docs/rbac.md`）。
 
 ## 端点详细说明
