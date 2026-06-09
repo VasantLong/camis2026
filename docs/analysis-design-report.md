@@ -134,7 +134,6 @@ graph TD
 - **ApprovalRecord**（审批记录）：GovLiaison 审批决策的独立记录，含批文附件与整改意见
 - **ImplementationRecord**（实施记录）：活动进入举办阶段后的跟踪记录
 - **MaterialAudit**（材料审核记录）：逐条材料的审核/签署追踪
-- **ActivityRule**（活动规则）：场地冲突检测等业务规则
 
 以下为 StarUML 兼容的 Mermaid 领域类图（实体为纯数据载体，无业务方法）：
 
@@ -232,14 +231,6 @@ classDiagram
         +DateTime created_at
     }
 
-    class ActivityRule {
-        +UUID id
-        +String rule_type
-        +DateTime effective_time
-        +String effective_reason
-        +String resolve_status
-    }
-
     class UserRole {
         +UUID user_id
         +UUID role_id
@@ -266,7 +257,6 @@ classDiagram
     Activity "1" *-- "0..1" FilingDoc : 打包归档
     Activity "1" *-- "0..*" ApprovalRecord : 包含
     Activity "1" *-- "0..1" ImplementationRecord : 包含
-    Activity "0..*" -- "0..*" ActivityRule : 受约束
 
     SecurityPlan "1" o-- "1..*" KeyMaterial : 包含
     FilingDoc "1" o-- "1..*" KeyMaterial : 包含
@@ -284,8 +274,6 @@ classDiagram
 **Activity 与 ApprovalRecord 是 1 对 0..* 的组合关系。** 1 个活动可以对应零到多条审批记录（审查前为零，补件回路中每条审批决策生成一条记录），记录脱离活动不可独立存在。
 
 **Activity 与 ImplementationRecord 是 1 对 0..1 的组合关系。** 1 个活动可以对应零个或一个实施记录。记录在活动进入举办阶段时创建，活动删除时级联删除。
-
-**Activity 与 ActivityRule 是 0..* 对 0..* 的关联关系。** 一个活动可受多条业务规则约束（如场地冲突检测），一条规则也可约束多个活动。两者独立存在，无拥有语义。
 
 **SecurityPlan 与 KeyMaterial 是 1 对 1..* 的聚合关系。** 1 个安保方案关联至少 1 类备案材料（实际为 5 类：活动方案、安保方案、风险评估报备表、责任确认书、备案承诺书），材料可同时被 FilingDoc 引用，删除方案时材料保留，仅解除关联。
 

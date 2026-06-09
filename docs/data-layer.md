@@ -19,10 +19,8 @@
 | `approval_records` | ApprovalRecord | 政府批文，CASCADE activity，FK liaison_id → users |
 | `implementation_records` | ImplementationRecord | 实施记录，CASCADE activity，FK admin_id → users |
 | `activity_status_log` | ActivityStatusLog | 追加式审计日志，CASCADE activity |
-| `activity_rules` | ActivityRule | 业务规则，独立 |
 | `security_plan_materials` | **无模型→待补** | M:N security_plans ↔ key_materials |
 | `filing_doc_materials` | **无模型→待补** | M:N filing_docs ↔ key_materials |
-| `activity_rule_targets` | **无模型→待补** | M:N activities ↔ activity_rules |
 
 ### 1.2 文件与材料
 
@@ -59,7 +57,6 @@
 |---|------|------|
 | `security_plan_materials` | 待补模型 | M:N join，SQLAlchemy Table() 二级关联即可 |
 | `filing_doc_materials` | 待补模型 | 同上 |
-| `activity_rule_targets` | 待补模型 | 同上 |
 | `login_attempts` | **不补** | 审计/安全日志，无 relationship、无 FK 到 users（用 login_id），raw SQL 直接操作 |
 
 ## 2. 列级设计规范
@@ -122,8 +119,6 @@ erDiagram
     activities ||--o{ activity_status_log : "1:N 追加式"
     activities ||--o{ documents : "1:N FK SET NULL"
     activities ||--o{ key_materials : "1:N FK activity_id"
-    activities }|--o{ activity_rule_targets : "M:N"
-    activity_rules }|--o{ activity_rule_targets : "M:N"
     security_plans }|--o{ security_plan_materials : "M:N"
     filing_docs }|--o{ filing_doc_materials : "M:N"
     key_materials }|--o{ security_plan_materials : "M:N"
@@ -163,7 +158,6 @@ activities ──< implementation_records      (1:N, CASCADE)
 activities ──< activity_status_log         (1:N, CASCADE, 追加式)
 activities ──< key_materials               (1:N, FK activity_id)
 activities ──< documents                   (1:N, FK SET NULL)
-activities ──< activity_rule_targets       (M:N)
 security_plans ──< security_plan_materials (M:N)
 filing_docs    ──< filing_doc_materials    (M:N)
 key_materials  ── security_plan_materials  (归属安保方案)

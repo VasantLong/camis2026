@@ -169,14 +169,6 @@
 - `- changeReason: String` —— 变更原因
 - `- archiveTime: Date` —— 归档时间
 
-**11. ActivityRule (活动规则)**
-
-- `- ruleID: String` —— 规则编号 (主键)
-- `- ruleType: String` —— 规则类型
-- `- effectiveTime: Date` —— 生效时间
-- `- effectiveReason: String` —— 生效原因
-- `- resolveStatus: String` —— 解决状态
-
 **12. KeyMaterial (关键材料)**
 
 - `- materialID: String` —— 关键材料编号 (主键)
@@ -257,12 +249,7 @@ _+_ _方法名**(**参数名\*\*:_ _数据类型\*\*):_ _返回值类型_ _（�
 - `+ recordChangeInfo(reason: String): void` —— **记录变更信息**：处理因天气取消或延期的异常数据写入。
 - `+ archiveRecord(): void` —— **归档记录**：活动彻底结束后，锁定本台账禁止再次修改。
 
-**11. 活动规则 (ActivityRule)**
-
-- `+ constrainActivityWorkflow(activity: Activity): Boolean` —— **约束活动流程**：拦截并校验某一项目是否触发了合规红线。
-- `+ updateRuleStatus(status: String): void` —— **更新规则状态**：变更该规则处于生效中还是已解决的生命周期。
-
-**12. 关键材料 (KeyMaterial)**
+**11. 关键材料 (KeyMaterial)**
 
 - `+ linkToFilingMaterial(): void` —— **关联备案材料**：向上绑定到主体的备案包或安保方案包中。
 - `+ checkMaterialCompliance(): Boolean` —— **检查材料合规性**：进行针对单页内容（如电子签名是否完备）的验证。
@@ -396,14 +383,6 @@ classDiagram
         +archiveRecord() void
     }
 
-    class ActivityRule {
-        -String ruleID
-        -String ruleType
-        -Date effectiveTime
-        -String effectiveReason
-        -String resolveStatus
-        +constrainActivityWorkflow(Activity activity) Boolean
-        +updateRuleStatus(String status) void
     }
 
     class KeyMaterial {
@@ -423,8 +402,6 @@ classDiagram
     SecurityOfficer "1..*" -- "*" SecurityPlan : 编制
     Activity "1" o-- "1..*" ActivityPlan : 生成
     Activity "1" o-- "1..*" SecurityPlan : 生成
-    Activity "*" -- "*" ActivityRule : 受约束
-    ActivityPlan "*" -- "*" ActivityRule : 受约束
     Activity "1" -- "1" FilingDoc : 关联/备案
     Activity "1" -- "1..*" ApprovalRecord : 关联/审批
     GovLiaison "1..*" -- "*" ApprovalRecord : 负责
@@ -678,13 +655,6 @@ classDiagram
         +created_at: DateTime
     }
 
-    class ActivityRule {
-        +id: UUID
-        +rule_type: String
-        +effective_time: DateTime
-        +effective_reason: String
-        +resolve_status: String
-    }
 
     class UserRole {
         +user_id: UUID
@@ -712,7 +682,6 @@ classDiagram
     Activity "1" *-- "*" FilingDoc : 多轮打包
     Activity "1" *-- "1..*" ApprovalRecord : 包含
     Activity "1" *-- "1" ImplementationRecord : 包含
-    Activity "1..*" -- "1..*" ActivityRule : 受约束
 
 
     SecurityPlan "1" o-- "1..*" KeyMaterial : 包含
@@ -794,7 +763,6 @@ classDiagram
 | ApprovalRecord       | `approval_records`       | ✅   |
 | ImplementationRecord | `implementation_records` | ✅   |
 | KeyMaterial          | `key_materials`          | ✅   |
-| ActivityRule         | `activity_rules`         | ✅   |
 | User                 | `users`                  | ✅   |
 | Document             | `documents`              | ✅   |
 | Role                 | `roles`                  | ✅   |

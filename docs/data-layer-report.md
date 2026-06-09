@@ -32,8 +32,6 @@ erDiagram
     activities ||--o{ activity_status_log : "1:N"
     activities ||--o{ key_materials : "1:N"
     activities ||--o{ documents : "1:N"
-    activities }|--o{ activity_rule_targets : "M:N"
-    activity_rules }|--o{ activity_rule_targets : "M:N"
     security_plans }|--o{ security_plan_materials : "M:N"
     filing_docs }|--o{ filing_doc_materials : "M:N"
     key_materials }|--o{ security_plan_materials : "M:N"
@@ -75,10 +73,8 @@ erDiagram
 | `approval_records` | 政府批文 | id(PK), activity_id(FK), liaison_id(FK), approval_status, rectification_opinion |
 | `implementation_records` | 实施记录 | id(PK), activity_id(FK), admin_id(FK), progress, change_status, change_reason |
 | `activity_status_log` | 状态流转日志 | id(PK), activity_id(FK), from_status, to_status, operator_id(FK), comment |
-| `activity_rules` | 业务规则 | id(PK), rule_type, effective_time, resolve_status |
 | `security_plan_materials` | 安保方案-材料关联 | (security_plan_id, material_id) 复合 PK |
 | `filing_doc_materials` | 备案包-材料关联 | (filing_doc_id, material_id) 复合 PK |
-| `activity_rule_targets` | 活动-规则关联 | (activity_id, rule_id) 复合 PK |
 
 Activity 为聚合根，其子实体（ActivityPlan、SecurityPlan、FilingDoc、ApprovalRecord、ImplementationRecord、ActivityStatusLog）通过 `activity_id` 外键关联，级联删除。活动通过终态（`已结束`/`已取消`/`已延期`/`不通过已终止`）锁定而非硬删除，保留完整审计轨迹。
 
