@@ -528,4 +528,57 @@ graph TD
 
 ### 3.2 详细设计
 
-> **3.2.1（界面设计）、3.2.2（业务逻辑设计）、3.2.3（数据层设计）将在后续补充。**
+#### 3.2.1 界面设计
+
+前端为 React 19 单页应用（SPA），TypeScript 5.7 + Vite 构建，Ant Design 6 组件库。Vite proxy 将 `/api/*` 转发至后端 `:8000`，生产环境由 Nginx 反向代理替代。
+
+**全局状态与路由守卫**：
+
+- 认证：Zustand `authStore` 管理 JWT 令牌与用户权限，`AuthInitializer` 在应用启动时静默刷新令牌
+- 路由守卫：`ProtectedRoute` 组件双重校验——先验证 `isAuthenticated`，再检查 `permissions.includes(requiredPermission)`
+- 数据请求：TanStack Query 管理服务端状态缓存，Axios 拦截器自动附加 Bearer 令牌并在 401 时触发刷新队列
+
+**角色感知导航**：
+
+侧边栏菜单根据用户角色动态渲染——Promoter 看到"我的活动"和"新建立项"，SecurityOfficer 看到"待编制安保方案"和"待打包备案"，GovLiaison 和 AdminStaff 各有专属入口。通知铃铛组件实时展示未读数量 badge，下拉面板按时间排列，点击跳转至关联活动详情或下载报告。
+
+**核心页面**：
+
+| 页面 | 功能 | 关键组件 |
+|------|------|----------|
+| 活动列表页 | 双 Tab（待操作/已完成）、状态筛选、关键词搜索、分页 | ActivityFilters + ActivityTable |
+| 创建立项页 | 活动基础信息表单（含场地冲突实时校验） | ActivityForm |
+| 活动详情页 | 多 Tab 聚合页（详情/文档/活动方案/安保方案/备案），按角色+状态渲染 | Tabs + 各子面板 |
+| 工作台 Dashboard | 统计卡片（总活动数、审批通过率、本月新增）、状态分布进度条、异常活动列表、月报导出 | 图表组件 + ReportExport |
+| 通知中心 | 未读/全部 Tab 切换、批量已读 | NotificationsPage |
+| 管理页 | 用户列表、角色编辑、禁用/归档、角色申请审批 | UserManagementPage + RoleRequestsPage |
+
+**Schema 驱动动态表单**（TemplateForm）：
+
+活动方案和安保方案的表单由后端 schema 定义驱动——`GET /schema` 返回字段数组，每个字段声明 `ui_type`（text/textarea/number/date/select/repeater/signature）、`condition`（条件显隐规则）、`autofill_from`（自动填入来源）。前端根据 schema 动态渲染对应组件，无需为每个模板单独编写表单。支持 8 种字段类型，日期控件扩展了 `show_time: true` 支持日期+时刻选择。
+
+**活动详情页多 Tab 设计**：
+
+活动详情页是系统的操作中枢，通过 5 个 Tab 聚合不同阶段的操作界面：
+
+- **详情 Tab**：活动基础信息只读展示 + 状态流转时间线（StatusTimeline）
+- **文档 Tab**：通用文件上传/下载列表（DocumentUpload + DocumentList），按 `activity_id` 过滤
+- **活动方案 Tab**：按角色分段——Promoter 看到 TemplateForm + VersionTimeline + "最终确定方案"按钮；AdminStaff 看到版本管理；其他角色看到只读快照（VersionSnapshot）。最终确定后锁定编辑
+- **安保方案 Tab**：三子 tab（安保方案/风险评估表/责任确认书），条件字段按风险等级显隐。SecurityOfficer 编辑草稿并提交审核；SecurityManager 两步签署（第一步三文件签名，第二步备案承诺书确认）；驳回后红色横幅+高亮字段+必须先创建新版本方可重新提交
+- **备案 Tab**：按状态和角色分段渲染——Officer 阶段显示材料签署状态+打包+交接按钮；GovLiaison 阶段显示审查面板（逐条合格/不合格+意见）+审批决策（通过/补件/驳回）+批文上传；审批通过后所有角色只读查看+ZIP 下载
+
+**交互模式**：
+
+- 草稿自动保存：表单 2s 防抖自动保存，确保跨 Tab autofill 能读到最新未提交数据
+- 条件显隐：字段根据其他字段值实时显隐（如风险等级切换时安保方案专属字段）
+- 补件高亮：待补充备案材料阶段，不合格材料行红色高亮，子 Tab 标签红色圆点标记，横幅展示 Liaison 补件说明及不合格原因
+- 批量审查：GovLiaison 批量勾选材料后一键标记合格或不合格（不合格需填写原因）
+- 审核记录：Timeline 时间线展示，同时间操作合并节点，仅 GovLiaison 可见
+
+#### 3.2.2 业务逻辑设计
+
+> 将在后续补充。
+
+#### 3.2.3 数据层设计
+
+> 将在后续补充。
