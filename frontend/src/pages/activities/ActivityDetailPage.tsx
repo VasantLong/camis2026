@@ -291,6 +291,8 @@ export default function ActivityDetailPage() {
           flexWrap: "wrap",
           gap: 12,
           marginBottom: 24,
+          paddingBottom: 12,
+          borderBottom: "1px solid #d9d9d9",
         }}
       >
         <Button
