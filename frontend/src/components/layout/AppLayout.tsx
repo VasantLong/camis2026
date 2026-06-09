@@ -57,7 +57,8 @@ export default function AppLayout() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            padding: collapsed ? 14 : 16,
+            gap: collapsed ? 0 : 10,
+            padding: collapsed ? 12 : 16,
             transition: "padding 0.2s",
           }}
         >
@@ -65,12 +66,18 @@ export default function AppLayout() {
             src="/logo.png"
             alt="CAMIS"
             style={{
-              height: collapsed ? 44 : 56,
-              width: collapsed ? 44 : 56,
+              height: collapsed ? 32 : 36,
+              width: collapsed ? 32 : 36,
+              flexShrink: 0,
               transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
               objectFit: "contain",
             }}
           />
+          {!collapsed && (
+            <span style={{ color: "#fff", fontSize: 16, fontWeight: 600, whiteSpace: "nowrap" }}>
+              CAMIS
+            </span>
+          )}
         </div>
         <Sidebar collapsed={collapsed} />
       </Sider>
