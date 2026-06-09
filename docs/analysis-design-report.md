@@ -608,17 +608,37 @@ graph TD
 
 | 路由模块 | 端点 | 方法 | 权限 |
 |---------|------|------|------|
-| `auth` | `/auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/me`, `/auth/roles`, `/auth/me/role-request` | POST/GET/PATCH | 公开/登录用户 |
-| `activities` | `/activities`, `/activities/{id}`, `/activities/{id}/history` | GET/POST | `create_activity` / `view_owned_activity` |
-| `documents` | `/activities/{id}/documents` | GET/POST | `view_owned_activity` / `upload_document` |
-| `plan` | `/activities/{id}/plan/schema`, `/draft`, `/generate`, `/versions`, `/finalize` | GET/PUT/POST | `submit_plan` |
-| `security-plan` | `/activities/{id}/security-plan/schema`, `/draft`, `/generate`, `/submit-review`, `/sign`, `/reject`, `/versions` | GET/PUT/POST | `manage_security` / `reject_approval` |
-| `materials` | `/activities/{id}/materials`, `/materials/{mid}/schema`, `/draft`, `/generate`, `/versions` | GET/PUT/POST | `pack_filing` |
-| `filings` | `/activities/{id}/filings/status`, `/pack`, `/handover`, `/audit`, `/approval`, `/audit-history` | GET/POST | `pack_filing` / `audit_material` |
-| `workflows` | `/activities/{id}/status`, `/activities/{id}/reject`, `/force-cancel`, `/force-postpone` | PUT/POST | `manage_security` / `audit_material` / `view_dashboard` |
-| `dashboard` | `/dashboard/panel`, `/dashboard/reports/{month}` | GET/POST | `view_dashboard` / `export_report` |
-| `admin` | `/admin/users`, `/admin/role-requests` | GET/PUT | `manage_users` |
-| `notifications` | `/notifications`, `/notifications/unread-count`, `/notifications/{id}/read`, `/notifications/read-all` | GET/PUT | 登录用户 |
+| `auth` | `/auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/me`, `/auth/roles`, `/auth/me/role-request` | POST/GET/PATCH | 公开 / 登录用户 |
+| `activities` | `/activities`, `/activities/{id}`, `/activities/{id}/history` | GET/POST | 创建活动 / 查看所属活动 |
+| `documents` | `/activities/{id}/documents` | GET/POST | 查看所属活动 / 上传文档 |
+| `plan` | `/activities/{id}/plan/schema`, `/draft`, `/generate`, `/versions/{vn}`, `/diff`, `/finalize` | GET/PUT/POST | 提交方案 |
+| `security-plan` | `/activities/{id}/security-plan/schema`, `/draft`, `/generate`, `/submit-review`, `/sign`, `/reject`, `/versions/{vn}`, `/diff` | GET/PUT/POST | 管理安保方案 / 驳回审批 |
+| `materials` | `/activities/{id}/materials`, `/{mid}/schema`, `/{mid}/draft`, `/{mid}/generate`, `/{mid}/versions/{vn}`, `/{mid}/diff` | GET/PUT/POST | 打包备案 |
+| `filings` | `/activities/{id}/filings/status`, `/pack`, `/handover`, `/audit`, `/approval`, `/audit-history` | GET/POST | 打包备案 / 审查材料 |
+| `workflows` | `/activities/{id}/status`, `/{id}/reject`, `/force-cancel`, `/force-postpone` | PUT/POST | 管理安保方案 / 审查材料 / 查看面板 |
+| `dashboard` | `/dashboard/panel`, `/dashboard/reports/{month}` | GET/POST | 查看面板 / 导出报表 |
+| `admin` | `/admin/users`, `/admin/role-requests` | GET/PUT | 管理用户 |
+| `notifications` | `/notifications`, `/unread-count`, `/{id}/read`, `/read-all` | GET/PUT | 登录用户 |
+
+**权限中英对照**：
+
+| 权限标识（代码） | 中文含义 | 授予角色 |
+|-----------------|---------|---------|
+| `create_activity` | 创建活动 | Promoter |
+| `view_owned_activity` | 查看所属活动 | 全部角色 |
+| `submit_plan` | 提交方案 | Promoter |
+| `upload_document` | 上传文档 | Promoter, SecurityOfficer, GovLiaison |
+| `manage_security` | 管理安保方案 | SecurityOfficer, SecurityManager |
+| `reject_approval` | 驳回审批 | SecurityManager |
+| `pack_filing` | 打包备案 | SecurityOfficer |
+| `sign_document` | 签署文档 | SecurityManager |
+| `audit_material` | 审查材料 | GovLiaison |
+| `force_cancel` | 强制取消 | AdminStaff |
+| `force_postpone` | 强制延期 | AdminStaff |
+| `view_dashboard` | 查看面板 | AdminStaff, AdminManager |
+| `export_report` | 导出报表 | AdminStaff, AdminManager |
+| `manage_users` | 管理用户 | AdminManager, SuperAdmin |
+| `confirm_approval` | 确认审批 | SecurityManager（已废弃，UC6 已移除） |
 
 **关键设计决策**：
 
