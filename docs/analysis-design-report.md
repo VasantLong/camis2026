@@ -539,6 +539,8 @@ graph TD
 
 ### 3.2 详细设计
 
+本节从界面、接口、业务逻辑、数据四个层次展开系统的详细设计。四层自上而下构成完整的技术实现视图：界面层定义用户交互，接口层定义前后端契约，业务逻辑层实现领域规则，数据层提供持久化支撑。
+
 #### 3.2.1 界面设计
 
 前端为 React 19 单页应用（SPA），TypeScript 5.7 + Vite 构建，Ant Design 6 组件库。Vite proxy 将 `/api/*` 转发至后端 `:8000`，生产环境由 Nginx 反向代理替代。
@@ -707,50 +709,7 @@ graph TD
 
 #### 3.2.4 数据层设计
 
-数据层采用**三层存储**架构：PostgreSQL 17（业务元数据）、MinIO（文件对象）、Redis 7.4（缓存与会话）。三层职责严格分离——PostgreSQL 不存文件内容，MinIO 不存业务逻辑，Redis 不做持久主存储。
-
-**数据库表清单**（24 张表，4 个分组）：
-
-*核心业务域（Activity 聚合根，CASCADE 删除子实体）*：
-
-| 表 | 说明 | 关键约束 |
-|---|------|----------|
-| `activities` | 活动聚合根，FK owner_id, designer_id → users | — |
-| `activity_plans` | 活动方案，含 draft_data（JSONB）+ current_filled_document_id | UNIQUE(activity_id) |
-| `security_plans` | 安保方案，含 risk_level, audit_status, sign_time, draft_data | UNIQUE(activity_id) |
-| `filing_docs` | 备案材料包，含 pack_url（ZIP 路径）, handover_status | UNIQUE(activity_id) |
-| `filled_documents` | 模板生成版本记录，minio_path 可为 NULL（延迟生成） | UNIQUE(activity_id, template_type, version_number) |
-| `approval_records` | 政府审批记录，FK liaison_id → users | — |
-| `implementation_records` | 活动实施记录，FK admin_id → users | — |
-| `activity_status_log` | 追加式状态变更审计日志，CASCADE activity | — |
-| `activity_rules` | 业务规则（场地冲突等），独立实体 | — |
-
-*文件与材料*：
-
-| 表 | 说明 | 关键约束 |
-|---|------|----------|
-| `documents` | 通用文件元数据，GIN 索引 tags 列 | FK activity_id SET NULL |
-| `key_materials` | 关键备案材料超类型，5 种 material_type | UNIQUE(activity_id, material_type) |
-| `material_audits` | 材料审核/签署记录，action ∈ {sign, audit} | CASCADE key_material |
-
-*RBAC 权限体系*：
-
-| 表 | 说明 | 关键约束 |
-|---|------|----------|
-| `users` | 统一身份，含 is_active, is_archived | email UNIQUE |
-| `roles` | 7 角色 | name UNIQUE |
-| `permissions` | 14 权限 | — |
-| `user_roles` | M:N 用户-角色关联 | PK (user_id, role_id) |
-| `role_permissions` | M:N 角色-权限关联 | PK (role_id, permission_id) |
-| `role_requests` | 角色申请审批 | 部分 UNIQUE (user_id WHERE status='pending') |
-
-*基础设施*：
-
-| 表 | 说明 |
-|---|------|
-| `notifications` | 系统通知，部分索引 unread，FK user_id |
-| `refresh_tokens` | JWT refresh 令牌，token_hash UNIQUE |
-| `login_attempts` | 登录尝试记录（暴力破解防护） |
+数据层采用**三层存储**架构：PostgreSQL 17（业务元数据）、MinIO（文件对象）、Redis 7.4（缓存与会话）。三层职责严格分离——PostgreSQL 不存文件内容，MinIO 不存业务逻辑，Redis 不做持久主存储。系统共 24 张表，分为核心业务域、文件与材料、RBAC 权限体系、基础设施四个分组。
 
 **ER 图（核心业务域）**：
 
