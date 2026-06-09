@@ -413,70 +413,122 @@ stateDiagram-v2
 
 ### 3.1 总体设计
 
-#### 3.1.1 架构选型
+#### 3.1.1 应用架构设计
 
-系统采用**面向服务架构（SOA）——模块化单体**模式。决策依据（ADR 0001）：
+本系统采用**面向服务架构（SOA）——模块化单体**模式。设计方法上，通过**业务能力聚类**策略审视 6 个用例，将紧密相关的用例归组，每组对应一个候选服务；架构结果上，形成 11 个边界清晰的服务，所有服务运行在同一进程内，服务间通过同步方法调用协作。
 
-1. **系统本质是状态机工作流**：活动状态由不同角色的外部操作驱动变迁，不适合由实体自治
-2. **跨部门协作**：单个操作的执行者、校验者、被通知者分属不同角色，横切逻辑需服务层协调
-3. **顺序图一致性**：所有用例的顺序图中动作执行者为 `System`，服务层即 System 的具体化
+**为什么是模块化单体而非微服务**：本系统领域复杂度中等，团队规模小，SOA 已实现服务边界清晰的目标。微服务带来的异步事件总线、Saga 分布式事务、最终一致性等复杂度远超当前需求。当前架构预留了平滑演进路径——未来如需拆分，可在已有服务边界上叠加子领域分析，将通用域（如文件存储）抽离为独立基础设施服务。
 
-实体为纯数据载体（只保留属性，不包含业务方法），业务逻辑归属服务层。所有服务运行在同一进程内，服务间通过同步方法调用协作，不涉及消息队列或分布式事务。
+实体类为纯数据载体（ADR 0001），只保留属性与关联关系，不包含业务方法。业务逻辑归属服务层，工作流状态变更由 `WorkflowService` 显式驱动。
 
-#### 3.1.2 技术栈
+**服务依赖关系**：
 
-| 层 | 技术 | 版本 |
+```mermaid
+graph TD
+    subgraph 核心
+        WS[WorkflowService]
+        TS[TemplateService]
+        FS[FilingService]
+    end
+    subgraph 支撑
+        AS[ActivityService]
+        DS[DocumentService]
+        NS[NotificationService]
+        DBS[DashboardService]
+        RDS[ReportDataService]
+        RRS[ReportRenderer]
+    end
+    subgraph 独立
+        AuthS[AuthService]
+        AdmS[AdminService]
+    end
+
+    WS --> NS
+    WS --> AS
+    TS --> WS
+    TS --> DS
+    FS --> DS
+    FS --> WS
+    DBS --> AS
+    DBS --> FS
+    RDS --> AS
+    RDS --> FS
+    RRS --> RDS
+```
+
+`WorkflowService` 为枢纽：状态变迁后调用 `NotificationService` 发送通知。`TemplateService` 依赖 MinIO（文件存储）和 `WorkflowService`（生成后自动状态变迁）。`AuthService` 和 `AdminService` 为独立服务，无跨服务依赖。
+
+#### 3.1.2 架构内层次设计
+
+系统内部采用四层架构，层间单向依赖（上层可调下层，同层不互调）：
+
+| 层次 | 职责 | 代码包 |
+|------|------|--------|
+| 接口层 | HTTP 端点定义、请求参数校验、JWT 认证与 RBAC 权限拦截 | `app/routers/`（8 个路由模块，23 个端点） |
+| 业务逻辑层 | 领域逻辑、状态机流转、DOCX 渲染、材料打包、通知分发 | `app/services/`（11 个 Service 类） |
+| 数据访问层 | ORM 模型定义、数据库会话管理、Alembic 迁移 | `app/models/`（11 个模型文件）+ `alembic/` |
+| 基础设施层 | PostgreSQL（元数据）、MinIO（文件对象）、Redis（缓存/会话）、Mailpit（开发邮件） | Docker Compose 容器编排 |
+
+```
+接口层    app/routers/     ← 鉴权、参数校验、路由
+    ↓
+业务层    app/services/    ← 领域逻辑、状态机、工作流
+    ↓
+数据层    app/models/      ← ORM 实体、数据库会话
+    ↓
+基础设施  PostgreSQL + MinIO + Redis
+```
+
+**关键设计约束**：
+- 路由层不包含业务逻辑，仅做参数提取和响应序列化
+- 服务层通过构造函数注入 `AsyncSession`，方法内管理事务边界
+- 实体为纯数据载体，不引用任何 Service
+- PostgreSQL 只存元数据，MinIO 只存文件内容，Redis 只做缓存和队列
+
+#### 3.1.3 技术架构设计
+
+| 层 | 技术选型 | 选型理由 |
 |---|---|---|
-| 后端框架 | Python FastAPI | 0.115+ |
-| 数据库 | PostgreSQL | 17 |
-| 对象存储 | MinIO | latest |
-| 缓存与会话 | Redis | 7.4 |
-| ORM | SQLAlchemy 2.0 (async) | 2.0+ |
-| 迁移 | Alembic | 1.14+ |
-| 前端 | React + TypeScript + Vite | 19 + 5.7 |
-| UI 组件 | Ant Design | 6 |
-| 模板引擎 | docxtpl（Jinja2） | 0.16+ |
-| PDF 渲染 | LibreOffice headless + Playwright | — |
-| 部署 | Docker Compose | 3.8 |
+| 后端框架 | Python FastAPI 0.115+ | 原生 async、自动 OpenAPI 文档、Pydantic 校验 |
+| ORM | SQLAlchemy 2.0 (async) | 成熟稳定、支持原生 async、迁移生态完善 |
+| 数据库 | PostgreSQL 17 | ACID 事务、JSONB 支持（draft_data/快照）、全文搜索 |
+| 对象存储 | MinIO | S3 兼容 API，生产可平滑替换为阿里云 OSS/腾讯云 COS |
+| 缓存 | Redis 7.4 | 会话存储、登录限流计数、JWT 黑名单 |
+| 前端 | React 19 + TypeScript 5.7 + Vite | 组件化、类型安全、按需构建 |
+| UI 库 | Ant Design 6 | 企业级组件库、中文原生支持、表单/表格/时间线覆盖 |
+| 模板引擎 | docxtpl (Jinja2) | 保留 DOCX 原始格式、支持 Jinja2 控制流、表格内嵌渲染 |
+| PDF 生成 | LibreOffice headless | DOCX→PDF 布局无损转换、串行 Semaphore(1) 防止并发超时 |
+| PDF 报告 | Playwright + headless Chromium | 前端图表渲染后截图转 PDF，独立微服务部署 |
+| 部署 | Docker Compose 3.8 | 单机多容器编排、环境变量注入、健康检查 |
 
-#### 3.1.3 服务划分
-
-采用**业务能力聚类**策略，从 6 个用例中识别出 11 个服务：
-
-| 服务 | 职责 | 关联用例 |
-|------|------|----------|
-| ActivityService | 活动 CRUD、状态历史查询、场地冲突检测 | UC1 |
-| WorkflowService | 状态流转矩阵、通知规则、驳回/强制变更 | UC3-UC6 |
-| TemplateService | DOCX 渲染、PDF 生成、版本管理、跨模板同步、签署流程 | UC2-UC4 |
-| FilingService | 材料管理、打包、审查、审批记录 | UC4-UC5 |
-| DocumentService | 通用文件上传/下载、MinIO 交互 | UC2-UC5 |
-| NotificationService | 角色通知、全流程参与人通知 | 全部 UC |
-| DashboardService | 工作台面板、活动详情聚合 | UC6 |
-| ReportDataService | 月报数据查询 | UC6 |
-| ReportRenderer | Playwright PDF 渲染（独立微服务） | UC6 |
-| AuthService | 用户认证、JWT 令牌、角色-权限校验 | — |
-| AdminService | 用户管理、角色分配 | — |
-
-服务依赖关系：`WorkflowService` 为枢纽，依赖 `NotificationService` 和 `ActivityService`。`TemplateService` 依赖 MinIO 和 `WorkflowService`。`AuthService` 和 `AdminService` 为独立服务。
-
-#### 3.1.4 分层架构
+**部署拓扑**：
 
 ```
-┌─────────────────────────────────────────┐
-│  前端 (React SPA)                       │
-├─────────────────────────────────────────┤
-│  API 路由层 (FastAPI routers)           │
-├─────────────────────────────────────────┤
-│  服务层 (11 Services)                   │
-├─────────────────────────────────────────┤
-│  数据访问层 (SQLAlchemy async ORM)      │
-├──────────┬──────────┬───────────────────┤
-│PostgreSQL│  MinIO   │  Redis            │
-│  (元数据) │ (文件)   │  (缓存/会话)       │
-└──────────┴──────────┴───────────────────┘
+┌─────────────────────────────────────────────┐
+│  Docker Compose                             │
+│                                             │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
+│  │ postgres │  │  minio   │  │  redis   │  │
+│  │  :5432   │  │ :9000/01 │  │  :6379   │  │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  │
+│       │             │             │         │
+│       └──────────┬──┴─────────────┘         │
+│                  │                          │
+│          ┌───────┴──────┐                   │
+│          │  app (uvicorn)│  :8000           │
+│          └──────────────┘                   │
+│                  │                          │
+│          ┌───────┴──────┐                   │
+│          │ playwright-svc│  :3000           │
+│          └──────────────┘                   │
+│                                             │
+│  ┌──────────┐                               │
+│  │ mailpit  │  :11025 (SMTP) / :18025 (Web) │
+│  └──────────┘                               │
+└─────────────────────────────────────────────┘
 ```
 
-数据存储遵循三原则红线：PostgreSQL 只存元数据、MinIO 只存文件、Redis 只做缓存和队列。
+`playwright-svc` 为独立微服务容器（FastAPI + headless Chromium），接收主应用 HTTP 请求后渲染 PDF 返回。开发环境 Mailpit 捕获所有外发邮件。生产环境 SMTP 替换为企业邮件服务，凭据通过 `.env` 注入。
 
 ### 3.2 详细设计
 
