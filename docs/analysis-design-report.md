@@ -198,17 +198,49 @@ classDiagram
     User "1" -- "*" ApprovalRecord : liaison
     User "1" -- "*" ImplementationRecord : admin
 
-    Activity "1" *-- "1..*" ActivityPlan : 包含
-    Activity "1" *-- "1..*" SecurityPlan : 包含
-    Activity "1" *-- "*" FilingDoc : 多轮打包
-    Activity "1" *-- "1..*" ApprovalRecord : 包含
-    Activity "1" *-- "1" ImplementationRecord : 包含
-    Activity "1..*" -- "1..*" ActivityRule : 受约束
+    Activity "1" *-- "0..*" ActivityPlan : 包含
+    Activity "1" *-- "0..1" SecurityPlan : 包含
+    Activity "1" *-- "0..1" FilingDoc : 打包归档
+    Activity "1" *-- "0..*" ApprovalRecord : 包含
+    Activity "1" *-- "0..1" ImplementationRecord : 包含
+    Activity "0..*" -- "0..*" ActivityRule : 受约束
 
     SecurityPlan "1" o-- "1..*" KeyMaterial : 包含
     FilingDoc "1" o-- "1..*" KeyMaterial : 包含
     KeyMaterial "1" *-- "*" MaterialAudit : 审核/签署记录
 ```
+
+**类间关系说明**：
+
+**Activity 与 ActivityPlan 是 1 对 0..* 的组合关系。** 1 个活动可以对应零到多个方案版本（立项初期尚无方案，编制后可生成多版），方案脱离活动不可独立存在，删除活动时级联删除方案。
+
+**Activity 与 SecurityPlan 是 1 对 0..1 的组合关系。** 1 个活动可以对应零个或一个安保方案。安保方案在活动进入"待安保方案设计"时按需创建，活动删除时级联删除。
+
+**Activity 与 FilingDoc 是 1 对 0..1 的组合关系。** 1 个活动可以对应零个或一个备案文档包。FilingDoc 仅作为当前最新材料的 ZIP 快照，不记录历史版本——各材料的版本追溯由 `FilledDocument` 实体承担（活动方案、安保方案、备案材料各自独立维护版本链）。补件回路中重新打包时更新同一条 FilingDoc 记录，经手人员始终可下载最新 ZIP。
+
+**Activity 与 ApprovalRecord 是 1 对 0..* 的组合关系。** 1 个活动可以对应零到多条审批记录（审查前为零，补件回路中每条审批决策生成一条记录），记录脱离活动不可独立存在。
+
+**Activity 与 ImplementationRecord 是 1 对 0..1 的组合关系。** 1 个活动可以对应零个或一个实施记录。记录在活动进入举办阶段时创建，活动删除时级联删除。
+
+**Activity 与 ActivityRule 是 0..* 对 0..* 的关联关系。** 一个活动可受多条业务规则约束（如场地冲突检测），一条规则也可约束多个活动。两者独立存在，无拥有语义。
+
+**SecurityPlan 与 KeyMaterial 是 1 对 1..* 的聚合关系。** 1 个安保方案关联至少 1 类备案材料（实际为 5 类：活动方案、安保方案、风险评估报备表、责任确认书、备案承诺书），材料可同时被 FilingDoc 引用，删除方案时材料保留，仅解除关联。
+
+**FilingDoc 与 KeyMaterial 是 1 对 1..* 的聚合关系。** 1 个备案包引用至少 1 类备案材料，同一材料可出现在不同版本的打包中，删除包时材料保留。
+
+**KeyMaterial 与 MaterialAudit 是 1 对 0..* 的组合关系。** 1 条备案材料可以对应零到多条审核/签署记录，记录脱离材料不可独立存在。
+
+**User 与 Activity（owner）是 1 对 1..* 的关联关系。** 1 个用户作为主办方负责人可以创建多个活动。1 个活动必须有且仅有 1 个 owner。
+
+**User 与 ActivityPlan（designer）是 1 对 0..* 的关联关系。** 1 个用户作为方案设计人可以编制零到多个方案。1 个方案必须有 1 个设计人。
+
+**User 与 SecurityPlan（manager）是 1 对 0..* 的关联关系。** 1 个用户作为安保负责人可以管理零到多个安保方案。1 个方案可以有零个或 1 个负责人。
+
+**User 与 ApprovalRecord（liaison）是 1 对 0..* 的关联关系。** 1 个政府对接人可以处理多条审批记录。1 条审批记录有且仅有 1 个对接人。
+
+**User 与 ImplementationRecord（admin）是 1 对 0..* 的关联关系。** 1 个行政人员可以跟踪多条实施记录。1 条实施记录有且仅有 1 个操作人。
+
+**RBAC 关联**：User 与 Role 通过 UserRole 关联表实现多对多关联（1 个用户可有多个角色，1 个角色可分给多个用户）。Role 与 Permission 通过 RolePermission 关联表实现多对多关联（1 个角色可有多个权限，1 个权限可归属多个角色）。
 
 ### 2.3 状态图
 
