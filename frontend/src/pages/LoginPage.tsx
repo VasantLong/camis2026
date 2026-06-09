@@ -59,8 +59,8 @@ export default function LoginPage() {
           style={{ height: 440, objectFit: "contain", background: "#fff", padding: 24 }}
         />
         <Card
-          style={{ width: 400, borderRadius: 0, border: "none", borderLeft: "1px solid #f0f0f0" }}
-          bodyStyle={{ padding: "32px 32px 24px" }}
+          style={{ width: 400, borderRadius: 0, border: "none", borderLeft: "1px solid #f0f0f0", display: "flex", alignItems: "center" }}
+          styles={{ body: { padding: "32px 32px 24px", width: "100%" } }}
         >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 20 }}>
           <img
