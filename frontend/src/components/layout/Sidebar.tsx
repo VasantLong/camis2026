@@ -177,6 +177,7 @@ export default function Sidebar({ collapsed = false }: { collapsed?: boolean }) 
   return (
     <Menu
       mode="inline"
+      theme="dark"
       inlineCollapsed={collapsed}
       selectedKeys={selectedKey ? [selectedKey] : []}
       items={items}
