@@ -78,7 +78,7 @@ export default function AppLayout() {
       <Layout style={{ overflow: "hidden" }}>
         <Header
           style={{
-            background: "#fff",
+            background: isDark ? undefined : "#fff",
             padding: "0 24px",
             display: "flex",
             justifyContent: "flex-end",
