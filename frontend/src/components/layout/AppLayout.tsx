@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Layout, Button, Typography, Dropdown } from "antd";
 import { LogoutOutlined, UserOutlined } from "@ant-design/icons";
 import { Outlet, useNavigate } from "react-router-dom";
@@ -12,6 +13,7 @@ export default function AppLayout() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const clearAuth = useAuthStore((s) => s.clearAuth);
+  const [collapsed, setCollapsed] = useState(true);
 
   const handleLogout = async () => {
     try {
@@ -25,21 +27,52 @@ export default function AppLayout() {
 
   return (
     <Layout style={{ height: "100vh" }}>
-      <Sider breakpoint="lg" collapsedWidth="0">
+      <Sider
+        collapsible
+        trigger={null}
+        collapsed={collapsed}
+        collapsedWidth={72}
+        breakpoint="lg"
+        onBreakpoint={(broken) => { if (broken) setCollapsed(true); }}
+        style={{
+          overflow: "hidden",
+          height: "100vh",
+          position: "fixed",
+          left: 0,
+          top: 0,
+          bottom: 0,
+          zIndex: 100,
+          transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+        }}
+        onMouseEnter={() => setCollapsed(false)}
+        onMouseLeave={() => setCollapsed(true)}
+      >
         <div
           style={{
             height: 64,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
           }}
         >
-          <Typography.Title level={4} style={{ color: "#fff", margin: 0 }}>
+          <Typography.Title
+            level={4}
+            style={{
+              color: "#fff",
+              margin: 0,
+              opacity: collapsed ? 0 : 1,
+              transition: "opacity 0.15s",
+              fontSize: collapsed ? 0 : undefined,
+            }}
+          >
             CAMIS
           </Typography.Title>
         </div>
-        <Sidebar />
+        <Sidebar collapsed={collapsed} />
       </Sider>
+      <div style={{ width: collapsed ? 72 : 200, transition: "width 0.2s cubic-bezier(0.4, 0, 0.2, 1)", flexShrink: 0 }} />
       <Layout style={{ overflow: "hidden" }}>
         <Header
           style={{

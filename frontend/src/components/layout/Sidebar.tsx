@@ -27,7 +27,7 @@ function badge(val: number | undefined) {
   return <Badge count={val} size="small" style={{ marginLeft: 8 }} />;
 }
 
-export default function Sidebar() {
+export default function Sidebar({ collapsed = false }: { collapsed?: boolean }) {
   const location = useLocation();
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
@@ -177,6 +177,7 @@ export default function Sidebar() {
   return (
     <Menu
       mode="inline"
+      inlineCollapsed={collapsed}
       selectedKeys={selectedKey ? [selectedKey] : []}
       items={items}
       onClick={({ key }) => navigate(key)}
