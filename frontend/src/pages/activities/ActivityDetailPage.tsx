@@ -1462,6 +1462,7 @@ export default function ActivityDetailPage() {
                         );
                       })()}
 
+                      {/* Pack + Handover operations — only in pre-approval statuses */}
                       {canOperateFiling && filingStatus && (
                         <div style={{ marginTop: 16 }}>
                           {canPack && (
@@ -1477,13 +1478,6 @@ export default function ActivityDetailPage() {
                           {(filingStatus.packed || activity?.status === "待补充备案材料") && (
                             <div style={{ marginTop: 8 }}>
                               <Tag color="blue" style={{ marginRight: 8 }}>已打包</Tag>
-                              {(filingStatus as any).pack_url && (
-                                <Button size="small" type="link" style={{ marginRight: 8 }}
-                                  onClick={async () => {
-                                    const r = await documentsApi.getPresignedByPath((filingStatus as any).pack_url);
-                                    if (r.data.url) window.open(r.data.url, "_blank");
-                                  }}>下载打包文件</Button>
-                              )}
                               <Button size="small" style={{ marginRight: 8 }}
                                 onClick={() => setFilingModal("pack")}>重新打包</Button>
                               <Button onClick={() => setFilingModal("handover")}>
@@ -1494,6 +1488,17 @@ export default function ActivityDetailPage() {
                           {filingStatus.handed_over && activity?.status !== "待补充备案材料" && (
                             <Tag color="green">已交接 ✓</Tag>
                           )}
+                        </div>
+                      )}
+
+                      {/* ZIP download — always visible once packed, regardless of status */}
+                      {filingStatus?.packed && (filingStatus as any).pack_url && (
+                        <div style={{ marginTop: 8 }}>
+                          <Button size="small" type="link"
+                            onClick={async () => {
+                              const r = await documentsApi.getPresignedByPath((filingStatus as any).pack_url);
+                              if (r.data.url) window.open(r.data.url, "_blank");
+                            }}>下载备案材料ZIP</Button>
                         </div>
                       )}
 
