@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Layout, Button, Dropdown } from "antd";
-import { LogoutOutlined, UserOutlined } from "@ant-design/icons";
+import { LogoutOutlined, UserOutlined, BulbOutlined } from "@ant-design/icons";
 import { Outlet, useNavigate } from "react-router-dom";
 import { authApi } from "@/api/auth";
 import { useAuthStore } from "@/stores/authStore";
+import { useTheme } from "@/hooks/useTheme";
 import Sidebar from "./Sidebar";
 import HeaderNotifications from "./HeaderNotifications";
 
@@ -14,6 +15,7 @@ export default function AppLayout() {
   const user = useAuthStore((s) => s.user);
   const clearAuth = useAuthStore((s) => s.clearAuth);
   const [collapsed, setCollapsed] = useState(true);
+  const { isDark, toggle: toggleTheme } = useTheme();
 
   const handleLogout = async () => {
     try {
@@ -35,6 +37,7 @@ export default function AppLayout() {
         breakpoint="lg"
         onBreakpoint={(broken) => { if (broken) setCollapsed(true); }}
         style={{
+          background: isDark ? undefined : "#1a1f2e",
           overflow: "hidden",
           height: "100vh",
           position: "fixed",
@@ -82,6 +85,13 @@ export default function AppLayout() {
             alignItems: "center",
           }}
         >
+          <Button
+            type="text"
+            icon={<BulbOutlined />}
+            onClick={toggleTheme}
+            style={{ color: "inherit", marginRight: 8 }}
+            title={isDark ? "切换浅色主题" : "切换深色主题"}
+          />
           <HeaderNotifications />
         <Dropdown
             menu={{

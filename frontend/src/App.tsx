@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import { ConfigProvider, App as AntApp } from "antd";
+import { ConfigProvider, App as AntApp, theme } from "antd";
 import zhCN from "antd/locale/zh_CN";
+import { useTheme } from "@/hooks/useTheme";
 import AuthInitializer from "@/components/auth/AuthInitializer";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import AppLayout from "@/components/layout/AppLayout";
@@ -20,8 +21,12 @@ import NotificationsPage from "@/pages/NotificationsPage";
 import MonthlyReportPage from "@/pages/reports/MonthlyReportPage";
 
 export default function App() {
+  const { isDark } = useTheme();
   return (
-    <ConfigProvider locale={zhCN}>
+    <ConfigProvider
+      locale={zhCN}
+      theme={{ algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm }}
+    >
       <AntApp>
         <AuthInitializer>
           <Routes>
