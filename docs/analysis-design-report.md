@@ -671,71 +671,71 @@ graph TD
 ```mermaid
 classDiagram
     class WorkflowService {
-        +StatusLogEntry transition(activity_id, to_status, operator, comment)
-        +StatusLogEntry reject(activity_id, operator, reason)
-        +StatusLogEntry force_cancel(activity_id, operator, reason)
-        +StatusLogEntry force_postpone(activity_id, operator, reason)
+        +StatusLogEntry transition(UUID activityId, String toStatus, User operator, String comment)
+        +StatusLogEntry reject(UUID activityId, User operator, String reason)
+        +StatusLogEntry forceCancel(UUID activityId, User operator, String reason)
+        +StatusLogEntry forcePostpone(UUID activityId, User operator, String reason)
     }
 
     class TemplateService {
-        +dict get_schema(template_type, activity_id)
-        +dict generate(template_type, activity_id, data, user_id)
-        +dict sign_and_finalize(activity_id, user_id)
-        +dict sign_manager_commitment(activity_id, user_id)
-        +bytes _render_docx(template_type, data, risk_level)
+        +SchemaResponse getSchema(String templateType, UUID activityId)
+        +GenerateResponse generate(String templateType, UUID activityId, Map data, UUID userId)
+        +GenerateResponse signAndFinalize(UUID activityId, UUID userId)
+        +GenerateResponse signManagerCommitment(UUID activityId, UUID userId)
+        +ByteArray renderDocx(String templateType, Map data, String riskLevel)
     }
 
     class FilingService {
-        +list list_materials(activity_id)
-        +FilingPackResult pack_materials(activity_id)
-        +dict confirm_handover(activity_id, operator)
-        +dict audit_material(activity_id, material_id, user_id, conclusion, opinion)
-        +dict create_approval_record(activity_id, liaison_id, approval_status, attachment_url, opinion)
+        +List listMaterials(UUID activityId)
+        +FilingPackResult packMaterials(UUID activityId)
+        +FilingDoc confirmHandover(UUID activityId, User operator)
+        +MaterialAudit auditMaterial(UUID activityId, UUID materialId, UUID userId, String conclusion, String opinion)
+        +ApprovalRecord createApprovalRecord(UUID activityId, UUID liaisonId, String approvalStatus, String attachmentUrl, String opinion)
     }
 
     class ActivityService {
-        +ActivityResponse create(owner_id, data)
-        +ActivityResponse get(activity_id)
-        +tuple list(params)
-        +list get_status_history(activity_id)
+        +ActivityResponse create(UUID ownerId, ActivityCreate data)
+        +ActivityResponse get(UUID activityId)
+        +Tuple list(ActivityListParams params)
+        +List getStatusHistory(UUID activityId)
     }
 
     class DocumentService {
-        +DocumentResponse upload(activity_id, uploader_id, file, tags)
-        +str get_presigned_url(doc_id)
-        +list list_by_activity(activity_id)
+        +DocumentResponse upload(UUID activityId, UUID uploaderId, File file, List tags)
+        +String getPresignedUrl(UUID docId)
+        +List listByActivity(UUID activityId)
     }
 
     class NotificationService {
-        +None send_reminder(user_id, message, channel)
-        +None notify_role(role_name, message)
-        +None check_overdue(activity_id)
+        +void sendReminder(UUID userId, String message, String channel)
+        +void notifyRole(String roleName, String message)
+        +void checkOverdue(UUID activityId)
     }
 
     class DashboardService {
-        +PanelData get_panel_data()
-        +ActivityDetail get_activity_detail(activity_id)
+        +PanelData getPanelData()
+        +ActivityDetail getActivityDetail(UUID activityId)
     }
 
     class ReportDataService {
-        +dict query_monthly_data(month)
+        +Map queryMonthlyData(String month)
     }
 
     class ReportRenderer {
-        +bytes POST_render(month, data_key, token)
+        +ByteArray render(String month, String dataKey, String token)
     }
 
     class AuthService {
-        +TokenResponse register(data)
-        +TokenResponse login(email, password)
-        +TokenResponse refresh_token(refresh_token)
-        +None logout(user_id)
+        +TokenResponse register(RegisterRequest data)
+        +TokenResponse login(String email, String password)
+        +TokenResponse refreshToken(String refreshToken)
+        +void logout(UUID userId)
     }
 
     class AdminService {
-        +list list_users()
-        +None update_user_role(user_id, role_id)
-        +None approve_role_request(request_id, reviewer_id, comment)
+        +List listUsers()
+        +void updateUserRole(UUID userId, UUID roleId)
+        +void approveRoleRequest(UUID requestId, UUID reviewerId, String comment)
     }
 
     WorkflowService --> NotificationService : 通知
