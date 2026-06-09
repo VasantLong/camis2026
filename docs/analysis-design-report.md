@@ -407,4 +407,6 @@ stateDiagram-v2
 
 ---
 
+> 各章节引用的项目文档与代码源详见 `docs/report-references.md`。
+>
 > **第 3 章（系统设计）与第 4 章（系统实现）将在后续补充。**
