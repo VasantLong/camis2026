@@ -503,29 +503,25 @@ graph TD
 
 **部署拓扑**：
 
-```
-┌─────────────────────────────────────────────┐
-│  Docker Compose                             │
-│                                             │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
-│  │ postgres │  │  minio   │  │  redis   │  │
-│  │  :5432   │  │ :9000/01 │  │  :6379   │  │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  │
-│       │             │             │         │
-│       └──────────┬──┴─────────────┘         │
-│                  │                          │
-│          ┌───────┴──────┐                   │
-│          │  app (uvicorn)│  :8000           │
-│          └──────────────┘                   │
-│                  │                          │
-│          ┌───────┴──────┐                   │
-│          │ playwright-svc│  :3000           │
-│          └──────────────┘                   │
-│                                             │
-│  ┌──────────┐                               │
-│  │ mailpit  │  :11025 (SMTP) / :18025 (Web) │
-│  └──────────┘                               │
-└─────────────────────────────────────────────┘
+```mermaid
+graph TD
+    subgraph Docker[Docker Compose]
+        pg[(PostgreSQL :5432)]
+        minio[(MinIO :9000)]
+        redis[(Redis :6379)]
+        app[App Service<br>uvicorn :8000]
+        playwright[Playwright Service<br>:3000]
+        mailpit[Mailpit<br>SMTP :11025 / Web :18025]
+
+        pg --> app
+        minio --> app
+        redis --> app
+        app --> playwright
+        mailpit -.-> |开发环境拦截| app
+    end
+
+    browser[Browser :5173] --> |Vite proxy| app
+    app --> |S3 API| minio
 ```
 
 `playwright-svc` 为独立微服务容器（FastAPI + headless Chromium），接收主应用 HTTP 请求后渲染 PDF 返回。开发环境 Mailpit 捕获所有外发邮件。生产环境 SMTP 替换为企业邮件服务，凭据通过 `.env` 注入。
