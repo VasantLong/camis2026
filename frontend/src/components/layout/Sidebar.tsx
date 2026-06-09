@@ -155,24 +155,25 @@ export default function Sidebar({ collapsed = false }: { collapsed?: boolean }) 
   });
 
   // ── selected key ──
-  const selectedKey =
-    location.pathname === "/index"
-      ? "/index"
-      : location.pathname === "/activities/new"
-        ? "/activities/new"
-        : location.pathname.startsWith("/admin/users")
-          ? "/admin/users"
-          : location.pathname.startsWith("/admin")
-            ? "/admin/role-requests"
-            : location.pathname.startsWith("/activities")
-              ? location.pathname + location.search
-              : location.pathname.startsWith("/dashboard")
-                ? "/dashboard"
-                : location.pathname.startsWith("/notifications")
-                  ? "/notifications"
-                  : location.pathname.startsWith("/profile")
-                    ? "/profile"
-                    : undefined;
+  const selectedKey = (() => {
+    if (location.pathname === "/index") return "/index";
+    if (location.pathname === "/activities/new") return "/activities/new";
+    if (location.pathname.startsWith("/admin/users")) return "/admin/users";
+    if (location.pathname.startsWith("/admin")) return "/admin/role-requests";
+    if (location.pathname.startsWith("/activities")) {
+      const sp = new URLSearchParams(location.search);
+      const status = sp.get("status");
+      const tab = sp.get("tab");
+      if (status) return `/activities?status=${status}`;
+      if (tab === "completed") return "/activities?tab=completed";
+      if (tab === "all") return "/activities?tab=all";
+      return "/activities";
+    }
+    if (location.pathname.startsWith("/dashboard")) return "/dashboard";
+    if (location.pathname.startsWith("/notifications")) return "/notifications";
+    if (location.pathname.startsWith("/profile")) return "/profile";
+    return undefined;
+  })();
 
   return (
     <Menu
