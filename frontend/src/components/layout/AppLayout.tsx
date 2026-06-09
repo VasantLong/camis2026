@@ -40,6 +40,7 @@ export default function AppLayout() {
           position: "fixed",
           left: 0,
           top: 0,
+          boxShadow: "2px 0 8px rgba(0,0,0,0.08)",
           bottom: 0,
           zIndex: 100,
           transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",

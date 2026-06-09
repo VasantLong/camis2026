@@ -283,14 +283,14 @@ export default function ActivityDetailPage() {
   }
 
   return (
-    <div style={{ padding: "24px 24px 0 24px" }}>
+    <div style={{ padding: "32px 32px 0 32px" }}>
       <div
         style={{
           display: "flex",
           alignItems: "center",
           flexWrap: "wrap",
           gap: 12,
-          marginBottom: 12,
+          marginBottom: 24,
         }}
       >
         <Button
