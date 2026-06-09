@@ -1513,4 +1513,18 @@ erDiagram
 
 测试环境：Docker Compose 启动 PostgreSQL + MinIO + Redis + Mailpit，Playwright 通过 `connect_over_cdp("http://127.0.0.1:9222")` 连接本地 Edge 浏览器。
 
-> 已知测试缺口：补件回路（UC5b）的完整浏览器测试尚未覆盖；两步签署中 TC4 仅覆盖第一步（三文件签署），第二步承诺书签署测试待补充。详见 `docs/browser-tests.md`。
+**后端测试执行结果**（29/29 全部通过）：
+
+| 类别 | 测试文件 | 通过 | 覆盖要点 |
+|------|---------|------|---------|
+| 认证 | `test_auth.py` | 6/6 | 注册、登录、token 验证、重复注册、错误密码 |
+| 活动 | `test_activity_service.py` | 6/6 | CRUD、过期截止日校验、列表分页、状态历史、权限拦截 |
+| 工作流 | `test_workflow_service.py` | 5/5 | 合法/非法流转、驳回自循环、强制取消+归档、权限 |
+| 文件 | `test_filing_service.py` | 3/3 | 材料校验、打包拦截、交接确认+状态变更 |
+| 仪表盘 | `test_dashboard_service.py` | 3/3 | 面板结构、活动详情聚合、月报异步生成 |
+| 上传 | `test_upload.py` | 3/3 | 上传成功+元数据、未认证拦截、格式校验 |
+| 下载 | `test_download.py` | 3/3 | 302 重定向、文件不存在、文档列表 |
+
+测试环境：`httpx.ASGITransport` 直连 FastAPI，真实 PostgreSQL + MinIO + Redis。测试数据通过 `pytest_asyncio` fixture 按角色创建独立用户并分配 RBAC 权限，每个测试脚本自含数据准备不依赖其他脚本的执行顺序。
+
+> 已知测试缺口：补件回路（UC5b）的完整浏览器测试尚未覆盖；两步签署中 TC4 仅覆盖第一步（三文件签署），第二步承诺书签署测试待补充；TemplateService 无后端集成测试。详见 `docs/browser-tests.md`。
