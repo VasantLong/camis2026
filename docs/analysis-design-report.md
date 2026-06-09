@@ -417,9 +417,20 @@ stateDiagram-v2
 
 本系统采用**面向服务架构（SOA）——模块化单体**模式。设计方法上，通过**业务能力聚类**策略审视 6 个用例，将紧密相关的用例归组，每组对应一个候选服务；架构结果上，形成 11 个边界清晰的服务，所有服务运行在同一进程内，服务间通过同步方法调用协作。
 
+SOA 的"服务"是逻辑概念（代码层的服务类），不是部署概念（独立进程）。加上所有服务共享进程和数据库。所以完整定性是 SOA模块化单体 + 内部分层。
+
 **为什么是模块化单体而非微服务**：本系统领域复杂度中等，团队规模小，SOA 已实现服务边界清晰的目标。微服务带来的异步事件总线、Saga 分布式事务、最终一致性等复杂度远超当前需求。当前架构预留了平滑演进路径——未来如需拆分，可在已有服务边界上叠加子领域分析，将通用域（如文件存储）抽离为独立基础设施服务。
 
-实体类为纯数据载体（ADR 0001），只保留属性与关联关系，不包含业务方法。业务逻辑归属服务层，工作流状态变更由 `WorkflowService` 显式驱动。
+**与其他架构风格的对比**：
+
+| 架构风格 | 核心特征 | 本项目为何不采用 |
+|---------|---------|-----------------|
+| 三层架构 | 表示层/业务层/数据层物理分离，通过网络通信 | 项目内部是逻辑分层而非物理分层——所有代码运行在同一进程，四层仅作为代码组织手段 |
+| MVC | Controller 既管路由又管业务逻辑，Model 含行为 | FastAPI 路由层只做参数提取和响应序列化，业务逻辑在独立 Service 层，实体为贫血模型 |
+| 微服务 | 每个服务独立部署、独立数据库、异步通信 | 11 个服务共享进程和数据库，服务间同步方法调用，无分布式基础设施 |
+| SOA 模块化单体 | 服务是首要分解单位，实体贫血，边界清晰 | ✅ 代码按业务能力聚类为 11 个 Service，实体无业务方法（ADR 0001），服务间通过接口契约协作，内部辅以四层分层组织 |
+
+本系统架构的核心特征是**服务导向**而非分层导向：服务是业务能力的直接映射，分层是服务内部的代码纪律。实体为纯数据载体（ADR 0001），只保留属性与关联关系，不包含业务方法。业务逻辑归属服务层，工作流状态变更由 `WorkflowService` 显式驱动。
 
 **服务依赖关系**：
 
@@ -589,9 +600,52 @@ graph TD
 - 批量审查：GovLiaison 批量勾选材料后一键标记合格或不合格（不合格需填写原因）
 - 审核记录：Timeline 时间线展示，同时间操作合并节点，仅 GovLiaison 可见
 
-#### 3.2.2 业务逻辑设计
+#### 3.2.2 接口层设计
 
-服务层是系统的业务逻辑核心，11 个服务按职责分为三组——核心业务（WorkflowService、TemplateService、FilingService、ActivityService）、支撑服务（DocumentService、NotificationService、DashboardService、ReportDataService、ReportRenderer）、独立服务（AuthService、AdminService）。所有服务通过构造函数注入 `AsyncSession`，方法内管理事务边界。本节重点描述核心业务服务的领域模型与关键方法。
+系统提供 RESTful API，23 个端点按资源分组为 8 个路由模块。所有端点（除 `/auth/*` 和 `/health`）需携带 `Authorization: Bearer <jwt>`，通过 `require_permission` 装饰器实施 RBAC 权限校验。
+
+**路由模块与端点**：
+
+| 路由模块 | 端点 | 方法 | 权限 |
+|---------|------|------|------|
+| `auth` | `/auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/me`, `/auth/roles`, `/auth/me/role-request` | POST/GET/PATCH | 公开/登录用户 |
+| `activities` | `/activities`, `/activities/{id}`, `/activities/{id}/history` | GET/POST | `create_activity` / `view_owned_activity` |
+| `documents` | `/activities/{id}/documents` | GET/POST | `view_owned_activity` / `upload_document` |
+| `plan` | `/activities/{id}/plan/schema`, `/draft`, `/generate`, `/versions`, `/finalize` | GET/PUT/POST | `submit_plan` |
+| `security-plan` | `/activities/{id}/security-plan/schema`, `/draft`, `/generate`, `/submit-review`, `/sign`, `/reject`, `/versions` | GET/PUT/POST | `manage_security` / `reject_approval` |
+| `materials` | `/activities/{id}/materials`, `/materials/{mid}/schema`, `/draft`, `/generate`, `/versions` | GET/PUT/POST | `pack_filing` |
+| `filings` | `/activities/{id}/filings/status`, `/pack`, `/handover`, `/audit`, `/approval`, `/audit-history` | GET/POST | `pack_filing` / `audit_material` |
+| `workflows` | `/activities/{id}/status`, `/activities/{id}/reject`, `/force-cancel`, `/force-postpone` | PUT/POST | `manage_security` / `audit_material` / `view_dashboard` |
+| `dashboard` | `/dashboard/panel`, `/dashboard/reports/{month}` | GET/POST | `view_dashboard` / `export_report` |
+| `admin` | `/admin/users`, `/admin/role-requests` | GET/PUT | `manage_users` |
+| `notifications` | `/notifications`, `/notifications/unread-count`, `/notifications/{id}/read`, `/notifications/read-all` | GET/PUT | 登录用户 |
+
+**关键设计决策**：
+
+- **资源嵌套**：模板和备案端点嵌套在 `/activities/{id}/` 下，隐含"活动范围"语义，同时通过 `activity_id` URL 参数天然防止跨活动越权
+- **权限粒度**：`PUT /activities/{id}/status` 同时接受 `manage_security`、`audit_material`、`submit_plan`、`view_dashboard` 多种权限，目标状态为"审批通过-待举办"时额外要求 `confirm_approval`
+- **文件下载**：不直接返回文件流，而是返回 MinIO 预签名 URL（30 分钟有效），前端 `window.open()` 触发浏览器下载
+- **Schema 端点**：`GET /schema` 返回模板字段定义 + autofill 预填数据 + 草稿/快照，前端据此动态渲染表单
+
+#### 3.2.3 业务逻辑层设计
+
+服务层是系统的业务逻辑核心，11 个服务按职责分为三组：核心业务（WorkflowService、TemplateService、FilingService、ActivityService）、支撑服务（DocumentService、NotificationService、DashboardService、ReportDataService、ReportRenderer）、独立服务（AuthService、AdminService）。
+
+| 服务 | 关联数据库表 | 服务接口（关键方法） |
+|------|-------------|---------------------|
+| WorkflowService | `activities`, `activity_status_log` | `transition()`, `reject()`, `force_cancel()`, `force_postpone()` |
+| TemplateService | `activity_plans`, `security_plans`, `filled_documents` | `get_schema()`, `generate()`, `sign_and_finalize()`, `sign_manager_commitment()`, `_render_docx()` |
+| FilingService | `key_materials`, `filing_docs`, `material_audits`, `approval_records` | `list_materials()`, `pack_materials()`, `confirm_handover()`, `audit_material()`, `create_approval_record()` |
+| ActivityService | `activities`, `activity_status_log` | `create()`, `get()`, `list()`, `get_status_history()` |
+| DocumentService | `documents` | `upload()`, `get_presigned_url()`, `list_by_activity()` |
+| NotificationService | `notifications` | `send_reminder()`, `notify_role()`, `check_overdue()` |
+| DashboardService | `activities`（只读） | `get_panel_data()`, `get_activity_detail()` |
+| ReportDataService | `activities`（只读） | `query_monthly_data()` |
+| ReportRenderer | —（HTTP 客户端） | `POST /render` |
+| AuthService | `users`, `refresh_tokens`, `login_attempts` | `register()`, `login()`, `refresh_token()`, `logout()` |
+| AdminService | `users`, `role_requests` | `list_users()`, `update_user_role()`, `approve_role_request()` |
+
+所有服务通过构造函数注入 `AsyncSession`，方法内管理事务边界。本节重点描述核心业务服务的领域模型与关键方法。
 
 **WorkflowService — 状态机引擎**：
 
@@ -632,6 +686,6 @@ graph TD
 - `AuthService`：JWT 双令牌（access + refresh）、登录暴力破解防护（5→15min 递增锁定）、角色-权限校验
 - `AdminService`：用户管理（列表、角色编辑、禁用/归档）、角色申请审批
 
-#### 3.2.3 数据层设计
+#### 3.2.4 数据层设计
 
 > 将在后续补充。
