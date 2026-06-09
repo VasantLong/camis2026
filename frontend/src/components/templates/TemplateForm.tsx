@@ -474,7 +474,7 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
     <>
       <Form form={form} layout="vertical" scrollToFirstError disabled={loading || submitting || disabled} onValuesChange={handleValuesChange}>
         <Row gutter={16}>
-          {visibleFields(schema.fields).map((f) => {
+          {visibleFields(schema.fields).filter((f) => f.ui_type !== "declarations").map((f) => {
             const n = f.ui_type;
             const span =
               n === "textarea" ? 24 :
@@ -487,6 +487,11 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
             );
           })}
         </Row>
+        {visibleFields(schema.fields).filter((f) => f.ui_type === "declarations").map((f) => (
+          <div key={f.name} style={{ marginBottom: 16 }}>
+            {renderField(f, changedFields.has(f.name))}
+          </div>
+        ))}
         {!disabled && (
           <Form.Item>
             <Space>
