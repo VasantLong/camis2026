@@ -586,146 +586,127 @@ end
 
 ```mermaid
 classDiagram
-    %% === RBAC ===
     class User {
-        +UUID id
-        +String email
-        +String display_name
-        +String password_hash
-        +Boolean is_active
-        +Boolean is_archived
-        +String contact_phone
-        +DateTime created_at
-        +DateTime updated_at
+        +id: UUID
+        +email: String
+        +display_name: String
+        +is_active: Boolean
+        +contact_phone: String
     }
 
     class Role {
-        +UUID id
-        +String name
-        +String description
+        +id: UUID
+        +name: String
+        +description: String
     }
 
     class Permission {
-        +UUID id
-        +String name
-        +String resource
-        +String action
+        +id: UUID
+        +name: String
+        +resource: String
+        +action: String
     }
 
-    %% === 核心实体 ===
     class Activity {
-        +UUID id
-        +String name
-        +String type
-        +DateTime estimated_time
-        +String location
-        +String sponsor
-        +DateTime deadline
-        +String status
-        +DateTime created_at
-        +DateTime updated_at
+        +id: UUID
+        +name: String
+        +type: String
+        +estimated_time: DateTime
+        +location: String
+        +sponsor: String
+        +sponsor_contact: String
+        +sponsor_phone: String
+        +deadline: DateTime
+        +status: String
     }
 
     class ActivityPlan {
-        +UUID id
-        +String content
-        +String attachment_url
-        +DateTime submit_time
-        +Boolean is_overdue
+        +id: UUID
+        +created_at: DateTime
+        +updated_at: DateTime
     }
 
     class SecurityPlan {
-        +UUID id
-        +String risk_level
-        +String audit_status
-        +DateTime sign_time
+        +id: UUID
+        +risk_level: String
+        +audit_status: String
+        +sign_time: DateTime
+        +last_reject_reason: String
+        +rejected_at: DateTime
+        +reject_count: Integer
     }
 
     class FilingDoc {
-        +UUID id
-        +Boolean is_qualified
-        +String handover_status
-        +DateTime generated_at
+        +id: UUID
+        +is_qualified: Boolean
+        +handover_status: String
+        +pack_url: String
+        +generated_at: DateTime
     }
 
     class ApprovalRecord {
-        +UUID id
-        +String approval_status
-        +String attachment_url
-        +DateTime approval_date
-        +String rectification_opinion
+        +id: UUID
+        +approval_status: String
+        +attachment_url: String
+        +approval_date: DateTime
+        +rectification_opinion: String
     }
 
     class ImplementationRecord {
-        +UUID id
-        +String progress
-        +String change_status
-        +String change_reason
-        +DateTime archived_at
+        +id: UUID
+        +change_status: String
+        +change_reason: String
+        +archived_at: DateTime
     }
 
     class KeyMaterial {
-        +UUID id
-        +String name
-        +Boolean is_qualified
-        +String sign_status
-        +Integer audit_round
-        +String opinion
-        +DateTime upload_time
+        +id: UUID
+        +name: String
+        +material_type: String
+        +is_qualified: Boolean
+        +sign_status: String
+        +audit_round: Integer
+        +opinion: String
+        +upload_time: DateTime
     }
 
     class MaterialAudit {
-        +UUID id
-        +UUID material_id
-        +UUID user_id
-        +String action
-        +String conclusion
-        +String opinion
-        +DateTime created_at
-    }
-
-    class RoleRequest {
-        +UUID id
-        +UUID user_id
-        +UUID role_id
-        +String status
-        +String comment
-        +DateTime created_at
+        +id: UUID
+        +action: String
+        +conclusion: String
+        +opinion: String
+        +created_at: DateTime
     }
 
     class ActivityRule {
-        +UUID id
-        +String rule_type
-        +DateTime effective_time
-        +String effective_reason
-        +String resolve_status
+        +id: UUID
+        +rule_type: String
+        +effective_time: DateTime
+        +effective_reason: String
+        +resolve_status: String
     }
 
-    %% === 关联表 ===
     class UserRole {
-        +UUID user_id
-        +UUID role_id
+        +user_id: UUID
+        +role_id: UUID
     }
 
     class RolePermission {
-        +UUID role_id
-        +UUID permission_id
+        +role_id: UUID
+        +permission_id: UUID
     }
 
-    %% === RBAC 关联 ===
     User "1" -- "*" UserRole
     Role "1" -- "*" UserRole
     Role "1" -- "*" RolePermission
     Permission "1" -- "*" RolePermission
 
-    %% === FK 关联 ===
     User "1" -- "*" Activity : owner
     User "1" -- "*" ActivityPlan : designer
     User "1" -- "*" SecurityPlan : manager
     User "1" -- "*" ApprovalRecord : liaison
     User "1" -- "*" ImplementationRecord : admin
 
-    %% === 聚合（Activity 为聚合根） ===
     Activity "1" *-- "1..*" ActivityPlan : 包含
     Activity "1" *-- "1..*" SecurityPlan : 包含
     Activity "1" *-- "*" FilingDoc : 多轮打包
@@ -733,12 +714,10 @@ classDiagram
     Activity "1" *-- "1" ImplementationRecord : 包含
     Activity "1..*" -- "1..*" ActivityRule : 受约束
 
-    %% === 材料引用 ===
+
     SecurityPlan "1" o-- "1..*" KeyMaterial : 包含
     FilingDoc "1" o-- "1..*" KeyMaterial : 包含
     KeyMaterial "1" *-- "*" MaterialAudit : 审核/签署记录
-    User "1" *-- "*" RoleRequest : 角色申请
-    Role "1" *-- "*" RoleRequest : 申请目标角色
 ```
 
 > **与 OO 类图的关键差异**：
