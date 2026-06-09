@@ -562,17 +562,7 @@ graph TD
 
 #### 3.2.1 界面设计
 
-前端为 React 19 单页应用（SPA），TypeScript 5.7 + Vite 构建，Ant Design 6 组件库。Vite proxy 将 `/api/*` 转发至后端 `:8000`，生产环境由 Nginx 反向代理替代。
-
-**全局状态与路由守卫**：
-
-- 认证：Zustand `authStore` 管理 JWT 令牌与用户权限，`AuthInitializer` 在应用启动时静默刷新令牌
-- 路由守卫：`ProtectedRoute` 组件双重校验——先验证 `isAuthenticated`，再检查 `permissions.includes(requiredPermission)`
-- 数据请求：TanStack Query 管理服务端状态缓存，Axios 拦截器自动附加 Bearer 令牌并在 401 时触发刷新队列
-
-**角色感知导航**：
-
-侧边栏菜单根据用户角色动态渲染——Promoter 看到"我的活动"和"新建立项"，SecurityOfficer 看到"待编制安保方案"和"待打包备案"，GovLiaison 和 AdminStaff 各有专属入口。通知铃铛组件实时展示未读数量 badge，下拉面板按时间排列，点击跳转至关联活动详情或下载报告。
+前端为 React 19 单页应用（SPA），TypeScript 5.7 + Vite 构建，Ant Design 6 组件库。Vite proxy 将 `/api/*` 转发至后端 `:8000`，生产环境由 Nginx 反向代理替代。界面设计遵循**从身份到页面、从结构到行为**的自顶向下逻辑：首先确定用户身份与权限，随后定义页面结构与表单渲染机制，最后约束跨页面的交互行为。
 
 **用户角色与使用场景**：
 
@@ -590,6 +580,16 @@ graph TD
 
 关键行为特征：生产环境每人单一角色；Promoter 方案提交后不被驳回（单向流程）；驳回仅安全部内部循环（SecurityManager → SecurityOfficer）；Dashboard 用于向上汇报而非问题处理；强制变更为不可抗力紧急场景。这些特征直接决定了界面设计中角色视图分离和操作入口的条件显隐策略。
 
+**全局状态与路由守卫**：
+
+- 认证：Zustand `authStore` 管理 JWT 令牌与用户权限，`AuthInitializer` 在应用启动时静默刷新令牌
+- 路由守卫：`ProtectedRoute` 组件双重校验——先验证 `isAuthenticated`，再检查 `permissions.includes(requiredPermission)`
+- 数据请求：TanStack Query 管理服务端状态缓存，Axios 拦截器自动附加 Bearer 令牌并在 401 时触发刷新队列
+
+**角色感知导航**：
+
+侧边栏菜单根据用户角色动态渲染——Promoter 看到"我的活动"和"新建立项"，SecurityOfficer 看到"待编制安保方案"和"待打包备案"，GovLiaison 和 AdminStaff 各有专属入口。通知铃铛组件实时展示未读数量 badge，下拉面板按时间排列，点击跳转至关联活动详情或下载报告。
+
 **核心页面**：
 
 > 表3-5 系统核心页面
@@ -603,10 +603,6 @@ graph TD
 | 通知中心 | 未读/全部 Tab 切换、批量已读 | NotificationsPage |
 | 管理页 | 用户列表、角色编辑、禁用/归档、角色申请审批 | UserManagementPage + RoleRequestsPage |
 
-**Schema 驱动动态表单**（TemplateForm）：
-
-活动方案和安保方案的表单由后端 schema 定义驱动——`GET /schema` 返回字段数组，每个字段声明 `ui_type`（text/textarea/number/date/select/repeater/signature）、`condition`（条件显隐规则）、`autofill_from`（自动填入来源）。前端根据 schema 动态渲染对应组件，无需为每个模板单独编写表单。支持 8 种字段类型，日期控件扩展了 `show_time: true` 支持日期+时刻选择。
-
 **活动详情页多 Tab 设计**：
 
 活动详情页是系统的操作中枢，通过 5 个 Tab 聚合不同阶段的操作界面：
@@ -616,6 +612,10 @@ graph TD
 - **活动方案 Tab**：按角色分段——Promoter 看到 TemplateForm + VersionTimeline + "最终确定方案"按钮；AdminStaff 看到版本管理；其他角色看到只读快照（VersionSnapshot）。最终确定后锁定编辑
 - **安保方案 Tab**：三子 tab（安保方案/风险评估表/责任确认书），条件字段按风险等级显隐。SecurityOfficer 编辑草稿并提交审核；SecurityManager 两步签署（第一步三文件签名，第二步备案承诺书确认）；驳回后红色横幅+高亮字段+必须先创建新版本方可重新提交
 - **备案 Tab**：按状态和角色分段渲染——Officer 阶段显示材料签署状态+打包+交接按钮；GovLiaison 阶段显示审查面板（逐条合格/不合格+意见）+审批决策（通过/补件/驳回）+批文上传；审批通过后所有角色只读查看+ZIP 下载
+
+**Schema 驱动动态表单**（TemplateForm）：
+
+活动方案和安保方案的表单由后端 schema 定义驱动——`GET /schema` 返回字段数组，每个字段声明 `ui_type`（text/textarea/number/date/select/repeater/signature）、`condition`（条件显隐规则）、`autofill_from`（自动填入来源）。前端根据 schema 动态渲染对应组件，无需为每个模板单独编写表单。支持 8 种字段类型，日期控件扩展了 `show_time: true` 支持日期+时刻选择。
 
 **交互模式**：
 
