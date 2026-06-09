@@ -788,6 +788,189 @@ classDiagram
 ```
 > 图3-3 服务类图
 
+**服务间协作顺序图**（按 UC1-UC6 按需展示关键 lifeline，`DB` 为 PostgreSQL，`MinIO` 为对象存储）：
+
+**UC1 立项**：
+
+```mermaid
+sequenceDiagram autonumber
+    actor P as Promoter
+    participant AS as ActivityService
+    participant DB as Database
+    participant NS as NotificationService
+    actor D as Designer
+
+    P->>AS: create(owner_id, data)
+    AS->>DB: 校验必填字段 + 场地冲突检测
+    alt 场地冲突
+        AS-->>P: 409 Conflict
+    end
+    AS->>DB: INSERT activity (status=待设计方案)
+    AS->>DB: INSERT activity_status_log
+    AS->>NS: send_reminder(designer_id, "新活动待设计方案")
+    NS--)D: 待办提醒
+    AS-->>P: ActivityResponse
+```
+> 图3-9 UC1 立项 SO 顺序图
+
+
+**UC2 编制活动方案**：
+
+```mermaid
+sequenceDiagram autonumber
+    actor P as Promoter
+    participant TS as TemplateService
+    participant WS as WorkflowService
+    participant NS as NotificationService
+    participant DB as Database
+    actor SO as SecurityOfficer
+
+    P->>TS: get_schema("activity_plan", id)
+    TS-->>P: SchemaResponse (fields + autofill_data + draft)
+    P->>TS: PUT /draft (保存草稿)
+    TS->>DB: UPDATE activity_plans.draft_data
+    P->>TS: POST /generate (提交生成)
+    TS->>DB: INSERT filled_documents (data_snapshot)
+    TS->>TS: docxtpl 渲染 DOCX
+    TS->>MinIO: 上传 DOCX
+    TS-->>P: GenerateResponse (version_number)
+    P->>TS: POST /finalize (最终确定方案)
+    TS->>WS: transition("待安保方案设计")
+    WS->>DB: UPDATE status WHERE status=待设计方案
+    WS->>DB: INSERT activity_status_log
+    WS->>NS: notify_role("SecurityOfficer", "需进行安保方案设计")
+    NS--)SO: 待办提醒
+    WS-->>P: 状态变更成功
+```
+> 图3-10 UC2 编制活动方案 SO 顺序图
+
+
+**UC3 编制安保方案与签署**：
+
+```mermaid
+sequenceDiagram autonumber
+    actor O as SecurityOfficer
+    participant TS as TemplateService
+    participant DB as Database
+    participant WS as WorkflowService
+    participant NS as NotificationService
+    actor M as SecurityManager
+
+    O->>TS: get_schema("security_plan", id)
+    TS-->>O: SchemaResponse (条件字段按 risk_level)
+    O->>TS: PUT /draft (保存草稿)
+    O->>TS: POST /generate (提交生成，延迟策略)
+    TS->>DB: INSERT filled_documents (minio_path=NULL)
+    TS-->>O: GenerateResponse
+    O->>TS: POST /submit-review (提交审核)
+    TS->>DB: UPDATE audit_status=待审核
+    TS->>NS: send_reminder(manager_id, "安保方案待签署")
+    NS--)M: 签署待办
+    M->>TS: POST /sign (签署第一步)
+    TS->>TS: sign_and_finalize()
+    TS->>TS: _render_docx() 注入签名 → 安保方案+双表 DOCX
+    TS->>MinIO: 上传 3 份 DOCX
+    TS->>DB: UPDATE filled_documents (minio_path)
+    TS-->>M: 签署成功，展示承诺书签署区
+    M->>TS: POST /commitment-sign (签署第二步)
+    TS->>TS: sign_manager_commitment()
+    TS->>TS: _render_docx() → 承诺书 DOCX
+    TS->>MinIO: 上传承诺书 DOCX
+    TS->>WS: transition("待备案申请")
+    WS->>DB: UPDATE status
+    WS->>DB: INSERT activity_status_log
+    WS-->>O: 状态变更成功
+```
+> 图3-11 UC3 编制安保方案与签署 SO 顺序图
+
+
+**UC4 备案打包与交接**：
+
+```mermaid
+sequenceDiagram autonumber
+    actor O as SecurityOfficer
+    participant FS as FilingService
+    participant WS as WorkflowService
+    participant NS as NotificationService
+    participant DB as Database
+    actor G as GovLiaison
+
+    O->>FS: pack_materials(activity_id)
+    FS->>DB: 校验 5 项材料 sign_status
+    alt 存在未签署材料
+        FS-->>O: 阻断，提示签名缺失
+    end
+    FS->>FS: 聚合 5 份 DOCX → ZIP
+    FS->>MinIO: 上传 ZIP
+    FS->>DB: UPDATE filing_docs (pack_url)
+    FS-->>O: FilingPackResult (pack_url)
+    O->>FS: confirm_handover(activity_id)
+    FS->>WS: transition("备案材料已交接")
+    WS->>DB: UPDATE status
+    WS->>DB: INSERT activity_status_log
+    WS->>NS: notify_role("GovLiaison", "备案材料已流转至政府对接")
+    NS--)G: 审查待办
+```
+> 图3-12 UC4 备案打包与交接 SO 顺序图
+
+
+**UC5 政府审查与审批**：
+
+```mermaid
+sequenceDiagram autonumber
+    actor G as GovLiaison
+    participant FS as FilingService
+    participant WS as WorkflowService
+    participant NS as NotificationService
+    participant DB as Database
+    actor S as SecurityOfficer
+    actor All as 所有经手人
+
+    G->>FS: audit_material(material_id, conclusion, opinion)
+    FS->>DB: INSERT material_audits
+    FS->>DB: UPDATE key_materials (is_qualified, audit_round)
+    G->>FS: create_approval_record(activity_id, "审批通过", attachment_url)
+    FS->>DB: INSERT approval_records
+    FS->>WS: transition("审批通过-待举办")
+    WS->>DB: UPDATE status + UPDATE audit_status=已审核
+    WS->>DB: INSERT activity_status_log
+    WS->>NS: 逐人通知所有经手人
+    NS--)All: 活动已审批通过
+    WS-->>G: 审批完成
+```
+> 图3-13 UC5 政府审查与审批 SO 顺序图
+
+
+**UC6 活动实施监控**：
+
+```mermaid
+sequenceDiagram autonumber
+    actor A as AdminStaff
+    participant DS as DashboardService
+    participant WS as WorkflowService
+    participant DB as Database
+    participant NS as NotificationService
+    participant RR as ReportRenderer
+    actor All as 所有经手人
+
+    A->>DS: get_panel_data()
+    DS->>DB: 多维度聚合查询
+    DS-->>A: PanelData (total, by_status, compliance_rate)
+    A->>WS: transition("已结束")
+    WS->>DB: UPDATE status
+    WS->>DB: INSERT activity_status_log (comment=结束原因)
+    WS->>NS: 逐人通知所有经手人
+    NS--)All: 活动已结束
+    A->>DS: POST /reports/{month}
+    DS->>RR: POST /render (month, data_key)
+    RR-->>DS: PDF bytes
+    DS->>MinIO: 上传月报 PDF
+    DS->>NS: send_reminder(admin_id, "月报已生成")
+    NS--)A: 通知下载链接
+```
+> 图3-14 UC6 活动实施监控 SO 顺序图
+
+
 本节重点描述核心业务服务的领域模型与关键方法。
 
 **WorkflowService — 状态机引擎**：
