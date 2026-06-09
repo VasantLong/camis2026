@@ -477,8 +477,8 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
           {visibleFields(schema.fields).filter((f) => f.ui_type !== "declarations").map((f) => {
             const n = f.ui_type;
             const span =
-              n === "textarea" ? 24 :
-              n === "text" || n === "repeater" || n === "signature" ? 24 :
+              n === "textarea" || n === "repeater" || n === "signature" ? 24 :
+              n === "text" || n === "autofill" ? 12 :
               8; // date, number, select → 3 per row
             return (
               <Col key={f.name} span={span}>
