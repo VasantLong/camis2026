@@ -61,8 +61,8 @@ export default function AppLayout() {
             src="/logo.png"
             alt="CAMIS"
             style={{
-              height: collapsed ? 36 : 44,
-              width: collapsed ? 36 : 44,
+              height: collapsed ? 44 : 56,
+              width: collapsed ? 44 : 56,
               transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
               objectFit: "contain",
             }}

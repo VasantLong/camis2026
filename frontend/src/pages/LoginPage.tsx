@@ -41,20 +41,27 @@ export default function LoginPage() {
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
+        gap: 40,
         background: "#f5f5f5",
+        padding: 24,
       }}
     >
+      <img
+        src="/logo-vertical.png"
+        alt="CAMIS"
+        style={{ height: 420, objectFit: "contain" }}
+      />
       <Card style={{ width: 400 }}>
-        <div style={{ textAlign: "center", marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 16 }}>
           <img
             src="/logo.png"
-            alt="CAMIS"
-            style={{ height: 72, width: 72, objectFit: "contain" }}
+            alt=""
+            style={{ height: 40, width: 40, objectFit: "contain" }}
           />
+          <Typography.Title level={3} style={{ margin: 0 }}>
+            欢迎使用 CAMIS
+          </Typography.Title>
         </div>
-        <Typography.Title level={3} style={{ textAlign: "center" }}>
-          欢迎使用 CAMIS
-        </Typography.Title>
         {searchParams.get("verified") === "1" && (
           <Alert
             type="success"
