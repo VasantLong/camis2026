@@ -409,4 +409,75 @@ stateDiagram-v2
 
 > 各章节引用的项目文档与代码源详见 `docs/report-references.md`。
 >
-> **第 3 章（系统设计）与第 4 章（系统实现）将在后续补充。**
+## 第 3 章 系统设计
+
+### 3.1 总体设计
+
+#### 3.1.1 架构选型
+
+系统采用**面向服务架构（SOA）——模块化单体**模式。决策依据（ADR 0001）：
+
+1. **系统本质是状态机工作流**：活动状态由不同角色的外部操作驱动变迁，不适合由实体自治
+2. **跨部门协作**：单个操作的执行者、校验者、被通知者分属不同角色，横切逻辑需服务层协调
+3. **顺序图一致性**：所有用例的顺序图中动作执行者为 `System`，服务层即 System 的具体化
+
+实体为纯数据载体（只保留属性，不包含业务方法），业务逻辑归属服务层。所有服务运行在同一进程内，服务间通过同步方法调用协作，不涉及消息队列或分布式事务。
+
+#### 3.1.2 技术栈
+
+| 层 | 技术 | 版本 |
+|---|---|---|
+| 后端框架 | Python FastAPI | 0.115+ |
+| 数据库 | PostgreSQL | 17 |
+| 对象存储 | MinIO | latest |
+| 缓存与会话 | Redis | 7.4 |
+| ORM | SQLAlchemy 2.0 (async) | 2.0+ |
+| 迁移 | Alembic | 1.14+ |
+| 前端 | React + TypeScript + Vite | 19 + 5.7 |
+| UI 组件 | Ant Design | 6 |
+| 模板引擎 | docxtpl（Jinja2） | 0.16+ |
+| PDF 渲染 | LibreOffice headless + Playwright | — |
+| 部署 | Docker Compose | 3.8 |
+
+#### 3.1.3 服务划分
+
+采用**业务能力聚类**策略，从 6 个用例中识别出 11 个服务：
+
+| 服务 | 职责 | 关联用例 |
+|------|------|----------|
+| ActivityService | 活动 CRUD、状态历史查询、场地冲突检测 | UC1 |
+| WorkflowService | 状态流转矩阵、通知规则、驳回/强制变更 | UC3-UC6 |
+| TemplateService | DOCX 渲染、PDF 生成、版本管理、跨模板同步、签署流程 | UC2-UC4 |
+| FilingService | 材料管理、打包、审查、审批记录 | UC4-UC5 |
+| DocumentService | 通用文件上传/下载、MinIO 交互 | UC2-UC5 |
+| NotificationService | 角色通知、全流程参与人通知 | 全部 UC |
+| DashboardService | 工作台面板、活动详情聚合 | UC6 |
+| ReportDataService | 月报数据查询 | UC6 |
+| ReportRenderer | Playwright PDF 渲染（独立微服务） | UC6 |
+| AuthService | 用户认证、JWT 令牌、角色-权限校验 | — |
+| AdminService | 用户管理、角色分配 | — |
+
+服务依赖关系：`WorkflowService` 为枢纽，依赖 `NotificationService` 和 `ActivityService`。`TemplateService` 依赖 MinIO 和 `WorkflowService`。`AuthService` 和 `AdminService` 为独立服务。
+
+#### 3.1.4 分层架构
+
+```
+┌─────────────────────────────────────────┐
+│  前端 (React SPA)                       │
+├─────────────────────────────────────────┤
+│  API 路由层 (FastAPI routers)           │
+├─────────────────────────────────────────┤
+│  服务层 (11 Services)                   │
+├─────────────────────────────────────────┤
+│  数据访问层 (SQLAlchemy async ORM)      │
+├──────────┬──────────┬───────────────────┤
+│PostgreSQL│  MinIO   │  Redis            │
+│  (元数据) │ (文件)   │  (缓存/会话)       │
+└──────────┴──────────┴───────────────────┘
+```
+
+数据存储遵循三原则红线：PostgreSQL 只存元数据、MinIO 只存文件、Redis 只做缓存和队列。
+
+### 3.2 详细设计
+
+> **3.2.1（界面设计）、3.2.2（业务逻辑设计）、3.2.3（数据层设计）将在后续补充。**
