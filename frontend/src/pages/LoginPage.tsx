@@ -41,18 +41,28 @@ export default function LoginPage() {
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        gap: 40,
         background: "#f5f5f5",
         padding: 24,
       }}
     >
-      <img
-        src="/logo-vertical.png"
-        alt="CAMIS"
-        style={{ height: 420, objectFit: "contain" }}
-      />
-      <Card style={{ width: 400 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 16 }}>
+      <div
+        style={{
+          display: "flex",
+          borderRadius: 12,
+          overflow: "hidden",
+          boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
+        }}
+      >
+        <img
+          src="/logo-vertical.png"
+          alt="CAMIS"
+          style={{ height: 440, objectFit: "contain", background: "#fff", padding: 24 }}
+        />
+        <Card
+          style={{ width: 400, borderRadius: 0, border: "none", borderLeft: "1px solid #f0f0f0" }}
+          bodyStyle={{ padding: "32px 32px 24px" }}
+        >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 20 }}>
           <img
             src="/logo.png"
             alt=""
@@ -95,6 +105,7 @@ export default function LoginPage() {
           没有帐号？<Link to="/register">立即注册</Link>
         </div>
       </Card>
+      </div>
     </div>
   );
 }
