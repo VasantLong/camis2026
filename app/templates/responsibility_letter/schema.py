@@ -5,6 +5,7 @@ class ResponsibilityLetterForm(BaseModel):
     """主办单位安全和消防责任确认书表单数据"""
 
     sponsor_unit: str = Field(default="", description="活动主办单位")
+    declarations: list[str] = Field(default_factory=list, description="安全消防责任确认声明")
     security_leader_name: str = Field(default="", description="安全负责人姓名")
     security_leader_signature: str = Field(default="", description="安全负责人签字")
     # sponsor_seal omitted — physical stamp applied offline after DOCX printing

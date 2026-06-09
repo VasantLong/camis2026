@@ -141,7 +141,7 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
 
   function serializeFieldValue(v: unknown, f: FieldDef): unknown {
     if (v === undefined || v === null || v === "") return f.ui_type === "repeater" ? undefined : f.ui_type === "number" ? undefined : "";
-    if (f.ui_type === "date") return dayjs.isDayjs(v) ? (v as dayjs.Dayjs).format("YYYY-MM-DD") : String(v);
+    if (f.ui_type === "date") return dayjs.isDayjs(v) ? (v as dayjs.Dayjs).format(f.show_time ? "YYYY-MM-DD HH:mm" : "YYYY-MM-DD") : String(v);
     if (f.ui_type === "number") return typeof v === "number" ? v : Number(v) || 0;
     if (f.ui_type === "repeater") return JSON.stringify(v);
     return v;
@@ -265,6 +265,8 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
           <Form.Item key={field.name} name={field.name} label={field.ui_label} rules={rules} style={itemStyle}>
             <DatePicker
               style={{ width: "100%" }}
+              showTime={field.show_time ? { format: "HH:mm" } : undefined}
+              format={field.show_time ? "YYYY-MM-DD HH:mm" : "YYYY-MM-DD"}
               disabledDate={field.name === "end_time" ? (d) => d && d.isBefore(dayjs(form.getFieldValue("start_time"))) : undefined}
             />
           </Form.Item>
@@ -525,7 +527,7 @@ function serializeFormData(form: any, fields: FieldDef[], riskLevel?: string | n
       continue;
     }
     if (f.ui_type === "date") {
-      out[f.name] = dayjs.isDayjs(v) ? (v as dayjs.Dayjs).format("YYYY-MM-DD") : String(v);
+      out[f.name] = dayjs.isDayjs(v) ? (v as dayjs.Dayjs).format(f.show_time ? "YYYY-MM-DD HH:mm" : "YYYY-MM-DD") : String(v);
     } else if (f.ui_type === "number") {
       out[f.name] = typeof v === "number" ? v : Number(v) || 0;
     } else if (f.ui_type === "signature") {

@@ -202,6 +202,12 @@ class TemplateService:
         version_number = await self._next_version(activity_id, template_type)
         risk_level = getattr(entity, "risk_level", None)
 
+        # Inject activity-level autofill fields for template rendering
+        activity = await self.db.get(Activity, activity_id)
+        if activity:
+            data.setdefault("activity_name", activity.name or "")
+            data.setdefault("sponsor", activity.sponsor or "")
+
         # DOCX deferred for types that require Manager signing
         DEFERRED_TYPES = {"security_plan", "risk_assessment", "responsibility_letter", "filing_commitment"}
         is_deferred = template_type in DEFERRED_TYPES
@@ -800,6 +806,8 @@ class TemplateService:
 
         doc = DocxTemplate(template_path)
         context = dict(data)
+        if risk_level:
+            context["risk_level"] = risk_level
 
         # detect signature fields and embed images if value is a minio_path
         for field_name, value in list(context.items()):
