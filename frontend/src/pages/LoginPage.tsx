@@ -53,11 +53,25 @@ export default function LoginPage() {
           boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
         }}
       >
-        <img
-          src="/logo-vertical.png"
-          alt="CAMIS"
-          style={{ height: 440, objectFit: "contain", background: "#fff", padding: 24 }}
-        />
+        <div
+          style={{
+            width: 280,
+            display: "flex",
+            overflow: "hidden",
+          }}
+        >
+          <img
+            src="/logo-vertical.png"
+            alt="CAMIS"
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              borderTopLeftRadius: 12,
+              borderBottomLeftRadius: 12,
+            }}
+          />
+        </div>
         <Card
           style={{ width: 400, borderRadius: 0, border: "none", borderLeft: "1px solid #f0f0f0", display: "flex", alignItems: "center" }}
           styles={{ body: { padding: "32px 32px 24px", width: "100%" } }}
