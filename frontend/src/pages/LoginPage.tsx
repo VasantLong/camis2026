@@ -45,6 +45,13 @@ export default function LoginPage() {
       }}
     >
       <Card style={{ width: 400 }}>
+        <div style={{ textAlign: "center", marginBottom: 16 }}>
+          <img
+            src="/logo.png"
+            alt="CAMIS"
+            style={{ height: 72, width: 72, objectFit: "contain" }}
+          />
+        </div>
         <Typography.Title level={3} style={{ textAlign: "center" }}>
           欢迎使用 CAMIS
         </Typography.Title>

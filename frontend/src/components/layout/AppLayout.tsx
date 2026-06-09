@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Layout, Button, Typography, Dropdown } from "antd";
+import { Layout, Button, Dropdown } from "antd";
 import { LogoutOutlined, UserOutlined } from "@ant-design/icons";
 import { Outlet, useNavigate } from "react-router-dom";
 import { authApi } from "@/api/auth";
@@ -53,22 +53,20 @@ export default function AppLayout() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
+            padding: collapsed ? 14 : 16,
+            transition: "padding 0.2s",
           }}
         >
-          <Typography.Title
-            level={4}
+          <img
+            src="/logo.png"
+            alt="CAMIS"
             style={{
-              color: "#fff",
-              margin: 0,
-              opacity: collapsed ? 0 : 1,
-              transition: "opacity 0.15s",
-              fontSize: collapsed ? 0 : undefined,
+              height: collapsed ? 36 : 44,
+              width: collapsed ? 36 : 44,
+              transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+              objectFit: "contain",
             }}
-          >
-            CAMIS
-          </Typography.Title>
+          />
         </div>
         <Sidebar collapsed={collapsed} />
       </Sider>
