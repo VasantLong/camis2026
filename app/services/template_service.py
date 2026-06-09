@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import logging
 import subprocess
@@ -24,6 +25,7 @@ from app.templates import (
 from app.templates.security_plan.schema import CONDITIONAL_FIELDS
 
 logger = logging.getLogger("camis.template")
+_pdf_semaphore = asyncio.Semaphore(1)
 
 MINIO_BUCKET = "camis2026"
 
@@ -94,12 +96,14 @@ class TemplateService:
             risk_level = getattr(entity, "risk_level", None) if entity else None
             schema["risk_level"] = risk_level
 
-        # autofill: provide Activity + ActivityPlan snapshot + defaults + cross-template data
+        # autofill: provide Activity + ActivityPlan snapshot + SecurityPlan snapshot + defaults
         ACTIVITY_FIELD_MAP = {
             "project_name": "name",
             "sponsor": "sponsor",
             "location_type": "location",
             "activity_type": "type",
+            "location": "location",
+            "estimated_time": "estimated_time",
         }
         PLAN_FIELD_MAP = {
             "activity_content": "activity_content",
@@ -107,6 +111,10 @@ class TemplateService:
             "activity_end": "end_time",
             "staff_count": "staff_count",
             "crowd_scale": "opening_crowd",
+        }
+        SECURITY_PLAN_FIELD_MAP = {
+            "security_staff_count": "security_staff_count",
+            "security_count": "security_staff_count",
         }
         # fixed defaults (sensitive values from .env via settings)
         from app.config import settings
@@ -119,7 +127,7 @@ class TemplateService:
             "confirm_location": settings.default_confirm_location or "",
         }
         all_field_names = {f["name"] for f in schema.get("fields", [])}
-        mappable = all_field_names & (set(ACTIVITY_FIELD_MAP) | set(PLAN_FIELD_MAP) | set(DEFAULT_FIELD_MAP))
+        mappable = all_field_names & (set(ACTIVITY_FIELD_MAP) | set(PLAN_FIELD_MAP) | set(SECURITY_PLAN_FIELD_MAP) | set(DEFAULT_FIELD_MAP))
         if mappable:
             autofill_data: dict[str, object] = {}
             activity = await self.db.get(Activity, activity_id)
@@ -128,20 +136,42 @@ class TemplateService:
                 select(ActivityPlan).where(ActivityPlan.activity_id == activity_id)
             )
             plan = plan_result.scalar_one_or_none()
-            if plan and plan.current_filled_document_id:
-                plan_fd = await self.db.get(FilledDocument, plan.current_filled_document_id)
-                if plan_fd and plan_fd.data_snapshot:
-                    plan_snapshot = plan_fd.data_snapshot
+            if plan:
+                if plan.current_filled_document_id:
+                    plan_fd = await self.db.get(FilledDocument, plan.current_filled_document_id)
+                    if plan_fd and plan_fd.data_snapshot:
+                        plan_snapshot = dict(plan_fd.data_snapshot)
+                if plan.draft_data:
+                    plan_snapshot.update(plan.draft_data)
+            sec_snapshot: dict[str, object] = {}
+            if mappable & set(SECURITY_PLAN_FIELD_MAP):
+                sec_result = await self.db.execute(
+                    select(SecurityPlan).where(SecurityPlan.activity_id == activity_id)
+                )
+                sec = sec_result.scalar_one_or_none()
+                if sec:
+                    if sec.current_filled_document_id:
+                        sec_fd = await self.db.get(FilledDocument, sec.current_filled_document_id)
+                        if sec_fd and sec_fd.data_snapshot:
+                            sec_snapshot = dict(sec_fd.data_snapshot)
+                    if sec.draft_data:
+                        sec_snapshot.update(sec.draft_data)
             for name in mappable:
                 if name in ACTIVITY_FIELD_MAP and activity:
                     attr = ACTIVITY_FIELD_MAP[name]
-                    autofill_data[name] = getattr(activity, attr, None) or ""
+                    val = getattr(activity, attr, None)
+                    if isinstance(val, datetime):
+                        val = val.strftime("%Y年%m月%d日")
+                    autofill_data[name] = val or ""
                 elif name in PLAN_FIELD_MAP:
                     plan_key = PLAN_FIELD_MAP[name]
                     val = plan_snapshot.get(plan_key, "") or ""
                     if plan_key == "opening_crowd" and not val:
                         val = plan_snapshot.get("regular_crowd", "") or ""
                     autofill_data[name] = val
+                elif name in SECURITY_PLAN_FIELD_MAP:
+                    sec_key = SECURITY_PLAN_FIELD_MAP[name]
+                    autofill_data[name] = sec_snapshot.get(sec_key, "") or ""
                 elif name in DEFAULT_FIELD_MAP:
                     autofill_data[name] = DEFAULT_FIELD_MAP[name]
             schema["autofill_data"] = autofill_data
@@ -172,8 +202,14 @@ class TemplateService:
         version_number = await self._next_version(activity_id, template_type)
         risk_level = getattr(entity, "risk_level", None)
 
+        # Inject activity-level autofill fields for template rendering
+        activity = await self.db.get(Activity, activity_id)
+        if activity:
+            data.setdefault("activity_name", activity.name or "")
+            data.setdefault("sponsor", activity.sponsor or "")
+
         # DOCX deferred for types that require Manager signing
-        DEFERRED_TYPES = {"security_plan", "risk_assessment", "responsibility_letter"}
+        DEFERRED_TYPES = {"security_plan", "risk_assessment", "responsibility_letter", "filing_commitment"}
         is_deferred = template_type in DEFERRED_TYPES
 
         docx_bytes = None
@@ -202,11 +238,56 @@ class TemplateService:
         self.db.add(fd)
         await self.db.flush()
 
+        if not is_deferred and docx_bytes:
+            asyncio.create_task(render_pdf_background(fd.id, docx_bytes, activity_id, template_type, version_number))
+
         # link to entity
         entity.current_filled_document_id = fd.id
         entity.draft_data = None
         entity.submit_time = datetime.now(timezone.utc)
         await self.db.flush()
+
+        # also link KeyMaterial so list_materials can find the minio_path for preview
+        km_result = await self.db.execute(
+            select(KeyMaterial).where(
+                KeyMaterial.activity_id == activity_id,
+                KeyMaterial.material_type == template_type,
+            )
+        )
+        km = km_result.scalar_one_or_none()
+        if km:
+            km.current_filled_document_id = fd.id
+            await self.db.flush()
+
+        # cross-template sync: security_staff_count → risk_assessment.security_count
+        if template_type == "security_plan" and "security_staff_count" in data:
+            for mt in ["risk_assessment", "filing_commitment"]:
+                mt_km_result = await self.db.execute(
+                    select(KeyMaterial).where(
+                        KeyMaterial.activity_id == activity_id,
+                        KeyMaterial.material_type == mt,
+                    )
+                )
+                mt_km = mt_km_result.scalar_one_or_none()
+                if mt_km and mt_km.current_filled_document_id:
+                    mt_fd = await self.db.get(FilledDocument, mt_km.current_filled_document_id)
+                    if mt_fd and mt_fd.data_snapshot:
+                        mt_data = dict(mt_fd.data_snapshot)
+                        field_name = "security_count" if mt == "risk_assessment" else "security_staff_count"
+                        mt_data[field_name] = data["security_staff_count"]
+                        mt_vn = await self._next_version(activity_id, mt)
+                        mt_new_fd = FilledDocument(
+                            activity_id=activity_id, template_type=mt,
+                            version_number=mt_vn, data_snapshot=mt_data,
+                            minio_path=None,  # deferred
+                            generated_by=user_id,
+                        )
+                        self.db.add(mt_new_fd)
+                        await self.db.flush()
+                        mt_km.current_filled_document_id = mt_new_fd.id
+                        mt_km.draft_data = None
+                        logger.info("cross-sync: %s v%d updated from security_plan", mt, mt_vn)
+
         await self.db.commit()
 
         logger.info(
@@ -366,7 +447,7 @@ class TemplateService:
             raise ValueError("驳回后请先生成新版本再提交审核")
 
         activity = await self.db.get(Activity, activity_id)
-        if not activity or activity.status != "待安保方案设计":
+        if not activity or activity.status not in ("待安保方案设计", "待补充备案材料"):
             raise ValueError("当前状态不允许提交审核")
 
         entity.audit_status = "待签署"
@@ -381,12 +462,11 @@ class TemplateService:
 
     async def sign_and_finalize(self, activity_id: UUID, user_id: UUID,
                                 manager_signature: str) -> None:
-        """SecurityManager signs: inject signature, generate DOCX, transition to 待备案申请."""
-        from app.models.rbac import Role, UserRole
-        from app.services.workflow_service import WorkflowService
-        from app.services.notification_service import NotificationService
+        """SecurityManager step 1: sign 3 files (security_plan + 双表), generate DOCX.
 
-        # Verify SecurityManager role
+        Does NOT transition — waits for sign_manager_commitment (step 2)."""
+        from app.models.rbac import Role, UserRole
+
         role_rows = await self.db.execute(
             select(Role.name).join(UserRole, UserRole.role_id == Role.id)
             .where(UserRole.user_id == user_id)
@@ -400,12 +480,27 @@ class TemplateService:
             raise ValueError("当前状态不允许签署")
 
         activity = await self.db.get(Activity, activity_id)
-        if not activity or activity.status != "待安保方案设计":
+        if not activity or activity.status not in ("待安保方案设计", "待补充备案材料"):
             raise ValueError("当前活动状态不允许签署")
 
-        # Generate DOCX for all deferred types linked to this activity
-        DEFERRED_TYPES = ["security_plan", "risk_assessment", "responsibility_letter"]
-        for ttype in DEFERRED_TYPES:
+        # Reuse existing signature if manager already signed before
+        if not manager_signature:
+            for ttype in ["security_plan", "risk_assessment", "responsibility_letter"]:
+                fd_result = await self.db.execute(
+                    select(FilledDocument).where(
+                        FilledDocument.activity_id == activity_id,
+                        FilledDocument.template_type == ttype,
+                    ).order_by(FilledDocument.version_number.desc()).limit(1)
+                )
+                fd = fd_result.scalar_one_or_none()
+                if fd and fd.data_snapshot:
+                    manager_signature = fd.data_snapshot.get("manager_signature", "")
+                    if manager_signature:
+                        break
+
+        # Generate DOCX for the 3 deferred types (NOT filing_commitment)
+        SIGN_TYPES = ["security_plan", "risk_assessment", "responsibility_letter"]
+        for ttype in SIGN_TYPES:
             fds = await self.db.execute(
                 select(FilledDocument).where(
                     FilledDocument.activity_id == activity_id,
@@ -426,6 +521,25 @@ class TemplateService:
                 minio_path = f"filled_documents/{activity_id}/{ttype}/v{fd.version_number}.docx"
                 await minio_client.upload_file(minio_path, docx_bytes, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
                 fd.minio_path = minio_path
+                asyncio.create_task(render_pdf_background(fd.id, docx_bytes, activity_id, ttype, fd.version_number))
+
+            # Ensure KeyMaterial exists, link FilledDocument, mark as signed
+            km = await self.get_or_create_material(activity_id, ttype)
+            t_entity = entity if ttype == "security_plan" else await self._get_entity(ttype, activity_id, ttype)
+            if t_entity and t_entity.current_filled_document_id:
+                km.current_filled_document_id = t_entity.current_filled_document_id
+            km.sign_status = "signed"
+            logger.info("sign_and_finalize: set sign_status=signed for type=%s km_id=%s", ttype, km.id)
+
+        # Ensure activity_plan KeyMaterial exists, link its FilledDocument, mark as signed
+        ap_km = await self.get_or_create_material(activity_id, "activity_plan")
+        ap_result = await self.db.execute(
+            select(ActivityPlan).where(ActivityPlan.activity_id == activity_id)
+        )
+        ap = ap_result.scalar_one_or_none()
+        if ap and ap.current_filled_document_id:
+            ap_km.current_filled_document_id = ap.current_filled_document_id
+        ap_km.sign_status = "signed"
 
         # Update SecurityPlan
         entity.audit_status = "已签署"
@@ -433,10 +547,127 @@ class TemplateService:
         entity.sign_time = datetime.now(timezone.utc)
         await self.db.commit()
 
+    async def sign_manager_commitment(self, activity_id: UUID, user_id: UUID) -> None:
+        """SecurityManager step 2: sign filing commitment, generate DOCX, transition to 待备案申请."""
+        from app.models.rbac import Role, UserRole
+        from app.services.workflow_service import WorkflowService
+        from app.services.notification_service import NotificationService
+
+        role_rows = await self.db.execute(
+            select(Role.name).join(UserRole, UserRole.role_id == Role.id)
+            .where(UserRole.user_id == user_id)
+        )
+        roles = {row[0] for row in role_rows.all()}
+        if "SecurityManager" not in roles:
+            raise ValueError("仅安保负责人可签署确认")
+
+        entity = await self._get_entity("security_plan", activity_id)
+        if not entity or entity.audit_status != "已签署":
+            raise ValueError("请先签署安保方案、风险评估表和责任确认书")
+
+        activity = await self.db.get(Activity, activity_id)
+        if not activity or activity.status not in ("待安保方案设计", "待补充备案材料"):
+            raise ValueError("当前活动状态不允许签署")
+
+        # Get manager signature from any signed FilledDocument
+        mgr_sig = ""
+        for ttype in ["security_plan", "risk_assessment", "responsibility_letter"]:
+            fd_result = await self.db.execute(
+                select(FilledDocument).where(
+                    FilledDocument.activity_id == activity_id,
+                    FilledDocument.template_type == ttype,
+                ).order_by(FilledDocument.version_number.desc()).limit(1)
+            )
+            fd = fd_result.scalar_one_or_none()
+            if fd and fd.data_snapshot:
+                mgr_sig = fd.data_snapshot.get("manager_signature", "")
+                if mgr_sig:
+                    break
+
+        # Build autofill data for filing_commitment
+        plan_result = await self.db.execute(
+            select(ActivityPlan).where(ActivityPlan.activity_id == activity_id)
+        )
+        plan = plan_result.scalar_one_or_none()
+        plan_snapshot: dict = {}
+        if plan and plan.current_filled_document_id:
+            plan_fd = await self.db.get(FilledDocument, plan.current_filled_document_id)
+            if plan_fd and plan_fd.data_snapshot:
+                plan_snapshot = plan_fd.data_snapshot
+
+        sec_snapshot: dict = {}
+        if entity.current_filled_document_id:
+            sec_fd = await self.db.get(FilledDocument, entity.current_filled_document_id)
+            if sec_fd and sec_fd.data_snapshot:
+                sec_snapshot = sec_fd.data_snapshot
+
+        commit_data = {
+            "project_name": activity.name,
+            "sponsor": activity.sponsor,
+            "estimated_time": activity.estimated_time.strftime("%Y年%m月%d日") if activity.estimated_time else "",
+            "location": activity.location,
+            "activity_type": activity.type,
+            "crowd_scale": plan_snapshot.get("opening_crowd") or plan_snapshot.get("regular_crowd", ""),
+            "security_staff_count": str(sec_snapshot.get("security_staff_count", "")),
+            "filing_date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+            "manager_signature": mgr_sig,
+        }
+
+        # Generate filing_commitment DOCX (create FilledDocument if not deferred)
+        fds = await self.db.execute(
+            select(FilledDocument).where(
+                FilledDocument.activity_id == activity_id,
+                FilledDocument.template_type == "filing_commitment",
+                FilledDocument.minio_path.is_(None),
+            )
+        )
+        fd_list = fds.scalars().all()
+        commit_fd = None
+        if fd_list:
+            for fd in fd_list:
+                fd.data_snapshot = {**fd.data_snapshot, "manager_signature": mgr_sig}
+                docx_bytes = await self._render_docx("filing_commitment", dict(fd.data_snapshot), None)
+                fd.template_hash = hashlib.sha256(
+                    (TEMPLATES_ROOT / "filing_commitment" / "template.docx").read_bytes()
+                ).hexdigest()
+                minio_path = f"filled_documents/{activity_id}/filing_commitment/v{fd.version_number}.docx"
+                await minio_client.upload_file(minio_path, docx_bytes, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+                fd.minio_path = minio_path
+                asyncio.create_task(render_pdf_background(fd.id, docx_bytes, activity_id, "filing_commitment", fd.version_number))
+                commit_fd = fd
+        else:
+            # No deferred FilledDocument — create one on the fly
+            vn = await self._next_version(activity_id, "filing_commitment")
+            docx_bytes = await self._render_docx("filing_commitment", commit_data, None)
+            template_hash = hashlib.sha256(
+                (TEMPLATES_ROOT / "filing_commitment" / "template.docx").read_bytes()
+            ).hexdigest()
+            minio_path = f"filled_documents/{activity_id}/filing_commitment/v{vn}.docx"
+            await minio_client.upload_file(minio_path, docx_bytes, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+            commit_fd = FilledDocument(
+                activity_id=activity_id, template_type="filing_commitment",
+                version_number=vn, data_snapshot=commit_data,
+                minio_path=minio_path, template_hash=template_hash,
+                generated_by=user_id,
+            )
+            self.db.add(commit_fd)
+            await self.db.flush()
+            asyncio.create_task(render_pdf_background(commit_fd.id, docx_bytes, activity_id, "filing_commitment", vn))
+
+        # Ensure filing_commitment KeyMaterial exists, linked, and signed
+        km = await self.get_or_create_material(activity_id, "filing_commitment")
+        km.current_filled_document_id = commit_fd.id
+        km.sign_status = "signed"
+        logger.info("sign_manager_commitment: km=%s commit_fd=%s pdf_path=%s", km.id, commit_fd.id, commit_fd.minio_path)
+
+        await self.db.commit()
+
         # Transition workflow
-        ws = WorkflowService(self.db, NotificationService(self.db))
-        User = __import__("app.models.user", fromlist=["User"]).User
-        await ws.transition(activity_id, "待备案申请", await self.db.get(User, user_id))
+        # From supplement phase, stay in current status — Officer will pack+handover to progress
+        if activity.status != "待补充备案材料":
+            ws = WorkflowService(self.db, NotificationService(self.db))
+            User = __import__("app.models.user", fromlist=["User"]).User
+            await ws.transition(activity_id, "待备案申请", await self.db.get(User, user_id))
 
     async def reject_security_plan(self, activity_id: UUID, user_id: UUID,
                                    reasons: list[str], comment: str | None = None) -> None:
@@ -575,6 +806,8 @@ class TemplateService:
 
         doc = DocxTemplate(template_path)
         context = dict(data)
+        if risk_level:
+            context["risk_level"] = risk_level
 
         # detect signature fields and embed images if value is a minio_path
         for field_name, value in list(context.items()):
@@ -654,6 +887,11 @@ class TemplateService:
                 entity = ActivityPlan(activity_id=activity_id, designer_id=user_id)
                 self.db.add(entity)
                 await self.db.flush()
+            # Ensure KeyMaterial exists and material_id is backfilled
+            if not entity.material_id:
+                km = await self.get_or_create_material(activity_id, "activity_plan")
+                entity.material_id = km.id
+                await self.db.flush()
             return entity
         elif entity_type == "security_plan":
             result = await self.db.execute(
@@ -663,6 +901,10 @@ class TemplateService:
             if not entity:
                 entity = SecurityPlan(activity_id=activity_id)
                 self.db.add(entity)
+                await self.db.flush()
+            if not entity.material_id:
+                km = await self.get_or_create_material(activity_id, "security_plan")
+                entity.material_id = km.id
                 await self.db.flush()
             return entity
         elif entity_type == "key_material":
@@ -704,18 +946,21 @@ async def render_pdf_background(
     """Generate PDF in background with its own DB session."""
     from app.database import async_session
 
-    async with async_session() as db:
-        pdf_path = f"filled_documents/{activity_id}/{template_type}/v{version_number}.pdf"
-        try:
-            pdf_bytes = await _docx_to_pdf_sync(docx_bytes)
-            await minio_client.upload_file(pdf_path, pdf_bytes, "application/pdf")
-            fd = await db.get(FilledDocument, fd_id)
-            if fd:
-                fd.pdf_path = pdf_path
-                await db.commit()
-            logger.info("pdf background render ok fd=%s", fd_id)
-        except Exception:
-            logger.warning("pdf background render failed fd=%s", fd_id)
+    async with _pdf_semaphore:
+        async with async_session() as db:
+            pdf_path = f"filled_documents/{activity_id}/{template_type}/v{version_number}.pdf"
+            try:
+                pdf_bytes = await _docx_to_pdf_sync(docx_bytes)
+                await minio_client.upload_file(pdf_path, pdf_bytes, "application/pdf")
+                fd = await db.get(FilledDocument, fd_id)
+                if fd:
+                    fd.pdf_path = pdf_path
+                    await db.commit()
+                logger.info("pdf render ok fd=%s path=%s", fd_id, pdf_path)
+            except Exception as e:
+                logger.warning("pdf render failed fd=%s type=%s: %s", fd_id, template_type, e)
+                import traceback
+                traceback.print_exc()
 
 
 async def _docx_to_pdf_sync(docx_bytes: bytes) -> bytes:

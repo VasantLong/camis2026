@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 
 from app.database import get_db
 from app.deps import get_current_user
@@ -22,6 +23,7 @@ class FilingStatus(BaseModel):
     packed: bool = False
     handed_over: bool = False
     generated_at: str | None = None
+    pack_url: str | None = None
 
 
 @router.get("/{activity_id}/filing/status", response_model=FilingStatus)
@@ -80,6 +82,68 @@ async def confirm_handover(
         raise NotFoundError(str(e))
 
 
+# ── GovLiaison approval ──
+
+
+class ApprovalRecordRequest(BaseModel):
+    approval_status: str  # 审批通过 | 待补充备案材料 | 不通过/已终止
+    attachment_url: str | None = None
+    rectification_opinion: str | None = None
+
+
+class ApprovalRecordResponse(BaseModel):
+    id: str
+    activity_id: str
+    approval_status: str
+    approval_date: str | None = None
+    rectification_opinion: str | None = None
+
+
+@router.post("/{activity_id}/filing/approval", response_model=ApprovalRecordResponse)
+async def create_approval_record(
+    activity_id: UUID,
+    body: ApprovalRecordRequest,
+    current_user: User = Depends(get_current_user),
+    svc: FilingService = Depends(_service),
+    _perm: None = require_permission("audit_material"),
+):
+    try:
+        result = await svc.create_approval_record(
+            activity_id=activity_id,
+            liaison_id=current_user.id,
+            approval_status=body.approval_status,
+            attachment_url=body.attachment_url,
+            rectification_opinion=body.rectification_opinion,
+        )
+        return ApprovalRecordResponse(**result)
+    except LookupError as e:
+        raise NotFoundError(str(e))
+    except ValueError as e:
+        raise ValidationError(str(e))
+
+
+@router.get("/{activity_id}/filing/approval")
+async def get_approval_record(
+    activity_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    from app.models.activity import ApprovalRecord as AR
+    result = await db.execute(
+        select(AR).where(AR.activity_id == activity_id).order_by(AR.created_at.desc()).limit(1)
+    )
+    record = result.scalar_one_or_none()
+    if not record:
+        return {"id": None, "approval_status": None}
+    return {
+        "id": str(record.id),
+        "approval_status": record.approval_status,
+        "approval_date": record.approval_date.isoformat() if record.approval_date else None,
+        "rectification_opinion": record.rectification_opinion,
+        "attachment_url": record.attachment_url,
+    }
+
+
 # ── material sign & audit ──
 
 
@@ -96,6 +160,7 @@ class AuditHistoryItem(BaseModel):
     id: str
     action: str
     user_name: str
+    material_name: str = ""
     conclusion: str | None = None
     opinion: str | None = None
     created_at: str
@@ -109,6 +174,10 @@ class MaterialWithStatus(BaseModel):
     audit_round: int
     opinion: str | None = None
     upload_time: str
+    material_type: str = ""
+    minio_path: str = ""
+    pdf_path: str = ""
+    current_version: int = 0
 
 
 @router.get("/{activity_id}/materials", response_model=list[MaterialWithStatus])

@@ -11,6 +11,7 @@ export interface FieldDef {
   options?: string[];
   condition?: string;
   auto_calc?: string;
+  show_time?: boolean;
   validate?: { pattern: string; message: string };
 }
 

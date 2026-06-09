@@ -1,4 +1,4 @@
-import { Fragment, useState, useEffect, useCallback } from "react";
+import { Fragment, useState, useEffect, useCallback, useRef } from "react";
 import {
   Form,
   Input,
@@ -39,6 +39,7 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [changedFields, setChangedFields] = useState<Set<string>>(new Set());
   const [isDirty, setIsDirty] = useState(false);
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [highlightSet, setHighlightSet] = useState<Set<string>>(new Set());
   const [sigPreviews, setSigPreviews] = useState<Record<string, string>>({});
 
@@ -78,6 +79,17 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
     if (highlightSet.size > 0) setHighlightSet(new Set());
   };
 
+  // Debounced auto-save: persist draft 2s after last change so cross-tab autofill works
+  useEffect(() => {
+    if (!isDirty || !onSaveDraft) return;
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(async () => {
+      const data = serializeFormData(form, visibleFields(schema.fields), (schema as any).risk_level);
+      try { await onSaveDraft(data); } catch { /* best-effort */ }
+    }, 2000);
+    return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
+  }, [isDirty]);  // eslint-disable-line react-hooks/exhaustive-deps
+
   // Track changed fields vs snapshot
   const handleValuesChange = (_changed: Record<string, unknown>, allValues: Record<string, unknown>) => {
     clearHighlights();
@@ -104,6 +116,10 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
         if (snap !== undefined && cur !== snap && cur !== "") {
           diff.add(f.name);
           hasAnyChange = true;
+        } else if (snap === undefined && f.ui_type !== "autofill" && f.ui_type !== "declarations" && cur !== undefined && cur !== "" && cur !== 0 && cur !== false) {
+          // field not in snapshot but user filled it
+          diff.add(f.name);
+          hasAnyChange = true;
         }
       }
     } else {
@@ -125,7 +141,7 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
 
   function serializeFieldValue(v: unknown, f: FieldDef): unknown {
     if (v === undefined || v === null || v === "") return f.ui_type === "repeater" ? undefined : f.ui_type === "number" ? undefined : "";
-    if (f.ui_type === "date") return dayjs.isDayjs(v) ? (v as dayjs.Dayjs).format("YYYY-MM-DD") : String(v);
+    if (f.ui_type === "date") return dayjs.isDayjs(v) ? (v as dayjs.Dayjs).format(f.show_time ? "YYYY-MM-DD HH:mm" : "YYYY-MM-DD") : String(v);
     if (f.ui_type === "number") return typeof v === "number" ? v : Number(v) || 0;
     if (f.ui_type === "repeater") return JSON.stringify(v);
     return v;
@@ -157,17 +173,18 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
         }
       }
     }
-    // autofill from Activity/Plan data (for empty fields of any type)
+    // autofill from Activity/Plan/SecurityPlan data
     if (schema.autofill_data) {
       for (const f of schema.fields) {
-        if (vals[f.name] === undefined) {
-          const autoVal = schema.autofill_data[f.name];
-          if (autoVal !== undefined && autoVal !== null && autoVal !== "") {
-            if (f.ui_type === "date" && typeof autoVal === "string") {
-              vals[f.name] = dayjs(autoVal);
-            } else {
-              vals[f.name] = autoVal;
-            }
+        const autoVal = schema.autofill_data[f.name];
+        if (autoVal === undefined || autoVal === null || autoVal === "") continue;
+        if (f.ui_type === "autofill") {
+          vals[f.name] = autoVal;
+        } else if (vals[f.name] === undefined) {
+          if (f.ui_type === "date" && typeof autoVal === "string") {
+            vals[f.name] = dayjs(autoVal);
+          } else {
+            vals[f.name] = autoVal;
           }
         }
       }
@@ -248,6 +265,8 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
           <Form.Item key={field.name} name={field.name} label={field.ui_label} rules={rules} style={itemStyle}>
             <DatePicker
               style={{ width: "100%" }}
+              showTime={field.show_time ? { format: "HH:mm" } : undefined}
+              format={field.show_time ? "YYYY-MM-DD HH:mm" : "YYYY-MM-DD"}
               disabledDate={field.name === "end_time" ? (d) => d && d.isBefore(dayjs(form.getFieldValue("start_time"))) : undefined}
             />
           </Form.Item>
@@ -399,7 +418,7 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
   const handleSaveDraft = async () => {
     setSaving(true);
     try {
-      const data = serializeFormData(form, schema.fields);
+      const data = serializeFormData(form, schema.fields, (schema as any).risk_level);
       await onSaveDraft(data);
       message.success("草稿已保存");
     } catch {
@@ -413,7 +432,7 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
     setSubmitting(true);
     const nextVersion = (schema.current_version ?? 0) + 1;
     try {
-      const data = serializeFormData(form, schema.fields);
+      const data = serializeFormData(form, schema.fields, (schema as any).risk_level);
       await onSubmit(data);
       message.success(`已生成 v${nextVersion}`);
     } catch {
@@ -427,13 +446,7 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
   const handleSubmit = () => {
     form.validateFields().then(() => {
       if (onValidate) {
-        const data = serializeFormData(form, schema.fields);
-        // debug: log signature fields for troubleshooting
-        for (const f of schema.fields) {
-          if (f.ui_type === "signature") {
-            console.log(`[TemplateForm] ${f.name}: raw=${JSON.stringify(form.getFieldValue(f.name))}, serialized=${JSON.stringify(data[f.name])}`);
-          }
-        }
+        const data = serializeFormData(form, schema.fields, (schema as any).risk_level);
         const errs = onValidate(data);
         if (errs.length > 0) {
           message.error(errs.map(e => `${e.label}: ${e.reason}`).join("；"));
@@ -441,14 +454,23 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
         }
       }
       setConfirmOpen(true);
-    }).catch(() => {});
+    }).catch((err) => {
+      // scroll to first field with error
+      const firstErrorField = document.querySelector(".ant-form-item-has-error");
+      if (firstErrorField) {
+        firstErrorField.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      if (err?.errorFields?.length) {
+        message.warning(`请完善 ${err.errorFields.length} 个必填字段`);
+      }
+    });
   };
 
   const nextVersion = (schema.current_version ?? 0) + 1;
 
   return (
     <>
-      <Form form={form} layout="vertical" disabled={loading || submitting || disabled} onValuesChange={handleValuesChange}>
+      <Form form={form} layout="vertical" scrollToFirstError disabled={loading || submitting || disabled} onValuesChange={handleValuesChange}>
         {visibleFields(schema.fields).map((f) => renderField(f, changedFields.has(f.name)))}
         {!disabled && (
           <Form.Item>
@@ -478,34 +500,34 @@ export default function TemplateForm({ activityId, schema, loading, disabled, hi
   );
 }
 
-function evalFieldCondition(cond: string | undefined, allValues: Record<string, unknown>): boolean {
+function evalFieldCondition(cond: string | undefined, allValues: Record<string, unknown>, riskLevel?: string | null): boolean {
   if (!cond) return true;
   const parts = cond.split(/\s*(==|!=)\s*/);
   if (parts.length === 3) {
     const key = parts[0].trim();
     const op = parts[1].trim();
     const val = parts[2].trim().replace(/['"]/g, "");
-    const cur = allValues[key];
+    const cur = key === "risk_level" ? (riskLevel || allValues[key]) : allValues[key];
     if (op === "==") return cur === val;
     if (op === "!=") return cur !== val;
   }
   return true;
 }
 
-function serializeFormData(form: any, fields: FieldDef[]): Record<string, unknown> {
+function serializeFormData(form: any, fields: FieldDef[], riskLevel?: string | null): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   const allValues = form.getFieldsValue();
   const skipped: string[] = [];
   for (const f of fields) {
     if (f.ui_type === "declarations") continue;
-    if (!evalFieldCondition(f.condition, allValues)) { skipped.push(f.name); continue; }
+    if (!evalFieldCondition(f.condition, allValues, riskLevel)) { skipped.push(f.name); continue; }
     const v = form.getFieldValue(f.name);
     if (v === undefined || v === null || v === "") {
       out[f.name] = f.ui_type === "repeater" ? [] : f.ui_type === "number" ? 0 : "";
       continue;
     }
     if (f.ui_type === "date") {
-      out[f.name] = dayjs.isDayjs(v) ? (v as dayjs.Dayjs).format("YYYY-MM-DD") : String(v);
+      out[f.name] = dayjs.isDayjs(v) ? (v as dayjs.Dayjs).format(f.show_time ? "YYYY-MM-DD HH:mm" : "YYYY-MM-DD") : String(v);
     } else if (f.ui_type === "number") {
       out[f.name] = typeof v === "number" ? v : Number(v) || 0;
     } else if (f.ui_type === "signature") {

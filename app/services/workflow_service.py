@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -10,11 +11,13 @@ from app.models.activity import Activity, ActivityStatusLog
 from app.models.user import User
 from app.services.notification_service import NotificationService
 
+logger = logging.getLogger("camis.workflow")
+
 TRANSITION_MATRIX: dict[str, set[str]] = {
     "待设计方案":     {"待安保方案设计"},
     "待安保方案设计":  {"待安保方案设计", "待备案申请"},
     "待备案申请":     {"备案材料已交接"},
-    "备案材料已交接":  {"审批通过", "待补充备案材料", "不通过/已终止"},
+    "备案材料已交接":  {"审批通过", "审批通过-待举办", "待补充备案材料", "不通过/已终止"},
     "待补充备案材料":  {"备案材料已交接"},
     "审批通过":       {"审批通过-待举办", "待安保方案设计"},
     "审批通过-待举办": {"举办中"},
@@ -31,6 +34,7 @@ NOTIFICATION_RULES: dict[str, tuple[list[str], str]] = {
     "审批通过-待举办": (["AdminStaff"], "活动批文已下发，可合法举办"),
     "待补充备案材料":  (["SecurityOfficer"], "需补充备案材料"),
     "不通过/已终止":   (["AdminStaff", "SecurityOfficer"], "活动审批未通过"),
+    "已结束":         (["AdminStaff"], "活动已正常结束"),
 }
 
 REJECT_NOTIFY_ROLES = ["AdminStaff", "SecurityOfficer"]
@@ -94,6 +98,34 @@ class WorkflowService:
                 await self.notification.notify_role(role_name, msg,
                     reference_id=activity_id, reference_type="activity")
 
+        # On approval, notify all activity participants
+        if to_status == "审批通过-待举办":
+            activity = await self.db.get(Activity, activity_id)
+            if activity:
+                user_ids: set[UUID] = {activity.owner_id}
+                if activity.designer_id:
+                    user_ids.add(activity.designer_id)
+                # get SecurityPlan manager
+                from app.models.activity import SecurityPlan as SP
+                sp_result = await self.db.execute(
+                    select(SP).where(SP.activity_id == activity_id)
+                )
+                sp = sp_result.scalar_one_or_none()
+                if sp and sp.manager_id:
+                    user_ids.add(sp.manager_id)
+                # get all distinct operators from status log
+                log_result = await self.db.execute(
+                    select(ActivityStatusLog.operator_id).where(
+                        ActivityStatusLog.activity_id == activity_id
+                    ).distinct()
+                )
+                for (uid,) in log_result.all():
+                    user_ids.add(uid)
+                for uid in user_ids:
+                    await self.notification.send_reminder(uid,
+                        f"活动「{activity.name}」已审批通过，即将进入举办阶段",
+                        reference_id=activity_id, reference_type="activity")
+
         return log
 
     async def _update_security_plan(self, activity_id: UUID, from_status: str,
@@ -113,7 +145,10 @@ class WorkflowService:
             return
 
         from app.models.activity import SecurityPlan
-        sp = await self.db.get(SecurityPlan, activity_id)
+        sp_result = await self.db.execute(
+            select(SecurityPlan).where(SecurityPlan.activity_id == activity_id)
+        )
+        sp = sp_result.scalar_one_or_none()
         if sp is None:
             return
 
@@ -135,7 +170,24 @@ class WorkflowService:
                 else:
                     sp.audit_status = "待签署"
 
-        elif to_status == "审批通过":
+        elif to_status == "待补充备案材料":
+            sp.audit_status = "待编制"
+            logger.info("reset audit_status to 待编制 for supplement activity=%s", activity_id)
+            # Reset signing status for deferred materials so Manager can re-sign
+            from app.models.material import KeyMaterial
+            for mt in ["security_plan", "risk_assessment", "responsibility_letter", "filing_commitment"]:
+                km_result = await self.db.execute(
+                    select(KeyMaterial).where(
+                        KeyMaterial.activity_id == activity_id,
+                        KeyMaterial.material_type == mt,
+                    )
+                )
+                km = km_result.scalar_one_or_none()
+                if km:
+                    km.sign_status = "unsigned"
+                    logger.info("reset sign_status to unsigned for material=%s activity=%s", mt, activity_id)
+
+        elif to_status in ("审批通过", "审批通过-待举办"):
             sp.audit_status = "已审核"
 
     async def reject(

@@ -23,8 +23,9 @@ frontend/src/
 │   ├── activities.ts       # CRUD + history + documents
 │   ├── documents.ts        # upload (multipart), download (302)
 │   ├── workflows.ts        # transition, reject, forceCancel, forcePostpone
-│   ├── filings.ts          # validate, pack, handover
+│   ├── filings.ts          # validate, pack, handover, getStatus
 │   ├── materials.ts        # list, sign, audit, auditHistory
+│   ├── approval.ts         # create (GovLiaison 审批决策)
 │   ├── roleRequest.ts      # submit role request
 │   ├── notifications.ts    # list, unreadCount, markRead, markAllRead
 │   ├── dashboard.ts        # panel, activityDetail, monthlyReport
@@ -40,6 +41,7 @@ frontend/src/
 │   ├── document.ts         # DocumentResponse
 │   ├── workflow.ts         # StatusTransition, RejectRequest, ForceChangeRequest
 │   ├── filing.ts           # MaterialValidation, FilingPackResult
+│   ├── approval.ts         # ApprovalRecord, ApprovalRequest
 │   ├── dashboard.ts        # PanelData, AnomalyEntry, ActivityDetail, MonthlyReportRequest
 │   └── template.ts         # SchemaResponse, FieldDef, VersionItem/Detail/Diff, GenerateResponse
 ├── pages/
@@ -83,11 +85,14 @@ frontend/src/
 │   ├── filings/
 │   │   ├── FilingValidatePanel.tsx # 材料合规性表格
 │   │   ├── FilingPackModal.tsx     # 打包确认
-│   │   └── HandoverConfirm.tsx     # 交接确认（不可逆）
+│   │   ├── HandoverConfirm.tsx     # 交接确认（不可逆）
+│   │   ├── MaterialAuditModal.tsx  # 逐项审查弹窗（合格/不合格+意见）
+│   │   └── GovLiaisonReviewPanel.tsx # GovLiaison 审批决策面板
 │   ├── templates/
 │   │   ├── TemplateForm.tsx        # Schema驱动动态表单 (8种字段类型+条件显隐)
 │   │   ├── VersionTimeline.tsx     # 版本历史列表+详情/差异对比
-│   │   └── VersionSnapshot.tsx     # 只读快照展示 (供非编辑角色查看最新版本)
+│   │   ├── VersionSnapshot.tsx     # 只读快照展示 (供非编辑角色查看最新版本)
+│   │   └── CommitmentSign.tsx      # 备案承诺书签署区（Plan B）
 │   └── dashboard/
 │       ├── StatusDistribution.tsx  # 状态分布 Progress 条
 │       ├── AnomalyList.tsx         # 异常活动表格
@@ -129,7 +134,7 @@ frontend/src/
   → 保存草稿: PUT /activities/{id}/plan/draft
   → 提交生成: 确认弹窗 → POST → 活动方案立即生成 DOCX / 安保方案仅存快照
   → 活动方案"最终确定": 方案B校验 → 确认弹窗 → 流转
-  → 安保方案"提交审核": 校验 → SecurityManager 签署 → 批量生成 DOCX → 流转
+  → 安保方案"提交审核": 校验 → SecurityManager 签署（两步）→ 批量生成 DOCX → 流转
   → VersionTimeline 展示版本历史 → 支持详情查看和两版本差异对比
 ```
 
@@ -140,7 +145,7 @@ frontend/src/
 | `text` | Input | 单行文本 |
 | `textarea` | Input.TextArea | 多行文本 |
 | `number` | InputNumber | 数值输入 |
-| `date` | DatePicker | 日期选择 |
+| `date` | DatePicker | 日期选择；设置 `show_time: true` 可使用 DateTimePicker（活动方案） |
 | `select` | Select | 下拉选择 (options 定义) |
 | `checkbox` | Checkbox | 布尔勾选 |
 | `repeater` | Form.List | 可增删的动态列表 |
@@ -148,11 +153,45 @@ frontend/src/
 
 ### 条件字段
 
-字段可定义 `condition` 属性（如 `"risk_level == '大型'"`），根据表单其他字段值动态显隐。安保方案的 `CONDITIONAL_FIELDS` 按风险等级（大型/中型/高风险）控制大型活动专属字段。
+字段可定义 `condition` 属性（如 `"risk_level == '高风险'"`），根据表单其他字段值动态显隐。安保方案的 `CONDITIONAL_FIELDS` 按风险等级（高风险/中低风险/低风险）控制专属字段显隐。
 
 ### 安保方案流程
 
-SecurityOfficer 首次进入时，若 `risk_level` 为空则先弹风险等级选择器（大型/中型/高风险），写入 `PUT /activities/{id}/security-plan` 后加载对应条件的表单。
+SecurityOfficer 首次进入时，若 `risk_level` 为空则先弹风险等级选择器（高风险/中低风险/低风险），写入 `PUT /activities/{id}/security-plan` 后加载对应条件的表单。
+
+Manager 签署分两步：
+1. **签署三文件**：Manager 在安保方案 tab 上传签名 → 确认签署 → 系统生成安保方案+双表 DOCX → 备案承诺书签署区出现
+2. **签署备案承诺书**：全部字段 autofill（从 Activity + ActivityPlan + SecurityPlan 预填），Manager 复用已上传签名 → 确认 → 生成承诺书 DOCX → 流转至「待备案申请」
+
+**跨模板同步**：安保方案的 `security_staff_count` 变更后重新生成版本时，若风险评估表或备案承诺书已有版本，系统弹窗确认后自动为它们创建新版本（同步更新对应字段）。变更检测在前端 onSubmit 中判断，后端在 `generate()` 同一事务中完成同步。
+
+**草稿自动保存**：表单 2s 防抖自动保存草稿，确保切换到双表子 tab 时 autofill 能读取安保方案最新的未提交数据。
+
+**驳回重提校验**：Manager 驳回的预设原因按风险等级过滤（不含该等级不适用的字段）。Officer 重新提交时校验 highlighted 字段值是否与被驳回版本不同，未修改则阻止提交。
+
+### 备案 Tab 阶段分段
+
+备案 tab 根据活动状态和角色分段渲染：
+
+| 状态 | 角色 | 可见内容 |
+|------|------|---------|
+| 待备案申请 | SecurityOfficer | 5 项材料列表（签署状态+版本）、打包按钮、纸质交接确认 |
+| 待补充备案材料 | SecurityOfficer | 同上 + GovLiaison 补件意见横幅 |
+| 备案材料已交接 | GovLiaison | 材料列表+逐项审查(合格/不合格+意见)、审核记录、批文上传(可选)、审批决策(通过/补件/驳回) |
+| 审批通过 | SecurityManager | 页顶横幅：批文信息 + 确认审批结果/驳回至安保方案设计 |
+| 审批通过-待举办+ | 全部角色 | 材料列表只读 + 审核记录 |
+
+5 项备案材料统一来自 `key_materials` 表：活动方案、安保方案、风险评估报备表、安全消防责任确认书、活动备案承诺书。
+
+**关键材料**：活动方案和备案承诺书为自动生成文件，不参与 Liaison 审查，合规列默认显示"合格"。审查仅针对安保方案、风险评估报备表、安全消防责任确认书三项。
+
+**材料表格功能**：预览（内嵌 PDF iframe，优先 pdf_path 回退 minio_path）、签署（Officer 阶段）、审查（GovLiaison 阶段，支持批量合格/不合格，不合格需填写原因）。
+
+**补件阶段**：横幅显示 Liaison 补件说明，列出不合格材料及原因（点击跳转安保方案 tab），材料行红色高亮。子 tab 标签和完成进度 tag 红色圆点/橙色标记。
+
+**审核记录**：Timeline 时间线展示，同时间操作合并到一个节点，默认显示 3 条可展开全部。仅 GovLiaison 可见。
+
+**打包**：ZIP 文件命名为 `{活动名}_备案材料包_{时间戳}.zip`，支持重新打包（自动清理旧文件）。补件阶段需 Manager 重签后才显示打包按钮。
 
 ## 路由
 
@@ -416,8 +455,10 @@ flowchart LR
     Home --> |"待编制"| Draft[安保方案tab]
     Draft --> SubTabs[子tab：安保方案丨风险评估表丨责任确认书]
     SubTabs --> |三表均生成版本| Submit[提交审核]
-    Submit --> Sign[SecurityManager<br/>签署确认]
-    Sign --> |签署完成| Pack[打包备案]
+    Submit --> Sign[SecurityManager<br/>签署三文件]
+    Sign --> |三文件已签| Commit[签署备案承诺书]
+    Commit --> |承诺书已签| Transition[流转至待备案申请]
+    Transition --> Pack[Officer 打包备案]
     Pack --> |线下交接| Handover[确认已交接]
 ```
 
@@ -427,12 +468,12 @@ flowchart LR
 flowchart LR
     Login2[/登录/] --> Home2[首页]
     Home2 --> |"待审查"| Review[活动详情-备案tab]
-    Review --> Audit[逐条审查材料]
-    Audit --> |全部审查完毕| Upload[上传批文]
+    Review --> Audit[逐条审查5项材料<br/>合格/不合格+意见]
+    Audit --> |全部审查完毕| Upload[上传批文（可选）]
     Upload --> Decision{审批决定}
-    Decision --> |通过| Approved[审批通过]
-    Decision --> |补件| Revise[待补充备案材料]
-    Decision --> |驳回| Rejected[不通过/已终止]
+    Decision --> |通过| Approved[审批通过<br/>→生成ApprovalRecord]
+    Decision --> |补件| Revise[待补充备案材料<br/>→生成ApprovalRecord]
+    Decision --> |驳回| Rejected[不通过/已终止<br/>→生成ApprovalRecord]
 ```
 
 **TemplateForm 模式**
@@ -444,6 +485,15 @@ flowchart LR
 - `ui_type: "signature"`：上传+预览+删除，刷新后通过 `/documents/presign/by-path` 恢复预览
 - `hint` 字段：repeater 旁 `QuestionCircleOutlined` + Tooltip
 - 条件字段：`==`/`!=` 格式解析，`risk_level` 通过外部传入值判断（非表单字段）
+- **草稿自动保存**：表单值变更后 2s 防抖自动保存草稿，确保跨子 tab autofill 能读取最新数据
+- **跨模板同步**：安保方案 `security_staff_count` 变更后生成新版本时，弹窗确认后自动同步更新风险评估表和备案承诺书（后端同一事务创建新版本）
+- **驳回字段差异校验**：被驳回后重新提交时，比较当前版本与被驳回版本的 highlighted 字段，未修改的阻止提交并提示"与被驳回版本一致"
+- **驳回原因按风险等级过滤**：低风险隐藏医疗/消防/人流管控，中低风险隐藏医疗/人流管控，高风险显示全部 7 项
+- **备案承诺书签署区**：下方 tab 展示安保方案/风险评估表/责任确认书 VersionSnapshot
+- **承诺书地点**：`location` 取风险评估表 `activity_location`（具体地址），回退 `Activity.location`
+- **补件回路**：待补充备案材料复用待安保方案设计逻辑，编辑→提交→签署→打包→交接。横幅显示不合格材料及原因，子 tab 和进度 tag 高亮不合格项
+- **批量审查**：GovLiaison 审查表支持多选，批量合格/不合格；批量不合格需填写统一原因
+- **Manager 重签复用签名**：补件阶段签署时自动从已有 FilledDocument 读取签名，无需重新上传
 
 ### 无多角色用户
 
@@ -481,13 +531,14 @@ flowchart LR
 | -------------- | ------------------------------------- | ------------------------------------- |
 | 待设计方案     | 提交→待安保方案设计                   | `submit_plan`                         |
 | 待安保方案设计 | 驳回（内部循环）、签署完成→待备案申请 | `reject_approval`, `manage_security`  |
-| 待备案申请     | （备案 tab 中操作）                   | `pack_filing`                         |
-| 备案材料已交接 | 通过/补件/驳回                        | `audit_material`                      |
-| 待补充备案材料 | 重新递交                              | `manage_security`                     |
-| 审批通过       | 确认通过、驳回（逆向流转）            | `confirm_approval`, `reject_approval` |
+| 待备案申请     | 打包 + 纸质交接（备案 tab 中操作）    | `pack_filing`                         |
+| 待补充备案材料 | 重新打包 + 重新交接 → 备案材料已交接  | `pack_filing`                         |
+| 备案材料已交接 | 逐条审查材料 + 通过/补件/驳回         | `audit_material`                      |
+| 审批通过       | 确认审批结果、驳回至安保方案设计（页顶横幅） | `confirm_approval`, `reject_approval` |
+| 审批通过-待举办 | —（系统自动流转至举办中）             | —                                     |
 | 任意非终态     | 强制取消、强制延期                    | `force_cancel`, `force_postpone`      |
 
-终态（审批通过-待举办/不通过/已终止/已取消/已延期）不显示操作按钮。
+终态（举办中/已结束/不通过已终止/已取消/已延期）不显示操作按钮。
 
 ## 错误处理
 
@@ -506,6 +557,37 @@ flowchart LR
 - [x] 所有 API 端点返回统一 `{ detail, code, fields? }` 格式
 - [ ] Docker 服务运行（PostgreSQL + MinIO + Redis）
 - [ ] FastAPI 监听 8000 端口
+
+## 测试种子数据
+
+`scripts/seed_test_activities.py` 创建 48 个预设活动，覆盖全部 12 种状态，配合 `bash scripts/db-reset.sh` 使用。
+
+### 活动主题
+
+全部以**五大道景区**为背景：民园广场、先农大院、庆王府等具体场所。涵盖文艺汇演、体育赛事、商贸活动、民俗活动等类型。
+
+### 多样化场景
+
+| 维度 | 场景数 | 差异 |
+|------|--------|------|
+| 活动方案 | 3 种循环 | 大型(A: 开幕式+演员+3000-5000人) / 中型(B: 开幕式+无演员+1000-3000人) / 小型(C: 无开幕式+无演员+1000以下) |
+| 安保方案 | 3 种循环 | 高风险(50人+医疗+消防+人流管控) / 中低风险(25人+消防) / 低风险(10人) |
+
+两个维度独立组合，共 9 种交叉场景。
+
+### 材料数据
+
+| 状态 | FilledDocument | KeyMaterial | 签名 |
+|------|---------------|-------------|------|
+| 待安保方案设计 | 活动方案 v1 (generated) | activity_plan | — |
+| 待备案申请 | 全部 5 种 (deferred, minio_path=NULL) | 全部 5 种，sign_status=unsigned | — |
+| 备案材料已交接 | 全部 5 种 (generated, 含签名) | 全部 5 种，sign_status=signed | 签名1-3.jpg (MinIO) |
+| 审批通过+ | 同上 + ApprovalRecord | 同上 | 同上 |
+
+### 上传资源
+
+- `docs/签名1-3.jpg` → MinIO `seed/signatures/sig1-3.jpg`（Manager 签名图）
+- `docs/材料1-3.jpg` → MinIO `seed/materials/mat1-3.jpg`（批文附件）
 
 ## 已知问题
 

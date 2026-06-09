@@ -8,7 +8,7 @@
 
 企业承接的主办方活动请求的完整生命周期记录。从立项到审批结束，由多个部门在不同阶段协作处理。
 
-**状态流转**: `待设计方案` → `待安保方案设计` → `待备案申请` → `备案材料已交接` → `审批通过` → `审批通过-待举办` → `举办中` → `已结束`；另有 `待补充备案材料` `不通过/已终止` `已取消` `已延期`（12 状态，详见 `docs/state-machine.md`）
+**状态流转**: `待设计方案` → `待安保方案设计` → `待备案申请` → `备案材料已交接` → `审批通过`（GovLiaison批准，系统自动→审批通过-待举办，UC6已移除）→ `审批通过-待举办` → `举办中`（自动）→ `已结束`（AdminStaff标记）；另有 `待补充备案材料` `不通过/已终止` `已取消` `已延期`（12 状态，详见 `docs/state-machine.md`）
 
 **关联单据**: ActivityPlan, SecurityPlan, FilingDoc, ApprovalRecord, ImplementationRecord
 
@@ -18,23 +18,37 @@
 
 ### SecurityPlan（安保方案）
 
-安保部根据活动风险等级编制的安保预案。填写前先确定风险等级（高风险/中低风险/低风险），系统根据风险等级条件显隐：高风险需医疗救护+消防+人流管控，中低风险仅消防，低风险无额外字段。包含人员配置与数量、动线、设备清单、应急预案等。需负责人电子签名。三表（安保方案+风险评估表+责任确认书）在子 tab 中并行填写，提交审核前全字段校验。
+安保部根据活动风险等级编制的安保预案。填写前先确定风险等级（高风险/中低风险/低风险），系统根据风险等级条件显隐：高风险需医疗救护+消防+人流管控，中低风险仅消防，低风险无额外字段。包含人员配置与数量、动线、设备清单、应急预案等。应急预案保留可编辑，初始按风险等级提供默认模板文本。
 
-文件延迟生成：SecurityOfficer 提交生成时仅保存数据快照，Manager 签署确认后才一次性生成含签名的 DOCX/PDF（含安保方案+双表）。
+需负责人电子签名。三表（安保方案+风险评估表+责任确认书）在子 tab 中并行填写，提交审核前全字段校验。
+
+签署分两步：(1) Manager 确认签署三个文件，生成含签名的安保方案+双表 DOCX；(2) 备案承诺书签署区出现，Manager 确认后生成承诺书 DOCX，活动流转至「待备案申请」。
+
+文件延迟生成：SecurityOfficer 提交生成时仅保存数据快照，Manager 签署确认后才一次性生成含签名的 DOCX。
 
 审核状态流转：待编制 → 待签署 → 已签署 → 已审核（详见 `docs/state-machine.md`）。Manager 驳回后 `audit_status` 回到"待编制"，`last_reject_reason` 记录驳回原因，SecurityOfficer 表单显示驳回横幅。
 
 ### FilingDoc（备案材料包）
 
-每次打包生成一个材料包快照。一个活动可有多轮打包（政府审查后打回修正，安保部重新打包提交）。包含合规证明材料集合（通过 `filing_doc_materials` 关联 KeyMaterial）、打包时间、交接状态。打包时生成 ZIP 压缩包（含备案清单 PDF + 各材料 DOCX 文件），存入 MinIO。
+每次打包生成一个材料包快照，包含全部 5 项备案材料（活动方案、安保方案、风险评估报备表、安全消防责任确认书、活动备案承诺书）。一个活动可有多轮打包（政府审查后打回修正，安保部重新打包提交）。包含合规证明材料集合（通过 `filing_doc_materials` 关联 KeyMaterial）、打包时间、交接状态。打包时生成 ZIP 压缩包（含备案清单 PDF + 各材料 DOCX 文件），存入 MinIO。
 
 ### ApprovalRecord（政府批文）
 
-政府相关部门（公安/交管等）出具的正式批文。由对接人员扫描上传（可选），标注通过/驳回/需补充材料。GovLiaison 在活动详情页备案 tab 的审查面板中操作：逐条审查材料合格性 → 全部材料审查完毕后可"审批通过"或"要求补件"（驳回不受限）。
+GovLiaison 审批决策的正式记录，独立数据库表。字段：`approval_status`（通过/补件/驳回）、`attachment_url`（批文扫描件，可选）、`liaison_id`（操作人）、`rectification_opinion`（补件/驳回时的整改意见）、`approval_date`。GovLiaison 在活动详情页备案 tab 审查面板中操作：逐条审查材料合格性 → 全部材料审查完毕后可"审批通过"或"要求补件"（驳回不受限）→ 生成 ApprovalRecord。
 
-### KeyMaterial（关键材料）
+### KeyMaterial（备案材料）
 
-各类关键文件（风险评估表、责任确认书、备案承诺书等）。每种材料有固定的 `material_type`（risk_assessment / responsibility_letter / filing_commitment），一个活动下每种类型唯一。通过调取对应类型的**文档模板**在线填写生成，生成后挂载到当前 FilledDocument 版本。每条材料有合规状态（待审核/合格/不合格）、签署状态和最新审查意见。状态由 GovLiaison 逐一审查后设定。
+备案材料包的统一超类型（supertype），一个活动下每种 `material_type` 唯一。覆盖全部 5 项备案材料：
+
+| material_type | name | 扩展表 |
+|---------------|------|--------|
+| `activity_plan` | 活动方案 | `activity_plans`（designer_id、submit_time 等） |
+| `security_plan` | 安保方案 | `security_plans`（risk_level、audit_status、manager_id 等） |
+| `risk_assessment` | 风险评估报备表 | 无（数据全在 FilledDocument snapshot） |
+| `responsibility_letter` | 安全消防责任确认书 | 无 |
+| `filing_commitment` | 活动备案承诺书 | 无 |
+
+共享属性：`is_qualified`（合规状态）、`sign_status`（签署状态）、`audit_round`（审查轮次）、`opinion`（最新审查意见）、`current_filled_document_id`（当前版本）。ActivityPlan 和 SecurityPlan 通过 `material_id` FK 引用各自 KeyMaterial 行，实现 supertype/subtype 模式。合规状态由 GovLiaison 逐一审查后设定。
 
 ### MaterialAudit（材料审核记录，新增）
 
@@ -66,7 +80,7 @@
 | Promoter | 宣策部 | 创建立项、编制活动方案、提交安保审核 (submit_plan) |
 | SecurityOfficer | 安保部 | 编制安保方案、上传安保材料、审核备案材料 |
 | SecurityManager | 安保部 | 继承 SecurityOfficer 全部 + 驳回（内部循环/逆向流转）、确认政府审批结果 |
-| AdminStaff | 行政部 | 监控活动面板、强制变更状态、归档 |
+| AdminStaff | 行政部 | 监控活动面板、强制变更状态、标记活动结束、归档 |
 | AdminManager | 行政部 | 继承 AdminStaff 全部 + 审批角色申请 |
 | GovLiaison | 政府对接 | 上传批文、审查关键材料合规性、标注审批结果 |
 

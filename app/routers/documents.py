@@ -54,7 +54,7 @@ async def upload_document(
     current_user: User = Depends(get_current_user),
     svc: DocumentService = Depends(_service),
     db=Depends(get_db),
-    _perm: None = require_any_permission("upload_document", "upload_security_material"),
+    _perm: None = require_any_permission("upload_document", "upload_security_material", "audit_material"),
 ):
     activity = await db.get(Activity, activity_id)
     if activity is None:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import tempfile
 import zipfile
 from datetime import datetime, timezone
@@ -20,20 +21,22 @@ from app.services import minio_client
 
 # These tables are created by init-scripts/02-activity-tables.sql but ORM models
 # not yet defined. We'll use raw SQL for the join queries until models are added.
+logger = logging.getLogger("camis.filing")
+
 JOIN_QUERY = """
-SELECT km.id, km.name, km.is_qualified, km.opinion
+SELECT km.id, km.name, km.is_qualified, km.opinion, km.sign_status, km.audit_round
 FROM key_materials km
 JOIN security_plan_materials spm ON spm.material_id = km.id
 JOIN security_plans sp ON sp.id = spm.security_plan_id
 WHERE sp.activity_id = :activity_id
 UNION
-SELECT km.id, km.name, km.is_qualified, km.opinion
+SELECT km.id, km.name, km.is_qualified, km.opinion, km.sign_status, km.audit_round
 FROM key_materials km
 JOIN filing_doc_materials fdm ON fdm.material_id = km.id
 JOIN filing_docs fd ON fd.id = fdm.filing_doc_id
 WHERE fd.activity_id = :activity_id
 UNION
-SELECT km.id, km.name, km.is_qualified, km.opinion
+SELECT km.id, km.name, km.is_qualified, km.opinion, km.sign_status, km.audit_round
 FROM key_materials km
 WHERE km.activity_id = :activity_id
 """
@@ -79,22 +82,22 @@ class FilingService:
         validations: list[MaterialValidation] = []
         for row in rows:
             issues: list[str] = []
-            if not row.is_qualified:
-                issues.append("材料未通过合规校验")
-            if row.opinion and "缺失" in row.opinion:
-                issues.append(f"意见: {row.opinion}")
+            has_sig = getattr(row, "sign_status", "unsigned") == "signed"
+            logger.info("validate_materials: name=%s sign_status=%s has_sig=%s id=%s", row.name, getattr(row, "sign_status", "?"), has_sig, row.id)
+            if not has_sig:
+                issues.append("材料未签署")
             validations.append(MaterialValidation(
                 material_id=row.id,
                 name=row.name,
                 is_qualified=row.is_qualified,
-                has_signature=False,
+                has_signature=has_sig,
                 issues=issues,
             ))
         return validations
 
     async def pack_materials(self, activity_id: UUID) -> FilingPackResult:
         validations = await self.validate_materials(activity_id)
-        qualified = [v for v in validations if v.is_qualified and not v.issues]
+        qualified = [v for v in validations if not v.issues]
         all_ok = len(qualified) == len(validations) and len(validations) > 0
 
         doc = await self.db.execute(
@@ -122,7 +125,7 @@ class FilingService:
                 filing_doc_id=filing_doc.id,
                 materials_count=len(validations),
                 qualified_count=len(qualified),
-                missing_signatures=[v.name for v in validations if not v.is_qualified],
+                missing_signatures=[v.name for v in validations if v.issues],
                 ready=False,
             )
 
@@ -141,10 +144,16 @@ class FilingService:
             zip_bytes = await self._build_zip_pack(
                 activity.name if activity else "未知活动", activity_id,
             )
-            zip_path = f"filings/{activity_id}/pack_{filing_doc.id}.zip"
+            safe_name = "".join(c if c.isalnum() or c in "._- " else "_" for c in (activity.name if activity else "未知活动")).strip()[:30]
+            ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M")
+            old_zip = filing_doc.pack_url
+            zip_path = f"filings/{activity_id}/{safe_name}_备案材料包_{ts}.zip"
             await minio_client.upload_file(zip_path, zip_bytes, "application/zip")
             filing_doc.pack_url = zip_path
             await self.db.commit()
+            if old_zip and old_zip != zip_path:
+                try: await minio_client.delete_file(old_zip)
+                except Exception: pass  # best-effort cleanup
         except Exception:
             # ZIP pack is best-effort; don't block the pack operation
             pass
@@ -277,26 +286,80 @@ class FilingService:
         )
         fd = result.scalar_one_or_none()
         if fd is None:
-            return {"packed": False, "handed_over": False, "generated_at": None}
+            return {"packed": False, "handed_over": False, "generated_at": None, "pack_url": None}
         return {
             "packed": fd.generated_at is not None and fd.is_qualified,
             "handed_over": fd.handover_status == "已交接",
             "generated_at": fd.generated_at.isoformat() if fd.generated_at else None,
+            "pack_url": fd.pack_url,
+        }
+
+    async def create_approval_record(
+        self, activity_id: UUID, liaison_id: UUID,
+        approval_status: str, attachment_url: str | None = None,
+        rectification_opinion: str | None = None,
+    ) -> dict:
+        """Create ApprovalRecord and transition workflow (GovLiaison decision)."""
+        from app.models.activity import ApprovalRecord, Activity
+        from app.services.workflow_service import WorkflowService
+
+        activity = await self.db.get(Activity, activity_id)
+        if activity is None:
+            raise LookupError("活动不存在")
+        if activity.status != "备案材料已交接":
+            raise ValueError("当前状态不允许创建审批记录")
+
+        if approval_status in ("审批通过", "审批通过-待举办") and not attachment_url:
+            raise ValueError("审批通过必须上传政府批文")
+        valid_statuses = {"审批通过", "审批通过-待举办", "待补充备案材料", "不通过/已终止"}
+        if approval_status not in valid_statuses:
+            raise ValueError(f"无效的审批结果: {approval_status}")
+
+        target = "审批通过-待举办" if approval_status in ("审批通过", "审批通过-待举办") else approval_status
+        record = ApprovalRecord(
+            activity_id=activity_id,
+            liaison_id=liaison_id,
+            approval_status=approval_status,
+            attachment_url=attachment_url,
+            approval_date=datetime.now(timezone.utc),
+            rectification_opinion=rectification_opinion,
+        )
+        self.db.add(record)
+        await self.db.flush()
+
+        ws = WorkflowService(self.db)
+        User = __import__("app.models.user", fromlist=["User"]).User
+        operator = await self.db.get(User, liaison_id)
+        await ws.transition(activity_id, target, operator, rectification_opinion)
+
+        await self.db.commit()
+        await self.db.refresh(record)
+
+        return {
+            "id": str(record.id),
+            "activity_id": str(record.activity_id),
+            "approval_status": record.approval_status,
+            "approval_date": record.approval_date.isoformat() if record.approval_date else None,
+            "rectification_opinion": record.rectification_opinion,
         }
 
     async def list_materials(self, activity_id: UUID) -> list[dict]:
         result = await self.db.execute(
             text("""
                 SELECT km.id, km.name, km.is_qualified, km.sign_status,
-                       km.audit_round, km.opinion, km.upload_time, km.created_at
+                       km.audit_round, km.opinion, km.upload_time, km.created_at,
+                       km.material_type, fd.minio_path, fd.pdf_path, fd.version_number
                 FROM key_materials km
                 JOIN security_plan_materials spm ON spm.material_id = km.id
                 JOIN security_plans sp ON sp.id = spm.security_plan_id
+                LEFT JOIN filled_documents fd ON fd.id = km.current_filled_document_id
                 WHERE sp.activity_id = :aid
                 UNION
                 SELECT km.id, km.name, km.is_qualified, km.sign_status,
-                       km.audit_round, km.opinion, km.upload_time, km.created_at
+                       km.audit_round, km.opinion, km.upload_time, km.created_at,
+                       km.material_type, fd.minio_path, fd.pdf_path, fd.version_number
                 FROM key_materials km
+                LEFT JOIN filled_documents fd ON fd.id = km.current_filled_document_id
                 WHERE km.activity_id = :aid
                 ORDER BY created_at
             """), {"aid": activity_id})
@@ -306,6 +369,10 @@ class FilingService:
                 "id": str(r[0]), "name": r[1], "is_qualified": r[2],
                 "sign_status": r[3], "audit_round": r[4], "opinion": r[5],
                 "upload_time": r[6].isoformat() if r[6] else "",
+                "material_type": r[8] or "",
+                "minio_path": r[9] or "",
+                "pdf_path": r[10] or "",
+                "current_version": r[11] or 0,
             }
             for r in rows
         ]

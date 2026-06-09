@@ -59,9 +59,11 @@ net stop winnat && net start winnat
 - `init-scripts/` 已归档至 `docs/init-scripts-archive/`，仅保留 `00-extensions.sql`（uuid-ossp + update_updated_at 函数）
 - Docker 启动不再依赖 init-scripts；基线迁移 `642e62051696_initial_baseline` 包含全部 20+ 表 DDL + RBAC 种子数据 + `login_attempts` 表
 - Docker 启动自动执行 `alembic upgrade head`
-- 服务层现有 11 个 Service：ActivityService, WorkflowService, DocumentService, FilingService, NotificationService, DashboardService, **AuthService**, **AdminService**, **ReportDataService**（月报数据查询）, **ReportRenderer**（Playwright PDF 渲染，HTTP 客户端）, **TemplateService**（DOCX 模板渲染 + 版本管理，借助 docxtpl + LibreOffice）
+- 服务层现有 11 个 Service：ActivityService, WorkflowService, DocumentService, FilingService, NotificationService, DashboardService, **AuthService**, **AdminService**, **ReportDataService**（月报数据查询）, **ReportRenderer**（Playwright PDF 渲染，HTTP 客户端）, **TemplateService**（DOCX 渲染 + 版本管理 + 跨模板同步 + PDF 后台生成，借助 docxtpl + LibreOffice）
+- Filing 补件回路：待补充备案材料 ≈ 带标记的待安保方案设计，复用编辑→提交→签署→打包→交接。Manager 重签复用已上传签名
+- UC6 已移除：Liaison 审批通过后系统自动流转到审批通过-待举办，通知所有经手人。AdminStaff 可标记结束（举办中→已结束）
 - 新加 Service 命名 `XxxService`，构造函数 `def __init__(self, db: AsyncSession)`
-- 文档模板：`app/templates/{type}/` 含 `schema.py`（Pydantic 表单）和 `template.docx`（docxtpl Jinja2 占位符），详见 `docs/adr/0006.md`
+- 文档模板：`app/templates/{type}/` 含 `schema.py`（Pydantic 表单）和 `template.docx`（docxtpl Jinja2 占位符），详见 `docs/adr/0006.md`。模板字体：标题方正小标宋简体、标签楷体_GB2312、正文仿宋_GB2312（均在 `~/.local/share/fonts/`）
 
 ## Playwright PDF 渲染
 
@@ -76,7 +78,7 @@ net stop winnat && net start winnat
 |------|------|
 | `bash scripts/db-reset.sh` | 一键重建数据库（down -v + 迁移 + seed + 清限流） |
 | `bash scripts/check.sh` | Python 语法检查 + 前端构建验证 |
-| `python scripts/create_template_docx.py` | 重建 5 个 DOCX 模板文件 |
+| `python scripts/rebuild_templates.py` | 从源文件重建 5 个 DOCX 模板，设置字体格式 |
 
 ## 数据存储三原则（红线）
 
@@ -124,3 +126,12 @@ net stop winnat && net start winnat
 - 功能完成后同步 `docs/` 下相关文件
 - 定期运行 `/neat-freak` 做全局文档审查
 - CLAUDE.md 是规则手册，不写历史叙事和实现细节
+
+## 编码习惯（高频踩坑）
+
+- **改 SQL/后端返回字段 → 立即 grep Pydantic 模型**：`grep "class.*Response" app/routers/` 确认新字段在模型中。漏了会被 FastAPI 截断，前端拿到空值难排查。
+- **查实体用 select().where()，不要 db.get()**：`db.get()` 走主键，ActivityPlan/SecurityPlan 主键是自增 id 不是 activity_id。
+- **三元链分支互斥检查**：复杂条件渲染后，`grep -n "? (" file.tsx` 确认各分支不重叠。Manager 和 canEditSecurity 必须互斥（`!isManager` guard）。
+- **加 debug 代码后先 compile**：`python -m py_compile` 确认语法，logger 是否已 import。
+- **外部进程必须限流**：soffice/LibreOffice 用 asyncio.Semaphore(1) 串行化。
+- **签名/图片跨组件共享**：blob URL（当前会话）→ presigned URL（刷新恢复）→ FilledDocument snapshot（跨会话），三层回退。

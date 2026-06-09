@@ -4,6 +4,7 @@ export interface AuditHistoryItem {
   id: string;
   action: string;
   user_name: string;
+  material_name: string;
   conclusion: string | null;
   opinion: string | null;
   created_at: string;
@@ -17,6 +18,10 @@ export interface MaterialWithStatus {
   audit_round: number;
   opinion: string | null;
   upload_time: string;
+  material_type: string;
+  minio_path: string;
+  pdf_path: string;
+  current_version: number;
 }
 
 export const materialsApi = {

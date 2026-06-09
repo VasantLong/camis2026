@@ -18,7 +18,7 @@ export default function FilingValidatePanel({ data }: Props) {
         v ? (
           <Tag icon={<CheckCircleOutlined />} color="success">合格</Tag>
         ) : (
-          <Tag icon={<CloseCircleOutlined />} color="error">不合格</Tag>
+          <Tag color="default">待审查</Tag>
         ),
     },
     {

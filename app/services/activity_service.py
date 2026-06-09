@@ -27,16 +27,16 @@ class ActivityService:
         if activity.status != "审批通过-待举办":
             return False
         if activity.estimated_time and activity.estimated_time <= datetime.now(timezone.utc):
-            log = ActivityStatusLog(
-                activity_id=activity.id,
-                from_status="审批通过-待举办",
-                to_status="举办中",
-                operator_id=activity.owner_id,
-                comment="系统自动：已到达预计举办时间",
+            from app.services.workflow_service import WorkflowService
+            ws = WorkflowService(self.db)
+            operator = await self.db.get(
+                __import__("app.models.user", fromlist=["User"]).User,
+                activity.owner_id,
             )
-            self.db.add(log)
-            activity.status = "举办中"
-            await self.db.commit()
+            await ws.transition(
+                activity.id, "举办中", operator,
+                "系统自动：已到达预计举办时间",
+            )
             return True
         return False
 
