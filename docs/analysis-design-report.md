@@ -591,7 +591,46 @@ graph TD
 
 #### 3.2.2 业务逻辑设计
 
-> 将在后续补充。
+服务层是系统的业务逻辑核心，11 个服务按职责分为三组——核心业务（WorkflowService、TemplateService、FilingService、ActivityService）、支撑服务（DocumentService、NotificationService、DashboardService、ReportDataService、ReportRenderer）、独立服务（AuthService、AdminService）。所有服务通过构造函数注入 `AsyncSession`，方法内管理事务边界。本节重点描述核心业务服务的领域模型与关键方法。
+
+**WorkflowService — 状态机引擎**：
+
+作为服务依赖图的枢纽，统一管理活动状态变迁。核心数据结构 `TRANSITION_MATRIX` 定义了 11 项合法转换（详见 §2.3 状态图），`transition()` 方法执行：校验转换合法性 → UPDATE status WHERE id AND status=old（原子并发保护）→ 写 `activity_status_log` → 查 `NOTIFICATION_RULES` 发通知。驳回（`reject`）自循环于待安保方案设计状态；强制取消/延期（`force_cancel`/`force_postpone`）将活动置入终态并写 `implementation_records` 归档。审批通过-待举办到达 `estimated_time` 后，路由层在查询时自动调用 `transition(SYSTEM)` 转为举办中。
+
+**TemplateService — 文档模板引擎**：
+
+管理 5 类 DOCX 模板（活动方案、安保方案、风险评估报备表、安全消防责任确认书、备案承诺书）的完整生命周期。核心流程：
+
+- **Schema 驱动表单**：`get_schema()` 返回模板字段定义 + autofill 预填数据 + 草稿/快照。autofill 跨三实体（Activity、ActivityPlan、SecurityPlan）自动填入——如 `project_name` 从 `Activity.name` 取，`security_staff_count` 从 `SecurityPlan` 取，`reporting_unit` 从系统配置注入。
+- **延迟生成策略**：安保方案及双表（`DEFERRED_TYPES`）在 SecurityOfficer 提交时仅保存数据快照（`minio_path=NULL`），Manager 签署时一次性生成含签名 DOCX。活动方案为非延迟类型，提交即生成。
+- **两步签署**：`sign_and_finalize()` 第一步生成安保方案+双表 DOCX 并注入 Manager 签名，第二步 `sign_manager_commitment()` 生成备案承诺书 DOCX（全字段 autofill，复用已上传签名）。
+- **跨模板同步**：安保方案的 `security_staff_count` 变更后，自动为风险评估报备表和备案承诺书创建新版本。
+- **DOCX 渲染**：`docxtpl` 引擎基于 Jinja2 模板渲染，`_render_docx()` 注入 `activity_name`、`sponsor`、`risk_level` 到渲染上下文，签名字段检测后从 MinIO 拉取图片嵌入。渲染后异步调用 LibreOffice headless 转 PDF（`Semaphore(1)` 串行化防并发超时）。
+- **版本管理**：`FilledDocument` 表记录每次生成，`template_hash` 字段（模板文件 SHA-256）用于审计追溯。
+
+**FilingService — 备案材料管理**：
+
+`key_materials` 表作为备案材料超类型（supertype），通过 `material_type` 区分 5 种材料，`UNIQUE(activity_id, material_type)` 保证每种每活动唯一。`activity_plans` 和 `security_plans` 通过 `material_id` FK 共享审计字段（`is_qualified`、`sign_status`、`audit_round`、`opinion`）。
+
+核心方法：
+- `pack_materials()`：聚合全部已签署材料的 DOCX 文件 → 生成 ZIP（文件名为 `{活动名}_备案材料包_{时间戳}.zip`）→ 上传 MinIO。重新打包时删除旧 ZIP。打包仅校验 `sign_status`，不检查 `is_qualified`。
+- `confirm_handover()`：线下纸质交接确认，流转至"备案材料已交接"并通知 GovLiaison。待补充备案材料阶段复用同一方法，目标状态统一为"备案材料已交接"。
+- `audit_material()`：GovLiaison 逐条审查，标记合格/不合格（不合格需填写意见），递增 `audit_round`，写 `material_audits` 留痕。支持批量操作。
+- `create_approval_record()`：审批决策入口——"审批通过"→ 流转至"审批通过-待举办"，"要求补充材料"→ 流转至"待补充备案材料"（进入补件回路），"驳回"→ 流转至"不通过/已终止"终态。审批通过必须上传政府批文。
+
+**服务间协作模式**：
+
+服务间通过同步方法调用协作——`WorkflowService` 调用 `NotificationService` 发送通知，`FilingService` 和 `TemplateService` 调用 `WorkflowService` 驱动状态变迁。所有操作在同一 PostgreSQL 事务内完成，保证 ACID。跨服务事务不加分布式协调，单 DB 事务直接保证一致性。
+
+**其余服务**：
+
+- `ActivityService`：活动 CRUD + 场地冲突检测（同场地同时段已存在活跃活动时 409）
+- `DocumentService`：通用文件上传/下载，MinIO 预签名 URL 生成，客户端魔数校验文件头
+- `NotificationService`：`notify_role()` 向指定角色全员发送系统消息，`send_reminder()` 向单个用户发送提醒。工作流状态变更时自动触发
+- `DashboardService` + `ReportDataService`：多维度数据聚合查询（总活动数、审批通过率、状态分布、异常清单）
+- `ReportRenderer`：独立微服务（Playwright + headless Chromium），HTTP 接收渲染请求返回 PDF
+- `AuthService`：JWT 双令牌（access + refresh）、登录暴力破解防护（5→15min 递增锁定）、角色-权限校验
+- `AdminService`：用户管理（列表、角色编辑、禁用/归档）、角色申请审批
 
 #### 3.2.3 数据层设计
 
