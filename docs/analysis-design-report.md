@@ -945,19 +945,36 @@ erDiagram
 
 **核心设计模式**：
 
-- **聚合根 (Activity)**：所有子实体通过 `activity_id` FK 关联，ON DELETE CASCADE 级联删除
-- **KeyMaterial 超类型**：`material_type` 区分 5 种材料，`UNIQUE(activity_id, material_type)` 保证每种每活动唯一。`is_qualified` 和 `opinion` 为 `material_audits` 的快照冗余（故意的反范式化），每次 `audit_material` 写入时同步刷新
-- **FilledDocument 版本管理**：`UNIQUE(activity_id, template_type, version_number)`。`minio_path` 可为 NULL（安保方案+双表延迟生成——SecurityOfficer 提交时仅保存 data_snapshot，Manager 签署时一次性生成 DOCX）
-- **JSONB 灵活字段**：`draft_data` 支持 schema 驱动动态表单的无 schema 变更存储
-- **追加式审计**：`activity_status_log` 只 INSERT 不 UPDATE，完整追踪活动生命周期
-- **范式水平**：整体满足 3NF。两处有意的反范式化——`key_materials.is_qualified/opinion`（避免每次 JOIN material_audits）和 `activity_plans.is_overdue`（支持直接索引过滤）
+- **聚合根 (Activity)**：所有子实体通过 `activity_id` FK 关联，ON DELETE CASCADE 级联删除。活动通过终态锁定而非硬删除，保留完整审计轨迹
+- **KeyMaterial 超类型**：`material_type` 区分 5 种材料，`UNIQUE(activity_id, material_type)` 保证每种每活动唯一。采用双路径关联——通过 `security_plan_materials` / `filing_doc_materials` join 表关联到具体上下文，同时通过 `activity_id` FK 直达所属活动（避免"查活动所有材料"UNION 两张 join 表）
+- **FilledDocument 版本管理**：`UNIQUE(activity_id, template_type, version_number)`。`minio_path` 可为 NULL——安保方案及双表在 SecurityOfficer 提交时仅保存 `data_snapshot`，Manager 签署时一次性生成含签名 DOCX
+- **JSONB 灵活字段**：`draft_data`、`data_snapshot` 使用 PostgreSQL JSONB 类型，支持 schema 驱动动态表单字段的无 DDL 变更存储
+- **追加式审计**：`activity_status_log` 只 INSERT 不 UPDATE，每条记录含 from_status、to_status、operator_id、comment
 
-**列级设计规范**：主键统一 UUID v4（API 暴露不可预测，防枚举）；时间戳统一 TIMESTAMPTZ，UTC 存储；VARCHAR 按用途分级（状态码 32-64、名称 128-255、路径 2048、文件名 1024）；布尔列显式 DEFAULT，禁止隐式 NULL 当作 False；精确校验在 Pydantic 层，DB 层提供上限兜底。
+**列级设计规范**：
 
-**索引策略**（18 个现有索引）：所有 FK 列必建索引；`activities(status)` B-tree 覆盖高频状态筛选；`filled_documents(activity_id, template_type)` 复合索引覆盖版本查询；`notifications(user_id, is_read)` 部分索引覆盖未读计数；`documents(tags)` GIN 索引覆盖标签搜索。复合主键 `user_roles` 和 `role_permissions` 自动为左侧列提供索引覆盖。
+| 规范 | 约定 | 说明 |
+|------|------|------|
+| 主键 | UUID v4 | 全局唯一，API 暴露不可预测（防枚举），适合 MinIO 路径嵌入 |
+| 时间戳 | TIMESTAMPTZ | 统一 UTC 存储，前端按本地时区展示，`created_at` 由 DB 填充 |
+| 字符串 | VARCHAR 分级 | 状态码 32-64 / 名称 128-255 / 路径 2048 / 文件名 1024 / 电话 64 |
+| 无界文本 | TEXT | 方案内容、审核意见等用户自由输入 |
+| 布尔 | Boolean + 显式 DEFAULT | 禁止隐式 NULL 当作 False（`is_active`、`is_qualified` 等均遵循） |
+| 精确校验 | Pydantic 层 | DB 层提供上限兜底，精确校验（长度/格式/正则）在应用层完成 |
 
-**缓存策略**：Redis Cache-Aside 模式，3 个缓存点——`activity:{id}:docs`（5min TTL，上传时 DEL）、`doc:{id}`（30min TTL，元数据不可变）、`login_lockout:{email}`（15min TTL，登录成功后 DEL）。全部 fail-open：Redis 不可用时自动降级查 DB，不阻断业务。
+**范式分析**：
 
-**事务与并发**：PostgreSQL READ COMMITTED 隔离级别；`transition()` 使用 `UPDATE WHERE status=old_status` + `rowcount==0` 乐观锁检测并发冲突；跨服务操作共享同一 `AsyncSession`，同一事务内完成；`filing_docs(activity_id)` UNIQUE 约束防重复打包。
+数据库整体满足**第三范式（3NF）**——每个非主属性完全函数依赖于主键，不存在传递依赖。所有 M:N 关系通过 join 表正确拆出，无多值依赖。
 
-**数据生命周期**：L1 永久保留（activities + 子实体、key_materials、material_audits，通过终态锁定）；L2 软删除（users，is_archived 标记）；L3 定期清理（notifications 12 月、login_attempts 90 天、refresh_tokens 过期 7 天后）。
+存在两处**经过设计权衡的故意反范式化**：
+
+| 位置 | 冗余字段 | 违反的范式规则 | 原因 | 同步策略 |
+|------|---------|---------------|------|---------|
+| `key_materials` | `is_qualified`, `opinion` | 3NF——可由 `material_audits` 最新审核记录推导 | 列表展示材料合规状态时无需每次 JOIN audit 表取最新记录，查询性能显著优于每次关联 | 每次 `audit_material()` 写入时同步刷新 |
+| `activity_plans` | `is_overdue` | 3NF——可由 `deadline` 与当前时间比较得出 | 支持 `WHERE is_overdue = true` 直接索引过滤逾期方案，避免每次查询计算时间差 | 查询时按 `deadline` 动态判定；无写入同步（值由时间推移自然变化） |
+
+3NF 是 OLTP 系统的基准。以上两处反范式化均有明确的性能收益和同步策略，不导致数据不一致。
+
+**索引策略**：所有 FK 列必建索引（18 个现有索引）；`activities(status)` B-tree 覆盖高频状态筛选；`filled_documents(activity_id, template_type)` 复合索引覆盖版本查询；`notifications(user_id, is_read)` 部分索引覆盖未读计数；`documents(tags)` GIN 索引覆盖标签搜索。复合主键自动为左侧列提供索引覆盖。新索引通过 Alembic migration 管理。
+
+**事务与并发**：`transition()` 使用 `UPDATE WHERE status=old_status` + `rowcount==0` 乐观锁检测并发冲突；跨服务操作共享同一 `AsyncSession`，同一 PostgreSQL 事务内完成；`filing_docs(activity_id)` UNIQUE 约束防重复打包。
