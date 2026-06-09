@@ -671,71 +671,71 @@ graph TD
 ```mermaid
 classDiagram
     class WorkflowService {
-        +StatusLogEntry transition(UUID activityId, String toStatus, User operator, String comment)
-        +StatusLogEntry reject(UUID activityId, User operator, String reason)
-        +StatusLogEntry forceCancel(UUID activityId, User operator, String reason)
-        +StatusLogEntry forcePostpone(UUID activityId, User operator, String reason)
+        +transition(UUID activityId, String toStatus, User operator, String comment):StatusLogEntry
+        +reject(UUID activityId, User operator, String reason):StatusLogEntry
+        +forceCancel(UUID activityId, User operator, String reason):StatusLogEntry
+        +forcePostpone(UUID activityId, User operator, String reason):StatusLogEntry
     }
 
     class TemplateService {
-        +SchemaResponse getSchema(String templateType, UUID activityId)
-        +GenerateResponse generate(String templateType, UUID activityId, Map data, UUID userId)
-        +GenerateResponse signAndFinalize(UUID activityId, UUID userId)
-        +GenerateResponse signManagerCommitment(UUID activityId, UUID userId)
-        +ByteArray renderDocx(String templateType, Map data, String riskLevel)
+        +getSchema(String templateType, UUID activityId):SchemaResponse
+        +generate(String templateType, UUID activityId, Map data, UUID userId):GenerateResponse
+        +signAndFinalize(UUID activityId, UUID userId):GenerateResponse
+        +signManagerCommitment(UUID activityId, UUID userId):GenerateResponse
+        +renderDocx(String templateType, Map data, String riskLevel):ByteArray
     }
 
     class FilingService {
-        +List listMaterials(UUID activityId)
-        +FilingPackResult packMaterials(UUID activityId)
-        +FilingDoc confirmHandover(UUID activityId, User operator)
-        +MaterialAudit auditMaterial(UUID activityId, UUID materialId, UUID userId, String conclusion, String opinion)
-        +ApprovalRecord createApprovalRecord(UUID activityId, UUID liaisonId, String approvalStatus, String attachmentUrl, String opinion)
+        +listMaterials(UUID activityId):List
+        +packMaterials(UUID activityId):FilingPackResult
+        +confirmHandover(UUID activityId, User operator):FilingDoc
+        +auditMaterial(UUID activityId, UUID materialId, UUID userId, String conclusion, String opinion):MaterialAudit
+        +createApprovalRecord(UUID activityId, UUID liaisonId, String approvalStatus, String attachmentUrl, String opinion):ApprovalRecord
     }
 
     class ActivityService {
-        +ActivityResponse create(UUID ownerId, ActivityCreate data)
-        +ActivityResponse get(UUID activityId)
-        +Tuple list(ActivityListParams params)
-        +List getStatusHistory(UUID activityId)
+        +create(UUID ownerId, ActivityCreate data):ActivityResponse
+        +get(UUID activityId):ActivityResponse
+        +list(ActivityListParams params):Tuple
+        +getStatusHistory(UUID activityId):List
     }
 
     class DocumentService {
-        +DocumentResponse upload(UUID activityId, UUID uploaderId, File file, List tags)
-        +String getPresignedUrl(UUID docId)
-        +List listByActivity(UUID activityId)
+        +upload(UUID activityId, UUID uploaderId, File file, List tags):DocumentResponse
+        +getPresignedUrl(UUID docId):String
+        +listByActivity(UUID activityId):List
     }
 
     class NotificationService {
-        +void sendReminder(UUID userId, String message, String channel)
-        +void notifyRole(String roleName, String message)
-        +void checkOverdue(UUID activityId)
+        +sendReminder(UUID userId, String message, String channel):void
+        +notifyRole(String roleName, String message):void
+        +checkOverdue(UUID activityId):void
     }
 
     class DashboardService {
-        +PanelData getPanelData()
-        +ActivityDetail getActivityDetail(UUID activityId)
+        +getPanelData():PanelData
+        +getActivityDetail(UUID activityId):ActivityDetail
     }
 
     class ReportDataService {
-        +Map queryMonthlyData(String month)
+        +queryMonthlyData(String month):Map
     }
 
     class ReportRenderer {
-        +ByteArray render(String month, String dataKey, String token)
+        +render(String month, String dataKey, String token):ByteArray
     }
 
     class AuthService {
-        +TokenResponse register(RegisterRequest data)
-        +TokenResponse login(String email, String password)
-        +TokenResponse refreshToken(String refreshToken)
-        +void logout(UUID userId)
+        +register(RegisterRequest data):TokenResponse
+        +login(String email, String password):TokenResponse
+        +refreshToken(String refreshToken):TokenResponse
+        +logout(UUID userId):void
     }
 
     class AdminService {
-        +List listUsers()
-        +void updateUserRole(UUID userId, UUID roleId)
-        +void approveRoleRequest(UUID requestId, UUID reviewerId, String comment)
+        +listUsers():List
+        +updateUserRole(UUID userId, UUID roleId):void
+        +approveRoleRequest(UUID requestId, UUID reviewerId, String comment):void
     }
 
     WorkflowService --> NotificationService : 通知
