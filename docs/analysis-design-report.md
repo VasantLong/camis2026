@@ -1582,3 +1582,79 @@ erDiagram
 测试环境：`httpx.ASGITransport` 直连 FastAPI，真实 PostgreSQL + MinIO + Redis。测试数据通过 `pytest_asyncio` fixture 按角色创建独立用户并分配 RBAC 权限，每个测试脚本自含数据准备不依赖其他脚本的执行顺序。
 
 > 已知测试缺口：补件回路（UC5b）的完整浏览器测试尚未覆盖；两步签署中 TC4 仅覆盖第一步（三文件签署），第二步承诺书签署测试待补充；TemplateService 无后端集成测试。详见 `docs/browser-tests.md`。
+
+---
+
+## 系统缺陷与优化方向
+
+### 已知缺陷
+
+| 缺陷 | 说明 | 优先级 |
+|------|------|--------|
+| E2E 测试滞后 | v0.31.0 界面重构后浏览器测试脚本选择器失效，前端验证依赖人工测试 | 高 |
+| TemplateService 零测试 | 模板引擎作为系统最复杂的服务，缺乏后端集成测试覆盖 | 高 |
+| 旧权限残留 | `upload_approval`、`update_approval_status` 等废弃权限仍存在于数据库（详见 `docs/issues/legacy-permissions.md`） | 中 |
+| 审批状态概念混淆 | `ApprovalRecord.approval_status` 与 `Activity.status` 独立命名空间，前端曾因此出现 422 错误（详见 `docs/issues/approval-status-confusion.md`） | 中 |
+| 场地冲突 TOCTOU | 场地冲突检测（SELECT → INSERT）无数据库级唯一约束保护，极端并发场景可绕过 | 低 |
+| E2E 测试缺口 | 补件回路（UC5b）无浏览器测试、两步签署第二步未覆盖 | 中 |
+
+### 优化方向
+
+- **测试体系完善**：补充 TemplateService 后端集成测试，修复 E2E 脚本 DOM 选择器，将 E2E 测试纳入 CI 流程
+- **权限数据清理**：通过 Alembic migration 移除 `upload_approval`、`update_approval_status` 废弃权限及相关角色关联
+- **审批字段重构**：将 `ApprovalRecord.approval_status` 与 `Activity.status` 彻底解耦，使用独立英文枚举值（`approved`/`revise`/`rejected`），前端变量名同步更新
+- **性能优化**：活动列表查询在高数据量场景下考虑引入 Redis 缓存；月报 PDF 生成可预计算常用月份的缓存
+- **移动端适配**：当前仅登录页做了移动端响应式处理，活动详情页等核心页面在小屏设备上体验有待改进
+
+---
+
+## 系统运维与管理
+
+系统采用 Docker Compose 单机部署，运维管理覆盖以下方面：
+
+**健康检查**：`GET /health` 端点提供 PostgreSQL 连通性检测，计划扩展为三组件（PostgreSQL + Redis + MinIO）完整就绪检测。
+
+**备份策略**：
+- PostgreSQL 业务数据：`pg_dump -Fc` 每日凌晨 3 点 Cron 任务，保留 30 天本地 + 90 天异地
+- MinIO 文件对象：`mc mirror` 增量同步至备份 bucket，每日执行
+- Redis 数据：不备份（全量缓存/会话，重建零成本）
+
+**数据生命周期**：
+
+| 级别 | 实体 | 策略 |
+|------|------|------|
+| L1 永久保留 | activities + 子实体、key_materials、material_audits | 业务终态锁定，永不硬删 |
+| L2 软删除 | users | `is_archived` 标记 |
+| L3 定期清理 | notifications（12 月）、login_attempts（90 天）、refresh_tokens（7 天过期） | 定时 DELETE |
+
+**日志与告警**：Redis 连接失败、DB 连接池耗尽、MinIO 连接失败为关键告警（P1/P2）；乐观锁冲突仅记录不告警（正常业务现象）；慢查询通过 PostgreSQL `pg_stat_statements` 月检。
+
+**云迁移兼容**：代码使用 S3 兼容 SDK 与 MinIO 交互，上云时仅需替换 Endpoint 即可切换至阿里云 OSS 或腾讯云 COS；PostgreSQL、Redis 可直接使用云厂商托管服务，无需代码改动。
+
+---
+
+## 系统特色
+
+**1. 面向服务架构的模块化单体**：11 个服务按业务能力聚类，实体为纯数据载体（贫血模型），服务间通过同步方法调用协作。边界清晰的模块化单体兼顾了设计的分治性和部署的简洁性，预留了向微服务平滑演进的路径。
+
+**2. Schema 驱动的动态表单系统**：活动方案、安保方案、备案双表等 5 类 DOCX 模板的表单由后端 schema 定义驱动，前端 TemplateForm 根据字段的 `ui_type`、`condition`、`autofill_from` 元数据动态渲染，新增模板无需前端开发。`docxtpl`（Jinja2）保留 DOCX 原始格式，LibreOffice 串行转 PDF 保证布局无损。
+
+**3. 安全合规的审批工作流**：11 状态活动状态机 + 5 状态安保审核子状态机，状态变迁由 `WorkflowService` 统一驱动，`UPDATE WHERE status=old` 乐观锁防止并发冲突。14 项细粒度 RBAC 权限在路由层强制校验，用户只能操作权限范围内的端点。
+
+**4. 延迟生成 + 签署注入**：安保方案及双表在编制阶段仅保存数据快照（`minio_path=NULL`），Manager 签署时一次性生成含签名图片的正式 DOCX 文档，避免未签署文件被误用。
+
+**5. 深浅主题即时切换**：基于 React Context + antd `ConfigProvider` theme algorithm 实现全局深浅主题切换，`localStorage` 持久化偏好，Header 灯泡按钮一键切换，无需刷新页面。
+
+**6. 全流程角色视图分离**：活动详情页按角色分控——Promoter 编制方案、SecurityOfficer 编制安保材料、SecurityManager 签署、GovLiaison 审查、AdminStaff 监控——同一页面不同角色看到完全不同的操作界面，实现"一个页面，六种视图"。
+
+---
+
+## 思政体会
+
+本系统的选题源自天津市五大道景区的实际活动管理需求。五大道作为天津的城市名片，每年举办大量群众性文化活动——从春节文旅嘉年华到端午龙舟赛，从民俗展览到商贸活动。这些活动的安全管理是基层治理的重要组成部分。通过为这些"身边的中国问题"开发信息系统，本课题践行了课程思政中"研究中国问题，讲中国故事"的教学目标。
+
+在技术选型上，本系统采用了面向服务架构（SOA）这一成熟的软件工程方法论，并结合了多项国产化适配技术：MinIO 兼容 S3 协议，可平滑替换为阿里云 OSS 或腾讯云 COS；PostgreSQL 作为开源数据库，避免了商业数据库的授权壁垒。这些选择体现了"自主可控、安全可靠"的技术理念。
+
+在系统设计过程中，深入体会到信息系统分析与设计方法论的实践价值：从 UML 用例建模厘清业务边界，到状态机精确定义 11 种活动状态的合法流转，再到 SOA 模块化单体在分治与简洁之间的平衡——每一项设计决策都是理论指导实践的印证。特别是"审批通过"状态从独立中间态到自动流转的简化过程，深刻体现了"奥卡姆剃刀"原则：不必要的实体不应当被凭空增加。
+
+通过本项目从系统分析到设计再到实现的完整过程，切实锻炼了复杂信息系统的建模分析与软件开发能力，为今后从事信息系统建设相关工作奠定了实践基础。
