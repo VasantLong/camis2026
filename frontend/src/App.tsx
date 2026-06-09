@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { ConfigProvider, App as AntApp, theme } from "antd";
 import zhCN from "antd/locale/zh_CN";
-import { useTheme } from "@/hooks/useTheme";
+import { ThemeProvider, useTheme } from "@/hooks/useTheme";
 import AuthInitializer from "@/components/auth/AuthInitializer";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import AppLayout from "@/components/layout/AppLayout";
@@ -20,7 +20,7 @@ import HomePage from "@/pages/HomePage";
 import NotificationsPage from "@/pages/NotificationsPage";
 import MonthlyReportPage from "@/pages/reports/MonthlyReportPage";
 
-export default function App() {
+function AppInner() {
   const { isDark } = useTheme();
   return (
     <ConfigProvider
@@ -123,5 +123,13 @@ export default function App() {
         </AuthInitializer>
       </AntApp>
     </ConfigProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppInner />
+    </ThemeProvider>
   );
 }
