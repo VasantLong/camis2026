@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Layout, Button, Dropdown } from "antd";
-import { LogoutOutlined, UserOutlined, BulbOutlined } from "@ant-design/icons";
+import { LogoutOutlined, UserOutlined, SunOutlined, MoonOutlined } from "@ant-design/icons";
 import { Outlet, useNavigate } from "react-router-dom";
 import { authApi } from "@/api/auth";
 import { useAuthStore } from "@/stores/authStore";
@@ -83,13 +83,14 @@ export default function AppLayout() {
             display: "flex",
             justifyContent: "flex-end",
             alignItems: "center",
+            gap: 16,
           }}
         >
           <Button
             type="text"
-            icon={<BulbOutlined />}
+            icon={isDark ? <SunOutlined /> : <MoonOutlined />}
             onClick={toggleTheme}
-            style={{ color: "inherit", marginRight: 8 }}
+            style={{ color: "inherit", marginRight: 16 }}
             title={isDark ? "切换浅色主题" : "切换深色主题"}
           />
           <HeaderNotifications />
