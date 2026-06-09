@@ -145,7 +145,7 @@ frontend/src/
 | `text` | Input | 单行文本 |
 | `textarea` | Input.TextArea | 多行文本 |
 | `number` | InputNumber | 数值输入 |
-| `date` | DatePicker | 日期选择 |
+| `date` | DatePicker | 日期选择；设置 `show_time: true` 可使用 DateTimePicker（活动方案） |
 | `select` | Select | 下拉选择 (options 定义) |
 | `checkbox` | Checkbox | 布尔勾选 |
 | `repeater` | Form.List | 可增删的动态列表 |

@@ -560,7 +560,7 @@ flowchart TD
     DBR --> DBS --> DB
 ```
 
-> **注**：`WorkflowService` 是枢纽——它依赖 `NotificationService`（发通知）和 `ActivityService`（查状态）。`AuthService` 和 `AdminService` 为独立服务，无跨服务依赖。`TemplateService` 依赖 MinIO（文件上传）和 `WorkflowService`（activity_plan generate 后自动状态变迁）。`TemplateService` 新增 `get_or_create_material()`（懒创建 KeyMaterial，覆盖 5 种 material_type）、`get_schema()` 跨实体 autofill（Activity + ActivityPlan/SecurityPlan snapshot → 双表/承诺书字段自动填入）、`generate()` 跨模板同步（`security_staff_count` 变更时自动为 risk_assessment + filing_commitment 创建新版本）。Pydantic 校验前自动清理不满足条件的隐藏字段。`FilingService` 新增 `create_approval_record()`（GovLiaison 审批决策时生成 ApprovalRecord，审批通过直接流转至审批通过-待举办，UC6 已移除）。打包仅校验 sign_status，不再检查 is_qualified。
+> **注**：`WorkflowService` 是枢纽——它依赖 `NotificationService`（发通知）和 `ActivityService`（查状态）。`AuthService` 和 `AdminService` 为独立服务，无跨服务依赖。`TemplateService` 依赖 MinIO（文件上传）和 `WorkflowService`（activity_plan generate 后自动状态变迁）。`TemplateService` 新增 `get_or_create_material()`（懒创建 KeyMaterial，覆盖 5 种 material_type）、`get_schema()` 跨实体 autofill（Activity + ActivityPlan/SecurityPlan snapshot → 双表/承诺书字段自动填入）、`generate()` 跨模板同步（`security_staff_count` 变更时自动为 risk_assessment + filing_commitment 创建新版本），`generate()` 注入 `activity_name`、`sponsor` 到 data_snapshot 供 docxtpl 模板渲染。`_render_docx()` 注入 `risk_level` 到 Jinja2 context 以支持安保方案条件字段。Pydantic 校验前自动清理不满足条件的隐藏字段。`FilingService` 新增 `create_approval_record()`（GovLiaison 审批决策时生成 ApprovalRecord，审批通过直接流转至审批通过-待举办，UC6 已移除）。打包仅校验 sign_status，不再检查 is_qualified。
 
 ---
 

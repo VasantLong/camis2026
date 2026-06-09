@@ -63,7 +63,7 @@ net stop winnat && net start winnat
 - Filing 补件回路：待补充备案材料 ≈ 带标记的待安保方案设计，复用编辑→提交→签署→打包→交接。Manager 重签复用已上传签名
 - UC6 已移除：Liaison 审批通过后系统自动流转到审批通过-待举办，通知所有经手人。AdminStaff 可标记结束（举办中→已结束）
 - 新加 Service 命名 `XxxService`，构造函数 `def __init__(self, db: AsyncSession)`
-- 文档模板：`app/templates/{type}/` 含 `schema.py`（Pydantic 表单）和 `template.docx`（docxtpl Jinja2 占位符），详见 `docs/adr/0006.md`
+- 文档模板：`app/templates/{type}/` 含 `schema.py`（Pydantic 表单）和 `template.docx`（docxtpl Jinja2 占位符），详见 `docs/adr/0006.md`。模板字体：标题方正小标宋简体、标签楷体_GB2312、正文仿宋_GB2312（均在 `~/.local/share/fonts/`）
 
 ## Playwright PDF 渲染
 
@@ -78,7 +78,7 @@ net stop winnat && net start winnat
 |------|------|
 | `bash scripts/db-reset.sh` | 一键重建数据库（down -v + 迁移 + seed + 清限流） |
 | `bash scripts/check.sh` | Python 语法检查 + 前端构建验证 |
-| `python scripts/create_template_docx.py` | 重建 5 个 DOCX 模板文件 |
+| `python scripts/rebuild_templates.py` | 从源文件重建 5 个 DOCX 模板，设置字体格式 |
 
 ## 数据存储三原则（红线）
 
