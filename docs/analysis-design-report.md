@@ -1491,27 +1491,27 @@ erDiagram
 | `tests/test_upload.py` | DocumentService 文件上传 |
 | `tests/test_download.py` | 文件下载与 presigned URL |
 
-**浏览器端到端测试**：
+**浏览器端到端（E2E）测试**：
 
-基于 Playwright CDP 模式（连接本地 Edge 浏览器），13 个测试脚本覆盖从用户生命周期到活动全流程的场景：
+系统现有 13 个 Playwright 浏览器测试脚本（`tests/browser/`），覆盖从用户生命周期到活动全流程的场景。测试基于 CDP 模式连接本地 Edge 浏览器，通过 Docker Compose 启动完整后端基础设施（PostgreSQL + MinIO + Redis + Mailpit）。
 
-| 脚本 | 覆盖场景 | 关键验证点 |
+> **当前状态**：v0.31.0 版本对前端界面进行了较大幅度的重构（侧边栏折叠、自定义 Tab Bar 替代 antd Tabs、深浅主题切换、TemplateForm/ActivityForm 布局调整），导致现有 E2E 脚本的部分 DOM 选择器（尤其是 `.ant-tabs-tab` → 自定义 `<Button>` 的映射）不再匹配。v0.31.0 版本的前端功能验证以人工手动测试为主，E2E 脚本的更新将纳入后续迭代计划。
+
+| 脚本 | 覆盖场景 | 受重构影响 |
 |------|---------|-----------|
-| `01_user_lifecycle.py` | 用户注册/登录/角色申请 | JWT 认证流程 |
-| `02_activity_crud.py` | 活动 CRUD | 列表筛选、创建校验 |
-| `03_workflow.py` | 状态流转 | WorkflowActions 按钮权限 |
-| `04_permissions.py` | RBAC 权限校验 | 不同角色可见性 |
-| `05_gov_liaison.py` | 政府审查 | 审批通过/补件/驳回 |
-| `06_dashboard.py` | 工作台面板 | 统计图表渲染 |
-| `08_filing.py` | 备案打包与交接 | 材料签署/打包/下载 |
-| `11_admin_role_approval.py` | 角色申请审批 | AdminManager 操作 |
-| `14_superadmin_users.py` | 用户管理 | SuperAdmin 用户 CRUD |
-| `16_activity_tabs.py` | 活动详情页 Tab | 多 Tab 角色视图分离 |
-| `17_template_flow.py` | 模板全流程 TC1-TC6 | 从方案到审批的完整链路 |
+| `01_user_lifecycle.py` | 用户注册/登录/角色申请 | 低 — 登录/注册页未大改 |
+| `02_activity_crud.py` | 活动 CRUD | 低 — 列表/创建页选择器基本可用 |
+| `03_workflow.py` | 状态流转 | 中 — WorkflowActions 组件未改 |
+| `04_permissions.py` | RBAC 权限校验 | 中 — 侧边栏角色导航变化 |
+| `05_gov_liaison.py` | 政府审查 | 中 — 备案 Tab 内容面板未变 |
+| `06_dashboard.py` | 工作台面板 | 低 — Dashboard 页未大改 |
+| `08_filing.py` | 备案打包与交接 | 高 — 依赖自定义 Tab Bar 导航 |
+| `11_admin_role_approval.py` | 角色申请审批 | 低 — 管理页未大改 |
+| `14_superadmin_users.py` | 用户管理 | 低 — 管理页未大改 |
+| `16_activity_tabs.py` | 活动详情页 Tab | 高 — 核心测试目标已重构 |
+| `17_template_flow.py` | 模板全流程 TC1-TC6 | 高 — 依赖 `.ant-tabs-tab` 导航 |
 
-`17_template_flow.py` 的 TC1-TC6 覆盖核心业务流程：TC1 活动方案编制 → TC2 版本与 diff → TC3 安保方案与双表编制 → TC4 Manager 签署 → TC5 备案打包与交接 → TC6 GovLiaison 审查与审批。
-
-测试环境：Docker Compose 启动 PostgreSQL + MinIO + Redis + Mailpit，Playwright 通过 `connect_over_cdp("http://127.0.0.1:9222")` 连接本地 Edge 浏览器。
+**测试级别定性**：现有 E2E 脚本属于**系统级端到端测试**——真实浏览器操作真实后端，覆盖完整用户交互链路（点击→等待→断言）。与后端 API 集成测试（`httpx` 协议层）形成互补：后端测试验证服务逻辑正确性，E2E 测试验证用户可感知的功能正确性。
 
 **后端测试执行结果**（29/29 全部通过）：
 
