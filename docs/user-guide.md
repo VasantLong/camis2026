@@ -1,5 +1,175 @@
 # 用户操作手册
 
+## 从零部署：拉取仓库 → 本地运行
+
+以下从全新机器开始，逐步完成项目部署。已部署过的可跳到[启动系统](#启动系统)。
+
+### 1. 前置条件
+
+| 依赖 | 版本要求 | 验证命令 |
+|------|---------|---------|
+| Docker + Docker Compose | Docker 24+, Compose v2 | `docker compose version` |
+| Python | 3.12+ | `python --version` |
+| mamba (miniforge3) | 任意 | `mamba --version` |
+| pnpm | 9+ | `pnpm --version` |
+| Git | 2+ | `git --version` |
+| 字体（文档渲染） | 楷体_GB2312、仿宋_GB2312（项目已附带）；方正小标宋简体（需自行获取） | `fc-list :lang=zh \| grep -i "kai\|fang\|xiao"` |
+
+> **项目附带字体**：`docs/fonts/` 目录包含楷体_GB2312 和仿宋_GB2312，执行以下命令安装：
+> ```bash
+> cp docs/fonts/KaiTi_GB2312.ttf docs/fonts/FangSong_GB2312.ttf ~/.local/share/fonts/
+> fc-cache -fv
+> ```
+> **方正小标宋简体**（模板标题）为方正字库商业字体，需自行获取后放入 `~/.local/share/fonts/`，详见 `docs/fonts/README.md`。缺少该字体不影响功能，但标题排版会回退为系统默认字体。
+
+### 2. 克隆仓库
+
+```bash
+git clone git@github.com-personal:VasantLong/camis2026.git
+cd camis2026
+```
+
+### 3. 配置环境变量
+
+项目根目录已含 `.env.example` 模板，复制为 `.env` 即可用于本地开发：
+
+```bash
+cp .env.example .env
+```
+
+`.env` 关键配置项：
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | `docapp` / `secret_pg_pwd` / `doc_metadata` | 本地开发无需修改 |
+| `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` | `minioadmin` / `minioadmin` | 本地开发无需修改 |
+| `REDIS_PASSWORD` | `secret_redis_pwd` | 本地开发无需修改 |
+| `JWT_SECRET` | `change-me-in-production` | **必须修改**，任意随机字符串 |
+| `ALLOW_ORIGINS` | `http://localhost:5173` | 前端地址，本地开发无需修改 |
+| `FRONTEND_URL` | `http://localhost:5173` | Playwright 渲染用，本地开发无需修改 |
+
+> **注意**：Docker Compose 使用 `.env` 中的变量，不要删除该文件。`app/config.py` 同样读取 `.env`。
+
+### 4. 创建 Python 虚拟环境
+
+```bash
+mamba create -n camis2026 python=3.12 -y
+mamba activate camis2026
+pip install -r requirements.txt
+```
+
+> 首次安装建议使用清华 PyPI 镜像加速：`pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple`
+
+### 5. 安装前端依赖
+
+```bash
+cd frontend
+pnpm install
+cd ..
+```
+
+### 6. 启动基础设施服务
+
+```bash
+# 构建 Playwright PDF 渲染微服务镜像（首次需要）
+docker compose build playwright-svc
+
+# 启动全部基础设施（数据库 + 存储 + 缓存 + 邮件 + PDF 渲染）
+docker compose up -d postgres minio redis mailpit playwright-svc
+```
+
+等待所有容器 healthy：
+
+```bash
+docker compose ps
+# postgres, minio, redis 应显示 (healthy)
+```
+
+### 7. 初始化 MinIO 存储桶
+
+```bash
+docker compose run --rm minio-init
+```
+
+### 8. 执行数据库迁移
+
+```bash
+alembic upgrade head
+```
+
+迁移会将全部 20+ 表 DDL、RBAC 种子数据、`login_attempts` 表一次性创建。
+
+### 9. 创建测试用户与种子数据
+
+```bash
+python scripts/seed_test_users.py       # 8 个单角色测试用户
+python scripts/seed_test_activities.py  # 23 个种子活动（覆盖全状态）
+python scripts/create_devtest_user.py   # devtest 全能测试用户
+```
+
+> 以上脚本均为幂等，可重复执行。
+
+### 10. 启动后端
+
+```bash
+uvicorn app.main:app --reload --port 8000
+```
+
+输出示例：
+```
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process
+```
+
+> **注意**：不要同时 `docker compose up -d` 全部服务，因为 Docker 中的 `app` 容器也会占用 8000 端口，会导致 uvicorn 启动失败（`Address already in use`）。如已启动全部，先 `docker compose stop app` 释放端口。
+
+### 11. 启动前端
+
+在另一个终端：
+
+```bash
+cd frontend
+pnpm dev
+```
+
+输出示例：
+```
+  VITE v8.x  ready in XXXms
+  ➜  Local:   http://localhost:5173/
+```
+
+### 12. 验证部署
+
+```bash
+# 后端健康检查
+curl http://localhost:8000/health
+# → {"status": "ok"}
+
+# 前端
+# 浏览器打开 http://localhost:5173
+```
+
+用测试帐号登录验证完整链路：
+
+| 邮箱 | 密码 | 角色 |
+|------|------|------|
+| `devtest@test.com` | `pass123` | 全部 7 角色（全能） |
+| `promoter@test.com` | `pass123` | Promoter（宣策部） |
+
+---
+
+### 一键重置（开发调试用）
+
+如果数据库损坏或想完全从头开始：
+
+```bash
+bash scripts/db-reset.sh
+```
+
+此脚本等价于步骤 6-9 的自动化执行（down -v → 重建容器 → 迁移 → seed）。
+
+---
+
 ## 服务器架构：Uvicorn vs Gunicorn
 
 FastAPI 应用本身不直接处理网络请求，需要 ASGI 服务器来运行：
