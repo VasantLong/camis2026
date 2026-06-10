@@ -371,7 +371,7 @@ create_async_engine(url, pool_pre_ping=True, pool_size=10)
 2. `alembic init migrations`
 3. `alembic revision --autogenerate -m "initial: baseline"`
 4. `alembic stamp head`（不执行，只打标记——表已存在）
-5. `init-scripts/` 归档到 `docs/init-scripts-archive/`，标注已被 Alembic 替代
+5. `init-scripts/` 已由 Alembic 基线迁移完全替代，不再使用原始 DDL 脚本
 6. 后续改 schema 一律通过 `alembic revision --autogenerate -m "description"` + `alembic upgrade head`
 
 ### 10.2 迁移命名约定

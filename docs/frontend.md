@@ -591,7 +591,7 @@ flowchart LR
 
 - [ ] 浏览器测试覆盖不完整（部分角色操作路径未验证）
 - [ ] `@ant-design/charts` 图表库（当前用 Progress 条替代饼图）
-- [x] F5 刷新 StrictMode 兼容（已修复，详见 `docs/issues/auth-initializer-strictmode.md`）
+- [x] F5 刷新 StrictMode 兼容（React 18 StrictMode 双重挂载导致 AuthInitializer 状态异常，通过 ref 标记已初始化状态修复）
 
 ## 远期 Dashboard 增强指标
 

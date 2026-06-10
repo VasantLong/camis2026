@@ -15,12 +15,8 @@
 | Git | 2+ | `git --version` |
 | 字体（文档渲染） | 楷体_GB2312、仿宋_GB2312（项目已附带）；方正小标宋简体（需自行获取） | `fc-list :lang=zh \| grep -i "kai\|fang\|xiao"` |
 
-> **项目附带字体**：`docs/fonts/` 目录包含楷体_GB2312 和仿宋_GB2312，执行以下命令安装：
-> ```bash
-> cp docs/fonts/KaiTi_GB2312.ttf docs/fonts/FangSong_GB2312.ttf ~/.local/share/fonts/
-> fc-cache -fv
-> ```
-> **方正小标宋简体**（模板标题）为方正字库商业字体，需自行获取后放入 `~/.local/share/fonts/`，详见 `docs/fonts/README.md`。缺少该字体不影响功能，但标题排版会回退为系统默认字体。
+> **文档渲染字体**：楷体_GB2312、仿宋_GB2312 可通过系统包管理器安装（如 `apt install fonts-wqy-zenhei`），或从项目维护者处获取后放入 `~/.local/share/fonts/` 并执行 `fc-cache -fv`。详见 `docs/fonts/README.md`。
+> **方正小标宋简体**（模板标题）为方正字库商业字体，需自行获取，缺少该字体不影响功能，但标题排版会回退为系统默认字体。
 
 ### 2. 克隆仓库
 

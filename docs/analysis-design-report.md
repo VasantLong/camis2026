@@ -1594,8 +1594,8 @@ erDiagram
 | 项 | 说明 | 优先级 |
 |---|------|--------|
 | M:N join 表缺模型 | `security_plan_materials`、`filing_doc_materials` 仅有建表 DDL，无 SQLAlchemy ORM 模型，当前通过 raw SQL 操作 | 中 |
-| 旧权限残留 | `upload_approval`、`update_approval_status` 在 DB 中存在但无代码引用，仍分配给 GovLiaison 角色（详见 `docs/issues/legacy-permissions.md`） | 中 |
-| 审批状态命名混淆 | `ApprovalRecord.approval_status` 与 `Activity.status` 共用中文字符串值且语义重叠，前端曾因此出现 422 错误（详见 `docs/issues/approval-status-confusion.md`） | 中 |
+| 旧权限残留 | `upload_approval`、`update_approval_status` 在 DB 中存在但无代码引用，仍分配给 GovLiaison 角色（无代码引用但仍分配角色的废弃权限） | 中 |
+| 审批状态命名混淆 | `ApprovalRecord.approval_status` 与 `Activity.status` 共用中文字符串值且语义重叠，前端曾因此出现 422 错误（中文字符串值语义重叠） | 中 |
 
 **测试体系**：
 
@@ -1618,7 +1618,7 @@ erDiagram
 | 项 | 说明 | 优先级 |
 |---|------|--------|
 | 移动端适配 | 仅登录页做了响应式处理，活动详情页等核心页面在小屏设备上布局拥挤 | 中 |
-| 驳回后防重复提交 | SecurityOfficer 被驳回后未生成新版本即可重新点击"提交审核"，可能形成无效循环（详见 `docs/issues/post-reject-improvements.md`） | 低 |
+| 驳回后防重复提交 | SecurityOfficer 被驳回后未生成新版本即可重新点击"提交审核"，可能形成无效循环（未生成新版本即可重新提交） | 低 |
 | 消息中心完善 | 当前仅系统工作流通知；邮箱验证成功、密码变更等用户操作类通知尚未覆盖 | 低 |
 
 ### 优化方向

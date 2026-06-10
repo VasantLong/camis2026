@@ -47,7 +47,7 @@ camis2026/
 ├── migrations/                     # Alembic 数据库迁移（Python）
 ├── init-scripts/                   # PostgreSQL 扩展（仅 uuid-ossp）
 │   └── 00-extensions.sql
-├── docs/init-scripts-archive/      # 历史 DDL（已由 Alembic 替代）
+├── docs/fonts/                     # 文档渲染字体（楷体、仿宋附赠）
 ├── playwright-svc/                 # Playwright PDF 渲染微服务 (独立 Docker 容器)
 ├── scripts/
 │   ├── db-reset.sh                 # 一键重建数据库 (down -v + 迁移 + seed)
@@ -128,14 +128,8 @@ camis2026/
 | `docs/adr/0005-task-driven-navigation.md` | 任务驱动导航设计 |
 | `docs/adr/0006-document-template-system.md` | DOCX 模板引擎 + 版本管理 + 跨模板同步 |
 
-### AI 开发规则
+### 字体资源
 
 | 文档 | 说明 |
 |------|------|
-| `.claude/CLAUDE.md` | AI 助手的项目规则手册：架构约束、安全红线、编码习惯 |
-
-### 问题回溯
-
-| 文档 | 说明 |
-|------|------|
-| `docs/issues/` | 开发过程中遇到的问题与解决方案（权限、模板、认证等） |
+| `docs/fonts/README.md` | 文档渲染所需中文字体获取与安装说明 |
