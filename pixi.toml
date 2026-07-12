@@ -1,0 +1,77 @@
+[workspace]
+channels = ["conda-forge"]
+name = "camis2026-pixi"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks]
+# === Development Server ===
+dev = "uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
+dev-no-reload = "uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+# === Docker Infra ===
+infra-up = "docker compose up -d postgres minio redis mailpit minio-init"
+infra-down = "docker compose down"
+infra-logs = "docker compose logs -f"
+
+# === Database ===
+db-upgrade = "alembic upgrade head"
+db-downgrade = "alembic downgrade -1"
+db-migrate = "alembic revision --autogenerate -m"
+db-reset = "bash scripts/db-reset.sh"
+
+# === Seed Data ===
+seed-users = "python scripts/seed_test_users.py"
+seed-activities = "python scripts/seed_test_activities.py"
+seed-devtest = "python scripts/create_devtest_user.py"
+seed-all = { depends-on = ["seed-users", "seed-activities"] }
+
+# === Testing ===
+test = "pytest"
+test-verbose = "pytest -v"
+test-coverage = "pytest --cov=app"
+
+# === Code Quality ===
+check-python = { cmd = "bash scripts/check.sh", depends-on = [] }
+
+# === Template ===
+templates-rebuild = "python scripts/rebuild_templates.py"
+
+# === Playwright Browser ===
+playwright-install = "playwright install chromium"
+
+[dependencies]
+python = "3.12.*"
+ffmpeg = ">=8.1.2,<9"
+pandoc = ">=3.10,<4"
+pillow = ">=12.3.0,<13"
+lxml = ">=6.1.1,<7"
+
+[pypi-dependencies]
+fastapi = ">=0.139.0, <0.140"
+uvicorn = ">=0.51.0, <0.52"
+sqlalchemy = ">=2.0.51, <3"
+alembic = ">=1.18.5, <2"
+asyncpg = ">=0.31.0, <0.32"
+pydantic = ">=2.13.4, <3"
+pydantic-settings = ">=2.14.2, <3"
+python-jose = ">=3.5.0, <4"
+cryptography = ">=49.0.0, <50"
+httpx = ">=0.28.1, <0.29"
+python-multipart = ">=0.0.32, <0.0.33"
+python-dotenv = ">=1.2.2, <2"
+redis = ">=8.0.1, <9"
+email-validator = ">=2.3.0, <3"
+bcrypt = ">=5.0.0, <6"
+psycopg2-binary = ">=2.9.12, <3"
+docxtpl = ">=0.20.2, <0.21"
+python-docx = ">=1.2.0, <2"
+reportlab = ">=5.0.0, <6"
+minio = ">=7.2.20, <8"
+playwright = ">=1.61.0, <2"
+pytest = ">=9.1.1, <10"
+pytest-asyncio = ">=1.4.0, <2"
+watchfiles = ">=1.2.0, <2"
+pycryptodome = ">=3.23.0, <4"
+jinja2 = ">=3.1.6, <4"
+pyyaml = ">=6.0.3, <7"

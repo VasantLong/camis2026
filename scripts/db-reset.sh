@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Full database reset: drop volumes, recreate, migrate, seed.
-# Usage: bash scripts/db-reset.sh
+# Usage: pixi run db-reset   (or: bash scripts/db-reset.sh)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
