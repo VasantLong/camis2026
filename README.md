@@ -4,24 +4,37 @@
 
 ## 快速启动
 
+> **本地环境管理使用 pixi**（v0.72.2），详见 [docs/user-guide.md](docs/user-guide.md)。
+> 生产部署使用 Docker，不依赖 pixi。
+
+### 前置条件
+
+| 依赖 | 版本 | 验证 |
+|------|------|------|
+| Docker Compose | v2+ | `docker compose version` |
+| pixi | 0.72+ | `pixi --version` |
+| pnpm | 9+ | `pnpm --version` |
+
 ```bash
-# 1. 一次性完整重置（含数据库、种子数据、PDF 渲染服务）
-bash scripts/db-reset.sh
+# 1. 安装 pixi 环境（首次一次性）
+pixi install
 
-# 2. 后端 (Python 3.12, mamba env: camis2026)
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+# 2. 一次性完整重置（基础设施 + 数据库 + 种子数据）
+pixi run db-reset
 
-# 3. 前端 (React + Vite)
+# 3. 启动后端（热重载）
+pixi run dev
+
+# 4. 另一个终端：启动前端
 cd frontend && pnpm install && pnpm dev
 
-# 4. 验证
+# 5. 验证
 curl http://localhost:8000/health    # 后端
 open http://localhost:5173           # 前端
-open http://localhost:18025           # Mailpit
+open http://localhost:18025          # Mailpit
 ```
 
-> 详细启动说明（含生产模式 Gunicorn 部署）见 [docs/user-guide.md](docs/user-guide.md)。
+> 详细启动说明见 [docs/user-guide.md](docs/user-guide.md)。
 
 ## 架构
 
@@ -39,12 +52,12 @@ open http://localhost:18025           # Mailpit
 camis2026/
 ├── docker-compose.yml              # 容器编排 (PostgreSQL + MinIO + Redis + Mailpit)
 ├── Dockerfile / gunicorn.conf.py   # 生产镜像
+├── pixi.toml / pixi.lock           # pixi 环境声明 + 锁定（本地开发）
 ├── .env / .env.example             # 环境变量 (.env 不入 git)
-├── requirements.txt                # Python 依赖
+├── requirements.txt                # 仅用于 Docker 生产构建
 ├── pyproject.toml                  # pytest 配置
 ├── CONTEXT.md                      # 领域术语表
 ├── migrations/                     # Alembic 数据库迁移
-├── migrations/                     # Alembic 数据库迁移（Python）
 ├── init-scripts/                   # PostgreSQL 扩展（仅 uuid-ossp）
 │   └── 00-extensions.sql
 ├── docs/init-scripts-archive/      # 历史 DDL（已由 Alembic 替代）

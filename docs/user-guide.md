@@ -10,7 +10,7 @@
 |------|---------|---------|
 | Docker + Docker Compose | Docker 24+, Compose v2 | `docker compose version` |
 | Python | 3.12+ | `python --version` |
-| mamba (miniforge3) | 任意 | `mamba --version` |
+| pixi | 0.72+ | `pixi --version` |
 | pnpm | 9+ | `pnpm --version` |
 | Git | 2+ | `git --version` |
 | 字体（文档渲染） | 楷体_GB2312、仿宋_GB2312（项目已附带）；方正小标宋简体（需自行获取） | `fc-list :lang=zh \| grep -i "kai\|fang\|xiao"` |
@@ -50,15 +50,23 @@ cp .env.example .env
 
 > **注意**：Docker Compose 使用 `.env` 中的变量，不要删除该文件。`app/config.py` 同样读取 `.env`。
 
-### 4. 创建 Python 虚拟环境
+### 4. 安装 pixi 环境
+
+项目使用 [pixi](https://pixi.sh) 管理 Python 版本 + 系统依赖 + PyPI 包，一步到位：
 
 ```bash
-mamba create -n camis2026 python=3.12 -y
-mamba activate camis2026
-pip install -r requirements.txt
+pixi install
 ```
 
-> 首次安装建议使用清华 PyPI 镜像加速：`pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple`
+`pixi install` 会自动：
+1. 创建隔离环境（`.pixi/envs/default/`）
+2. 安装 conda 依赖：Python 3.12、ffmpeg、pandoc、pillow、lxml
+3. 安装 PyPI 依赖：FastAPI、SQLAlchemy、Alembic 等 25+ 个包
+4. 生成/更新 `pixi.lock` 锁定文件
+
+所有命令通过 `pixi run <task>` 在环境中执行，无需手动 activate。
+
+> pixi 环境目录 `.pixi/` 已自动加入 `.gitignore`（项目级环境，不提交）。
 
 ### 5. 安装前端依赖
 
@@ -102,9 +110,11 @@ alembic upgrade head
 ### 9. 创建测试用户与种子数据
 
 ```bash
-python scripts/seed_test_users.py       # 8 个单角色测试用户
-python scripts/seed_test_activities.py  # 23 个种子活动（覆盖全状态）
-python scripts/create_devtest_user.py   # devtest 全能测试用户
+pixi run seed-users       # 8 个单角色测试用户
+pixi run seed-activities  # 23 个种子活动（覆盖全状态）
+pixi run seed-devtest     # devtest 全能测试用户
+# 或一键全量灌入：
+pixi run seed-all
 ```
 
 > 以上脚本均为幂等，可重复执行。
@@ -112,7 +122,7 @@ python scripts/create_devtest_user.py   # devtest 全能测试用户
 ### 10. 启动后端
 
 ```bash
-uvicorn app.main:app --reload --port 8000
+pixi run dev
 ```
 
 输出示例：
@@ -194,14 +204,12 @@ FastAPI 应用本身不直接处理网络请求，需要 ASGI 服务器来运行
 Docker 只跑基础设施，FastAPI 和前端在本地跑，支持热重载：
 
 ```bash
-# 终端 1：仅启动基础设施服务（数据库 + 存储 + 缓存）
-docker compose up -d postgres minio redis mailpit playwright-svc
+# 终端 1：仅启动基础设施服务（数据库 + 存储 + 缓存 + PDF渲染）
+pixi run infra-up
 
 # 终端 2：后端 API（热重载，改代码自动重启）
-cd /home/vasant/projects/work/camis2026
-mamba activate camis2026
-alembic upgrade head    # 创建/更新数据库表（Alembic 替代了原来的 init-scripts）
-uvicorn app.main:app --reload --port 8000
+pixi run db-upgrade           # 创建/更新数据库表
+pixi run dev                  # uvicorn --reload :8000
 
 # 终端 3：前端开发服务器
 cd /home/vasant/projects/work/camis2026/frontend
@@ -209,6 +217,8 @@ pnpm dev
 ```
 
 > **注意**：不要用 `docker compose up -d` 全部启动，因为 Docker 里的 `app` 服务也会占用 8000 端口，会导致 uvicorn 启动失败（`Address already in use`）。如已启动全部，先 `docker compose stop app` 释放端口。
+
+可用 `pixi run infra-logs` 实时查看容器日志。
 
 ### 生产验证（提交前/上线前）
 
@@ -261,18 +271,15 @@ docker compose restart postgres
 docker compose up -d --build
 
 # 清除所有数据重新开始 (包括数据库卷)
+pixi run db-reset
+
+# 或手动逐步：
 docker compose down -v
-docker compose up -d
-
-# 激活 Python 环境并安装依赖
-mamba activate camis2026
-pip install -r requirements.txt
-
-# 创建/更新数据库表
-alembic upgrade head
-
-# 启动后端 (确认 Docker 服务已运行)
-uvicorn app.main:app --reload --port 8000
+docker compose up -d postgres minio redis mailpit playwright-svc
+docker compose run --rm minio-init
+pixi run db-upgrade
+pixi run seed-all
+pixi run dev
 
 # 健康检查
 curl http://localhost:8000/health
@@ -285,9 +292,11 @@ curl http://localhost:8000/health
 用以下脚本创建测试帐号（幂等，可重复执行）：
 
 ```bash
-python scripts/seed_test_users.py       # 创建 8 个单角色测试用户
-python scripts/seed_test_activities.py  # 创建 23 个种子活动（含 promoter/security/liaison 用户）
-python scripts/create_devtest_user.py   # 创建 devtest（全角色全能用户）
+pixi run seed-users       # 创建 8 个单角色测试用户
+pixi run seed-activities  # 创建 23 个种子活动（含 promoter/security/liaison 用户）
+pixi run seed-devtest     # 创建 devtest（全角色全能用户）
+# 或：
+pixi run seed-all
 ```
 
 | 邮箱 | 密码 | 角色 | 可访问页面 |
@@ -445,7 +454,96 @@ grep "5d9c44477528" logs/camis.log
 
 | 终端 | 运行内容                                    | 看什么                                |
 | ---- | ------------------------------------------- | ------------------------------------- |
-| 1    | `alembic upgrade head && uvicorn app.main:app --reload --port 8000` | 迁移 + HTTP/SQL/Redis/MinIO 全链路日志 |
+| 1    | `pixi run db-upgrade && pixi run dev`       | 迁移 + HTTP/SQL/Redis/MinIO 全链路日志 |
 | 2    | `cd frontend && pnpm dev`                   | 前端编译热更新                        |
 
 浏览器 DevTools (F12) → Network 面板查看 API 请求详情。
+
+---
+
+## 环境配置流程全景
+
+### 本地开发环境
+
+| 层 | 工具 | 配置入口 | 说明 |
+|----|------|----------|------|
+| **Python + 系统依赖** | **pixi** | `pixi.toml` + `pixi.lock` | 声明式管理 Python 3.12 + conda 系统库（ffmpeg/pandoc/lxml）+ PyPI 包，`pixi install` 一步完成 |
+| **基础设施** | **Docker Compose** | `docker-compose.yml` | PostgreSQL 17 + MinIO + Redis 7.4 + Mailpit，`pixi run infra-up` 启动 |
+| **运行时配置** | **环境变量** | `.env`（不入 git，`.env.example` 为模板） | 数据库凭据、MinIO 密钥、JWT Secret、SMTP 等 |
+| **前端** | **pnpm** | `frontend/package.json` | React + Vite，`pnpm install && pnpm dev` |
+| **数据库迁移** | **Alembic** | `migrations/` + `alembic.ini` | `pixi run db-upgrade` 执行，`pixi run db-migrate "msg"` 自动生成 |
+| **Playwright PDF** | **独立 Docker 容器** | `playwright-svc/` | 独立 FastAPI 微服务，headless Chromium 截图 |
+| **测试** | **pytest** | `pyproject.toml` | `pixi run test` 或 `pixi run test-coverage` |
+
+**环境初始化命令（首次）：**
+
+```bash
+# 1. pixi 环境（Python + 系统依赖 + PyPI 包）
+pixi install
+
+# 2. 启动基础设施
+pixi run infra-up
+
+# 3. 执行迁移 + 灌种子数据
+pixi run db-upgrade
+pixi run seed-all
+
+# 4. 启动后端
+pixi run dev
+```
+
+**日常命令速查：**
+
+| 操作 | 命令 |
+|------|------|
+| 启动后端 | `pixi run dev` |
+| 启动基础设施 | `pixi run infra-up` |
+| 执行迁移 | `pixi run db-upgrade` |
+| 生成迁移 | `pixi run db-migrate "描述"` |
+| 运行测试 | `pixi run test` |
+| 灌种子数据 | `pixi run seed-all` |
+| 重建数据库 | `pixi run db-reset` |
+| 语法检查 | `pixi run check-python` |
+| 进入环境 | `pixi shell` |
+
+---
+
+### 生产 / 云部署环境
+
+生产部署不依赖 pixi，使用标准 Docker 镜像：
+
+| 层 | 工具 | 配置入口 | 说明 |
+|----|------|----------|------|
+| **Python 应用** | **pip** + `python:3.12-slim` | `Dockerfile` | `pip install -r requirements.txt`（Docker 构建时） |
+| **Web 服务器** | **gunicorn** | `gunicorn.conf.py` | 生产 WSGI 服务器，Docker CMD 中启动 |
+| **基础设施** | **Docker Compose / K8s** | `docker-compose.yml` | PostgreSQL、MinIO、Redis 单独容器或云托管服务 |
+| **运行时配置** | **环境变量** | `.env` 或 K8s Secret | 数据库凭据、MinIO、JWT、Sentinel |
+| **Playwright PDF** | **独立容器** | `playwright-svc/` | 同上，生产建议水平扩展 |
+| **数据库迁移** | **Alembic** | `Dockerfile` CMD | 容器启动时自动 `alembic upgrade head` |
+
+**Docker 构建流程：**
+
+```
+Dockerfile
+  ↓
+FROM python:3.12-slim          ← 标准 Python 镜像
+COPY requirements.txt .         ← 依赖清单（仅用于生产）
+RUN pip install -r requirements.txt
+COPY app/ ./app/                ← 应用代码
+COPY migrations/ ./migrations/  ← 迁移脚本
+CMD alembic upgrade head && gunicorn app.main:app -c gunicorn.conf.py
+```
+
+**关键区别：**
+
+| 维度 | 本地开发 | 生产部署 |
+|------|----------|----------|
+| 环境管理 | pixi（conda + PyPI 混合） | pip（纯 PyPI） |
+| Python | pixi 管理 3.12（conda-forge 包） | `python:3.12-slim` Docker 镜像 |
+| 系统依赖 | conda（ffmpeg、pandoc、lxml） | 不依赖（生产不生成文档模板） |
+| 依赖声明 | `pixi.toml` | `requirements.txt` |
+| 数据库迁移 | 手动 `pixi run db-upgrade` | Docker CMD 中自动执行 |
+| 热重载 | uvicorn --reload | gunicorn（生产模式） |
+| 凭据管理 | `.env` 文件 | 环境变量 / K8s Secret |
+
+> **注意**：`requirements.txt` 是 pixi 迁移前遗留文件，当前仅用于 Docker 生产构建，与 pixi 的 `[pypi-dependencies]` 保持手动同步。两者版本号差距已手动对齐，后续如果依赖增减需同时更新两处。

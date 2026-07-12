@@ -1,3 +1,5 @@
+# ONLY used for Docker production builds. Local development uses pixi (pixi.toml).
+# See: https://pixi.sh
 fastapi>=0.115.0
 uvicorn[standard]>=0.34.0
 sqlalchemy[asyncio]>=2.0
