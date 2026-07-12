@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Usage: pixi run check-python   (or: bash scripts/check.sh)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
