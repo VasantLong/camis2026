@@ -1,6 +1,6 @@
 # CAMIS — 活动合规审批管理系统
 
-> **v0.31.0** — 企业部门活动合规审批 MIS。技术栈：**Python (FastAPI)** + **React SPA** + **PostgreSQL 17** + **MinIO** + **Redis 7.4**，Docker Compose 本地编排，SOA 模块化单体架构。五大道景区活动与审批全流程：立项→方案→安保→签署→打包→审查→审批→监控。含深浅主题切换、侧边栏折叠、自定义 Tab Bar、Schema 驱动动态表单、DOCX 模板引擎、Playwright PDF 渲染。
+> **v0.32.0** — 企业部门活动合规审批 MIS。技术栈：**Python (FastAPI)** + **React SPA** + **PostgreSQL 17** + **MinIO** + **Redis 7.4**，Docker Compose 本地编排，SOA 模块化单体架构。五大道景区活动与审批全流程：立项→方案→安保→签署→打包→审查→审批→监控。含深浅主题切换、侧边栏折叠、自定义 Tab Bar、Schema 驱动动态表单、DOCX 模板引擎、Playwright PDF 渲染。
 
 ## 快速启动
 
