@@ -56,11 +56,12 @@ pixi run dev                   # uvicorn reload
 
 ## 脚本速查
 
-| 脚本 | 用途 |
+| 脚本 / pixi task | 用途 |
 |------|------|
-| `bash scripts/db-reset.sh` | 一键重建数据库（down -v + 迁移 + seed + 清限流） |
-| `bash scripts/check.sh` | Python 语法检查 + 前端构建验证 |
-| `python scripts/rebuild_templates.py` | 从源文件重建 5 个 DOCX 模板，设置字体格式 |
+| `pixi run db-reset` | 一键重建数据库（down -v + 迁移 + seed + 清限流） |
+| `pixi run check-python` | Python 语法检查 + 前端构建验证 |
+| `pixi run templates-rebuild` | 从源文件重建 5 个 DOCX 模板，设置字体格式 |
+| `pixi run seed-all` | 灌入全部种子数据 |
 
 ## 数据存储三原则（红线）
 
@@ -87,7 +88,7 @@ pixi run dev                   # uvicorn reload
 - **antd Select 用 `keyboard.type()` 操作**：v6 Select 的 input 是 `readonly` 的 `role="combobox"`，不能用 `fill()`。先 `click()` 打开下拉，再 `keyboard.type(option)` + `Enter` 完成选择
 - **测试邮箱必须有标准 TLD**：Ant Design email 验证器拒绝 `@localhost`
 - **DOM 变更后重新查询元素**：`.all()` 返回的引用在 render 后过期，用 `while` 循环 + 重新查询
-- **`docker compose down -v` 后重跑 seed**：`seed_test_users.py` + `seed_test_activities.py` + `create_devtest_user.py`
+- **`docker compose down -v` 后重跑 seed**：`pixi run seed-all`（或 `seed_test_users.py` + `seed_test_activities.py` + `create_devtest_user.py`）
 - **文件上传用 filechooser 模式**：antd Upload 组件需 `page.expect_file_chooser()` + 点击上传按钮，不能用 `set_input_files()`；文件必须为允许类型（pdf/jpg/png/doc/docx）
 - **CDP 模式不覆盖视口/DPR**：用 `browser.contexts[0]` 已有 context，不调 `set_viewport_size` 或 `new_context(viewport=...)`。CDP 截图按实际窗口像素截取，视图模拟不改变截图尺寸。详见 `tests/browser/utils.py` 和 `docs/browser-tests.md#cdp-视口与截图`
 - **备案打包依赖 seed 材料**：打包测试需已有 key_materials 的活动（如 `社区志愿服务日`），不能从空活动开始
@@ -96,7 +97,7 @@ pixi run dev                   # uvicorn reload
 
 - **提交 PR 前必须跑 pr-check**：参照 `.github/workflows/pr-checks.yml` 的 6 项检查，逐项验证：
   1. 分支命名：`feat|fix|test|docs|chore|refactor[/-]...`
-  2. Python 语法：`python -m py_compile <changed.py>`
+  2. Python 语法：`pixi run python -m py_compile <changed.py>`
   3. 密钥扫描：`git diff main...HEAD` 检查无硬编码凭据
   4. 数据库迁移安全：检查 Alembic migration 无不可逆操作（`op.drop_table`/`op.drop_column` 必须有对应 downgrade）
   5. 依赖变更审查：`requirements.txt` / `package.json` 变更需人工确认
