@@ -8,14 +8,15 @@ Python 3.12 (FastAPI) + PostgreSQL 17 + MinIO + Redis 7.4，Docker Compose 编�
 
 ## 核心服务
 
-| 服务 | 端口 | 凭据来源 | 用途 |
-|------|------|----------|------|
-| PostgreSQL 17 | 5432 | `.env` (`PG_USER` / `PG_PASSWORD`) | 业务数据与元数据 |
-| MinIO | 9000 (API), 9001 (控制台) | `.env` | 文件对象存储 |
-| Redis 7.4 | 6379 | `.env` (`REDIS_PASSWORD`) | 缓存、Session、队列 |
-| Mailpit | 11025 (SMTP), 18025 (Web) | 无 | 开发邮件捕获 |
+| 服务          | 端口                      | 凭据来源                           | 用途                |
+| ------------- | ------------------------- | ---------------------------------- | ------------------- |
+| PostgreSQL 17 | 5432                      | `.env` (`PG_USER` / `PG_PASSWORD`) | 业务数据与元数据    |
+| MinIO         | 9000 (API), 9001 (控制台) | `.env`                             | 文件对象存储        |
+| Redis 7.4     | 6379                      | `.env` (`REDIS_PASSWORD`)          | 缓存、Session、队列 |
+| Mailpit       | 11025 (SMTP), 18025 (Web) | 无                                 | 开发邮件捕获        |
 
 开发环境启动：
+
 ```bash
 pixi run infra-up              # 启动 postgres/minio/redis/mailpit
 pixi run db-upgrade            # Alembic 迁移
@@ -24,16 +25,17 @@ pixi run dev                   # uvicorn reload
 ```
 
 ### pixi tasks 速查
-| 命令 | 用途 |
-|------|------|
-| `pixi run dev` | 启动开发服务器（--reload） |
-| `pixi run infra-up` | 启动 Docker 基础设施 |
-| `pixi run db-upgrade` | 执行迁移 |
-| `pixi run db-migrate "msg"` | 自动生成迁移脚本 |
-| `pixi run test` | 运行测试 |
-| `pixi run seed-all` | 灌入种子数据 |
-| `pixi run db-reset` | 重建数据库（全量重置） |
-| `pixi shell` | 进入 pixi 环境（可选） |
+
+| 命令                        | 用途                       |
+| --------------------------- | -------------------------- |
+| `pixi run dev`              | 启动开发服务器（--reload） |
+| `pixi run infra-up`         | 启动 Docker 基础设施       |
+| `pixi run db-upgrade`       | 执行迁移                   |
+| `pixi run db-migrate "msg"` | 自动生成迁移脚本           |
+| `pixi run test`             | 运行测试                   |
+| `pixi run seed-all`         | 灌入种子数据               |
+| `pixi run db-reset`         | 重建数据库（全量重置）     |
+| `pixi shell`                | 进入 pixi 环境（可选）     |
 
 ## Schema 迁移
 
@@ -56,12 +58,12 @@ pixi run dev                   # uvicorn reload
 
 ## 脚本速查
 
-| 脚本 / pixi task | 用途 |
-|------|------|
-| `pixi run db-reset` | 一键重建数据库（down -v + 迁移 + seed + 清限流） |
-| `pixi run check-python` | Python 语法检查 + 前端构建验证 |
-| `pixi run templates-rebuild` | 从源文件重建 5 个 DOCX 模板，设置字体格式 |
-| `pixi run seed-all` | 灌入全部种子数据 |
+| 脚本 / pixi task             | 用途                                             |
+| ---------------------------- | ------------------------------------------------ |
+| `pixi run db-reset`          | 一键重建数据库（down -v + 迁移 + seed + 清限流） |
+| `pixi run check-python`      | Python 语法检查 + 前端构建验证                   |
+| `pixi run templates-rebuild` | 从源文件重建 5 个 DOCX 模板，设置字体格式        |
+| `pixi run seed-all`          | 灌入全部种子数据                                 |
 
 ## 数据存储三原则（红线）
 
@@ -96,12 +98,12 @@ pixi run dev                   # uvicorn reload
 ## PR 提交规范
 
 - **提交 PR 前必须跑 pr-check**：参照 `.github/workflows/pr-checks.yml` 的 6 项检查，逐项验证：
-  1. 分支命名：`feat|fix|test|docs|chore|refactor[/-]...`
-  2. Python 语法：`pixi run python -m py_compile <changed.py>`
-  3. 密钥扫描：`git diff main...HEAD` 检查无硬编码凭据
-  4. 数据库迁移安全：检查 Alembic migration 无不可逆操作（`op.drop_table`/`op.drop_column` 必须有对应 downgrade）
-  5. 依赖变更审查：`requirements.txt` / `package.json` 变更需人工确认
-  6. 前端构建：`cd frontend && pnpm exec vite build`
+    1. 分支命名：`feat|fix|test|docs|chore|refactor[/-]...`
+    2. Python 语法：`pixi run python -m py_compile <changed.py>`
+    3. 密钥扫描：`git diff main...HEAD` 检查无硬编码凭据
+    4. 数据库迁移安全：检查 Alembic migration 无不可逆操作（`op.drop_table`/`op.drop_column` 必须有对应 downgrade）
+    5. 依赖变更审查：`requirements.txt` / `package.json` 变更需人工确认
+    6. 前端构建：`cd frontend && pnpm exec vite build`
 - 全部通过后再 `git push` + `gh pr create`
 
 ## 文档同步
@@ -123,3 +125,7 @@ pixi run dev                   # uvicorn reload
 
 - **Docker 端口问题**：WSL2 下容器 IPv6-only 监听可能导致端口转发失效。排查方法详见 `docs/`。如遇 `curl localhost:<port>` 拒绝连接但容器 Running，检查容器内部监听地址。
 - **WSL2 端口排除**：Windows WinNAT 端口排除可能占用应用端口。`netsh interface ipv4 show excludedportrange protocol=tcp` 排查。
+
+## 格式统一
+
+提交时由项目内 `.githooks/pre-commit`（prettier 收敛，与 pre-push 迁移检查共存）自动格式化（md/tsx/json/yaml 全覆盖）。无需手动格式化；机器生成/构建产物在 `.prettierignore` 排除。
