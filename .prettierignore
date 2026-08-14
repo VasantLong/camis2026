@@ -1,0 +1,4 @@
+# 机器生成/构建产物：prettier 统一跳过（如无条目，按项目需要补充）
+# 注意：ignore 为 gitignore 语法，行尾不能带内联注释
+package-lock.json
+dist/

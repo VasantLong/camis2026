@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# pre-commit — 提交前自动吸收 prettier 格式（agent 与手动提交统一生效）
+# 对 staged 的 prettier 支持语言（ts/js/json/md/yaml/css/...）跑 prettier --write 并重新 add。
+# 幂等：已格式化的文件无变化；未格式化文件首次提交时收敛（一次性 diff）。
+# 排除：机器生成文件由 .prettierignore 声明（prettier --write 自动跳过），
+#       压缩产物与 lock 文件在此显式排除。
+# 跳过条件：提交内容全部为删除/重命名/非支持扩展名。
+set -u
+
+# prettier 解析：PATH → nvm 全局 → npx（网络兜底，仅本地无 prettier 时触发）
+resolve_prettier() {
+	if command -v prettier >/dev/null 2>&1; then
+		echo prettier
+	elif [ -x "$HOME/.nvm/versions/node/v24.15.0/bin/prettier" ]; then
+		echo "$HOME/.nvm/versions/node/v24.15.0/bin/prettier"
+	else
+		echo npx
+	fi
+}
+
+PRETTIER_BIN="$(resolve_prettier)"
+FILES="$(git diff --cached --name-only --diff-filter=ACM \
+  | grep -E '\.(ts|js|mjs|cjs|json|md|mdx|yaml|yml|css|scss|sass|less|vue|svelte|html|htm|graphql|gql)$' \
+  | grep -vE '(^|/)(dist|build|vendor)/|\.min\.js$|\.bundle\.js$|package-lock\.json$' || true)"
+
+if [ -z "$FILES" ]; then
+	exit 0
+fi
+
+echo "pre-commit: prettier --write ($(echo "$FILES" | wc -l) files)"
+# 逐文件格式化（防止路径含空格时按行拆分出错；一次调用更稳，但参数可能超长）
+if [ "$PRETTIER_BIN" = "npx" ]; then
+	npx --yes prettier --write $FILES || exit 1
+else
+	"$PRETTIER_BIN" --write $FILES || exit 1
+fi
+
+# 格式化后重新暂存（commit 内容 = 格式化后内容）
+git add $FILES
